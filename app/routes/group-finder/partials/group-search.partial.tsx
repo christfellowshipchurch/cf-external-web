@@ -126,6 +126,7 @@ export const GroupSearch = () => {
     minMaxAgeValues,
     algoliaIndexes,
     campusCityByName,
+    showGroupsLaunchNotify,
   } = loaderData;
   const groupIndexName = algoliaIndexes.groups;
   const [searchParams, setSearchParams] = useSearchParams();
@@ -469,6 +470,7 @@ export const GroupSearch = () => {
               isGeoSearch={coordinates?.lat != null && coordinates?.lng != null}
               isVirtualFilterActive={isVirtualFilterActive}
               campusCityByName={campusCityByName}
+              showGroupsLaunchNotify={showGroupsLaunchNotify}
             />
           </InstantSearch>
         ) : (
@@ -502,6 +504,7 @@ export const GroupSearch = () => {
               isGeoSearch={coordinates?.lat != null && coordinates?.lng != null}
               isVirtualFilterActive={isVirtualFilterActive}
               campusCityByName={campusCityByName}
+              showGroupsLaunchNotify={showGroupsLaunchNotify}
             />
           </>
         )}
@@ -517,6 +520,7 @@ function GroupFinderInstantSearchResults({
   isGeoSearch,
   isVirtualFilterActive,
   campusCityByName,
+  showGroupsLaunchNotify,
 }: {
   initialHits: LoaderReturnType['groupHits'];
   initialNbHits: number;
@@ -524,6 +528,7 @@ function GroupFinderInstantSearchResults({
   isGeoSearch: boolean;
   isVirtualFilterActive: boolean;
   campusCityByName: LoaderReturnType['campusCityByName'];
+  showGroupsLaunchNotify: boolean;
 }) {
   const { items } = useHits<LoaderReturnType['groupHits'][number]>();
   const { nbHits } = useStats();
@@ -573,6 +578,7 @@ function GroupFinderInstantSearchResults({
       isGeoSearch={isGeoSearch}
       isVirtualFilterActive={isVirtualFilterActive}
       campusCityByName={campusCityByName}
+      showGroupsLaunchNotify={showGroupsLaunchNotify}
     />
   );
 }
@@ -589,6 +595,7 @@ function GroupFinderInitialResults({
   isGeoSearch,
   isVirtualFilterActive,
   campusCityByName,
+  showGroupsLaunchNotify,
 }: {
   groupHits: LoaderReturnType['groupHits'];
   groupNbHits: number;
@@ -601,6 +608,7 @@ function GroupFinderInitialResults({
   isGeoSearch: boolean;
   isVirtualFilterActive: boolean;
   campusCityByName: LoaderReturnType['campusCityByName'];
+  showGroupsLaunchNotify: boolean;
 }) {
   return (
     <GroupFinderResultsLayout
@@ -616,6 +624,7 @@ function GroupFinderInitialResults({
       isGeoSearch={isGeoSearch}
       isVirtualFilterActive={isVirtualFilterActive}
       campusCityByName={campusCityByName}
+      showGroupsLaunchNotify={showGroupsLaunchNotify}
     />
   );
 }
@@ -633,6 +642,7 @@ function GroupFinderResultsLayout({
   isGeoSearch,
   isVirtualFilterActive,
   campusCityByName,
+  showGroupsLaunchNotify,
 }: {
   groupHits: LoaderReturnType['groupHits'];
   groupNbHits: number;
@@ -646,11 +656,15 @@ function GroupFinderResultsLayout({
   isGeoSearch: boolean;
   isVirtualFilterActive: boolean;
   campusCityByName: LoaderReturnType['campusCityByName'];
+  showGroupsLaunchNotify: boolean;
 }) {
   return (
     <div className='flex flex-col bg-gray pt-4 pb-8 md:pt-12 md:pb-20 w-full content-padding'>
       <div className='max-w-screen-content mx-auto md:w-full'>
-        <GroupFinderResultsHeader hitCount={groupNbHits} />
+        <GroupFinderResultsHeader
+          hitCount={groupNbHits}
+          showGroupsLaunchNotify={showGroupsLaunchNotify}
+        />
         <div className='min-h-[320px]'>
           {groupHits.length === 0 && !isLoading ? (
             <p className='text-text-secondary text-center py-8'>
@@ -708,25 +722,40 @@ function GroupFinderResultsLayout({
   );
 }
 
-function GroupFinderResultsHeader({ hitCount }: { hitCount: number }) {
+function GroupFinderResultsHeader({
+  hitCount,
+  showGroupsLaunchNotify,
+}: {
+  hitCount: number;
+  showGroupsLaunchNotify: boolean;
+}) {
   const formattedHitCount = hitCount.toLocaleString();
 
   return (
-    <div className='mb-4 md:mb-6'>
+    <div className='mb-4 md:mb-6 max-w-[1296px] lg:mr-auto'>
       <div className='hidden md:flex md:items-center md:justify-between md:gap-6'>
         <FinderResultsStats hitCount={hitCount} />
-        <div className='flex items-center gap-6 text-base text-text-primary'>
-          <p>More groups available at our next launch.</p>
-          <GroupFinderNotifyTrigger variant='desktop' />
-        </div>
+        {showGroupsLaunchNotify && (
+          <div className='flex items-center gap-6 text-base text-text-primary'>
+            <p>More groups available at our next launch.</p>
+            <GroupFinderNotifyTrigger variant='desktop' />
+          </div>
+        )}
       </div>
-
       <div className='flex flex-col items-start gap-1 md:hidden'>
-        <p className='text-sm leading-5 text-text-primary'>
-          {formattedHitCount} Results - More available at our next groups
-          launch.
-        </p>
-        <GroupFinderNotifyTrigger variant='mobile' />
+        {showGroupsLaunchNotify ? (
+          <>
+            <p className='text-sm leading-5 text-text-primary'>
+              {formattedHitCount} Results - More available at our next groups
+              launch.
+            </p>
+            <GroupFinderNotifyTrigger variant='mobile' />
+          </>
+        ) : (
+          <p className='text-sm leading-5 text-text-primary'>
+            {formattedHitCount} Results
+          </p>
+        )}
       </div>
     </div>
   );

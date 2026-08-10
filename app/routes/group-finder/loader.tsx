@@ -4,7 +4,9 @@ import { algoliasearch } from 'algoliasearch';
 
 import { AuthenticationError } from '~/lib/.server/error-types';
 import { getServerAlgoliaIndexes } from '~/lib/.server/algolia-indexes.server';
+import { fetchRockData } from '~/lib/.server/fetch-rock-data';
 import type { AlgoliaIndexMap } from '~/lib/algolia-indexes';
+import { ContentItemIds } from '~/lib/rock-config';
 
 import { buildGroupFinderAlgoliaSearchParams } from './components/build-group-finder-algolia-search';
 import { parseGroupFinderUrlState } from './group-finder-url-state';
@@ -21,6 +23,8 @@ export type LoaderReturnType = {
   minMaxAgeValues: string[];
   /** Campus name -> campus city, for group cards whose groups have no meeting location. */
   campusCityByName: Record<string, string>;
+  /** True when Rock ContentChannelItem 21402 is within its active date window and approved. */
+  showGroupsLaunchNotify: boolean;
 };
 
 type CampusCityHit = {
@@ -47,6 +51,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   let groupNbPages = 0;
   let minMaxAgeValues: string[] = [];
   const campusCityByName: Record<string, string> = {};
+  let showGroupsLaunchNotify = false;
   const url = new URL(request.url);
 
   // The loader owns first paint and deep links. Once hydrated, same-page filter
@@ -111,6 +116,20 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     console.error('[group-finder] Algolia loader fetch failed', error);
   }
 
+  try {
+    const notifyItem = await fetchRockData({
+      endpoint: 'ContentChannelItems',
+      queryParams: {
+        $filter: `Id eq ${ContentItemIds.groupsLaunchNotify}`,
+      },
+      filterByDateRange: true,
+      filterByStatusApproved: true,
+    });
+    showGroupsLaunchNotify = Boolean(notifyItem && !Array.isArray(notifyItem));
+  } catch (error) {
+    console.error('[group-finder] groups launch notify fetch failed', error);
+  }
+
   return Response.json({
     // Expose only the search key needed by Algolia's browser client; interactive
     // filtering then continues client-side without re-running this loader.
@@ -123,5 +142,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     groupPage,
     minMaxAgeValues,
     campusCityByName,
+    showGroupsLaunchNotify,
   } satisfies LoaderReturnType);
 };

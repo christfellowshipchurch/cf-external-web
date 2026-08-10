@@ -4,6 +4,10 @@
  */
 export const ROCK_PUBLIC_SITE_ORIGIN = 'https://rock.christfellowship.church';
 
+export const ContentItemIds = {
+  groupsLaunchNotify: 21402,
+};
+
 export const ContentChannelIds = {
   articles: 43,
   default: 85,
