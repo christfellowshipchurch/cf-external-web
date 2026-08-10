@@ -53,9 +53,9 @@ export function isCompleteClassFinderHit(
 
   return Boolean(
     pathName &&
-      (hit.classType || '').trim() &&
-      (hit.title || '').trim() &&
-      hasCover,
+    (hit.classType || '').trim() &&
+    (hit.title || '').trim() &&
+    hasCover,
   );
 }
 
