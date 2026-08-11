@@ -30,15 +30,18 @@ function volunteerCardPropsEqual(
     volunteer: Volunteer;
     listingSearch: string;
     className?: string;
+    finderOrigin?: VolunteerFinderBackPayload['origin'];
   },
   next: {
     volunteer: Volunteer;
     listingSearch: string;
     className?: string;
+    finderOrigin?: VolunteerFinderBackPayload['origin'];
   },
 ): boolean {
   if (prev.listingSearch !== next.listingSearch) return false;
   if (prev.className !== next.className) return false;
+  if (prev.finderOrigin !== next.finderOrigin) return false;
   const p = prev.volunteer;
   const n = next.volunteer;
   if (p.objectID !== n.objectID) return false;
@@ -76,14 +79,17 @@ function VolunteerCardInner({
   volunteer,
   listingSearch,
   className,
+  finderOrigin,
 }: {
   volunteer: Volunteer;
   listingSearch: string;
   className?: string;
+  finderOrigin?: VolunteerFinderBackPayload['origin'];
 }) {
   const finderBackPayload: VolunteerFinderBackPayload = {
     missionGroupGuid: volunteer.groupGuid,
     volunteerListSearch: listingSearch,
+    origin: finderOrigin,
   };
 
   // Cover image: group photo first, Event Type Defined Value image as fallback.

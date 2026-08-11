@@ -97,7 +97,7 @@ export function VolunteerStats() {
       id='stats'
       className='w-full bg-dark-navy text-white content-padding'
     >
-      <div className='mx-auto flex w-full max-w-[1280px] flex-col py-16 md:py-24 lg:py-28'>
+      <div className='mx-auto flex w-full max-w-screen-content flex-col py-16 md:py-24 lg:py-28'>
         <header className='flex flex-col gap-4'>
           <div className='flex items-center gap-4'>
             <div className='h-1 w-8 shrink-0 bg-ocean-web' aria-hidden />
