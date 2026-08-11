@@ -23,6 +23,7 @@ import {
 } from './types';
 import { format, parseISO } from 'date-fns';
 import { fetchWistiaDataFromRock } from '~/lib/.server/fetch-wistia-data';
+import { getAttributeMatrixItems } from '~/lib/.server/rock-utils';
 import {
   buildPodcastRoutingIndex,
   PODCAST_SHOW_CHANNEL_ID,
@@ -80,9 +81,13 @@ interface RockContentItem {
 interface RockAttributeMatrixItem {
   id: string;
   attributeValues: {
-    header: RockAttributeValue;
-    content: RockAttributeValue;
-    image: RockAttributeValue;
+    header?: RockAttributeValue;
+    content?: RockAttributeValue;
+    image?: RockAttributeValue;
+    title?: RockAttributeValue;
+    summary?: RockAttributeValue;
+    cardTitle?: RockAttributeValue;
+    cardSummary?: RockAttributeValue;
   };
 }
 
@@ -199,6 +204,10 @@ export const mapPageBuilderChildItems = async (
         name: child.title,
         titleOverride: getStringValue(
           child.attributeValues?.titleOverride?.value ?? '',
+        ),
+        hideTitle: getBooleanValue(
+          child.attributeValues?.hideTitle?.value ??
+            attributeValues?.hideTitle,
         ),
         content: child.content,
         linkTreeLayout: await getLinkTreeLayout(child.attributeValues || {}),
@@ -496,39 +505,56 @@ export const mapPageBuilderChildItems = async (
           ),
           faqs: faqs.map((faq: RockAttributeMatrixItem) => ({
             id: faq.id,
-            question: faq.attributeValues.header.value,
-            answer: faq.attributeValues.content.value,
+            question: getStringValue(faq.attributeValues.header?.value ?? ''),
+            answer: getStringValue(faq.attributeValues.content?.value ?? ''),
           })),
         };
       }
 
       if (sectionType === 'IMAGE_GALLERY') {
-        const { id: matrixId } = await fetchRockData({
-          endpoint: `AttributeMatrices`,
-          queryParams: {
-            $filter: `Guid eq guid'${getStringValue(
-              attributeValues?.images || '',
-            )}'`,
-            $select: 'Id',
-          },
-        });
+        const imagesGuid = getStringValue(attributeValues?.images || '');
 
-        const imageGallery = await fetchRockData({
-          endpoint: `AttributeMatrixItems`,
-          queryParams: {
-            $filter: `AttributeMatrix/${getIdentifierType(matrixId).query}`,
-            loadAttributes: 'simple',
-          },
-        });
+        if (!imagesGuid) {
+          console.error(
+            'IMAGE_GALLERY section is missing the images attribute:',
+            child.id,
+          );
+          return { ...baseChild, imageGallery: [] };
+        }
 
-        return {
-          ...baseChild,
-          imageGallery: imageGallery.map((image: RockAttributeMatrixItem) =>
-            createImageUrlFromGuid(
-              getStringValue(image.attributeValues.image.value),
-            ),
-          ),
-        };
+        try {
+          const imageGallery = await getAttributeMatrixItems({
+            attributeMatrixGuid: imagesGuid,
+          });
+
+          return {
+            ...baseChild,
+            imageGallery: imageGallery.map((image) => {
+              const title = getStringValue(
+                image.attributeValues?.cardTitle?.value ??
+                  image.attributeValues?.title?.value ??
+                  '',
+              ).trim();
+              const summary = getStringValue(
+                image.attributeValues?.cardSummary?.value ??
+                  image.attributeValues?.summary?.value ??
+                  '',
+              ).trim();
+
+              return {
+                id: String(image.id),
+                image: createImageUrlFromGuid(
+                  getStringValue(image.attributeValues?.image?.value ?? ''),
+                ),
+                ...(title ? { title } : {}),
+                ...(summary ? { summary } : {}),
+              };
+            }),
+          };
+        } catch (error) {
+          console.error('Failed to load IMAGE_GALLERY section:', child.id, error);
+          return { ...baseChild, imageGallery: [] };
+        }
       }
 
       return baseChild;

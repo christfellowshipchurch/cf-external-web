@@ -5,32 +5,46 @@ import {
   CarouselDots,
   CarouselItem,
 } from '~/primitives/shadcn-primitives/carousel';
-import { PageBuilderSection } from '../../types';
-import { cn } from '~/lib/utils';
+import { ImageGalleryItem, PageBuilderSection } from '../../types';
 import { HTMLRenderer } from '~/primitives/html-renderer/html-renderer.component';
 
 export const ImageGallerySection = ({ data }: { data: PageBuilderSection }) => {
-  return (
-    <div className='w-full py-12 md:py-28 bg-white pl-5 md:pl-12 lg:px-18'>
-      <div className='max-w-screen-content mx-auto flex flex-col gap-12 xl:gap-20'>
-        <div className='flex flex-col gap-5 md:gap-6'>
-          <h2 className='text-2xl md:text-[52px] font-extrabold text-text-primary'>
-            {data.name}
-          </h2>
-          {data?.content?.length > 0 && (
-            <HTMLRenderer className='md:text-lg' html={data.content} />
-          )}
-        </div>
+  const sectionTitle =
+    data.titleOverride && data.titleOverride !== ''
+      ? data.titleOverride
+      : data.name;
+  const shouldShowTitle = !data.hideTitle && Boolean(sectionTitle?.trim());
+  const shouldShowContent = Boolean(data.content?.trim());
+  const shouldShowHeader = shouldShowTitle || shouldShowContent;
 
-        {/* Gallery Component */}
+  return (
+    <div className='w-full bg-white py-16 md:py-28 pl-5 md:pl-12 lg:px-18'>
+      <div className='mx-auto flex max-w-screen-content flex-col gap-12 md:gap-20'>
+        {shouldShowHeader && (
+          <div className='flex max-w-[768px] flex-col gap-5 md:gap-6'>
+            {shouldShowTitle && (
+              <h2 className='text-[48px] font-extrabold leading-[1.2] text-text-primary md:text-[52px]'>
+                {sectionTitle}
+              </h2>
+            )}
+            {shouldShowContent && (
+              <HTMLRenderer className='text-base md:text-lg' html={data.content} />
+            )}
+          </div>
+        )}
+
         <ImageGalleryComponent data={data.imageGallery} />
       </div>
     </div>
   );
 };
 
-const ImageGalleryComponent = ({ data }: { data: string[] | undefined }) => {
-  if (!data) {
+const ImageGalleryComponent = ({
+  data,
+}: {
+  data: ImageGalleryItem[] | undefined;
+}) => {
+  if (!data?.length) {
     return null;
   }
 
@@ -40,57 +54,53 @@ const ImageGalleryComponent = ({ data }: { data: string[] | undefined }) => {
         align: 'start',
       }}
     >
-      <CarouselContent
-        className={cn(
-          'gap-6 pt-4 aspect-video max-h-[176px]',
-          'md:mt-12 md:max-h-[400px]',
-          'lg:max-h-[650px]',
-          'xl:gap-8',
-          '2xl:max-h-[720px]',
-        )}
-      >
-        {data.map((image, index) => (
+      <CarouselContent className='gap-6'>
+        {data.map((item) => (
           <CarouselItem
-            key={index}
-            className={cn(
-              cn(
-                'w-full',
-                'md:basis-[95%]',
-                index !== data.length - 1
-                  ? 'md:basis-[95%] max-w-[1100px] 2xl:max-w-[1280px]'
-                  : 'md:basis-[96%] ',
-              ),
-            )}
+            key={item.id}
+            className='basis-[85%] sm:basis-[45%] lg:basis-[calc((100%-3rem)/3)]'
           >
-            <img
-              src={image}
-              alt={image}
-              className='w-full h-full object-cover'
-            />
+            <ImageGalleryCard item={item} />
           </CarouselItem>
         ))}
       </CarouselContent>
 
-      <div
-        className={cn('w-full relative mt-8 xl:mt-12 pb-8', {
-          'lg:mt-6 lg:pb-0': data.length < 4,
-        })}
-      >
-        <div className='absolute h-12 top-7 left-0'>
-          <CarouselDots
-            activeClassName='bg-ocean'
-            inactiveClassName='bg-neutral-lighter'
-          />
-        </div>
-
-        <div
-          className={cn(
-            'absolute h-12 right-44 lg:right-44 2xl:right-36 3xl:right-28',
-          )}
-        >
-          <CarouselArrows />
-        </div>
+      <div className='mt-8 flex w-full items-center justify-between md:mt-12'>
+        <CarouselDots
+          className='justify-start'
+          activeClassName='bg-ocean'
+          inactiveClassName='bg-neutral-lighter'
+        />
+        <CarouselArrows />
       </div>
     </Carousel>
+  );
+};
+
+const ImageGalleryCard = ({ item }: { item: ImageGalleryItem }) => {
+  const title = item.title?.trim();
+  const summary = item.summary?.trim();
+  const shouldShowOverlay = Boolean(title || summary);
+
+  return (
+    <div className='relative h-[194px] w-full overflow-hidden rounded-2xl md:h-[261px]'>
+      <img
+        src={item.image}
+        alt={title || 'Gallery image'}
+        className='size-full object-cover'
+      />
+      {shouldShowOverlay && (
+        <div className='absolute inset-x-0 bottom-0 flex flex-col gap-1 overflow-hidden bg-black/65 px-4 py-3'>
+          {title && (
+            <p className='text-sm font-semibold text-white md:text-base'>
+              {title}
+            </p>
+          )}
+          {summary && (
+            <p className='text-xs text-white/80 md:text-[13px]'>{summary}</p>
+          )}
+        </div>
+      )}
+    </div>
   );
 };

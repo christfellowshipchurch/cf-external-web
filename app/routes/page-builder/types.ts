@@ -58,12 +58,23 @@ export type FAQ = {
 };
 
 /**
+ * Represents a single image in an Image Gallery section
+ */
+export type ImageGalleryItem = {
+  id: string;
+  image: string;
+  title?: string;
+  summary?: string;
+};
+
+/**
  * Represents Image Gallery data structure for mock data
  */
 export type ImageGallery = {
   id: string;
-  images: string[];
+  images: ImageGalleryItem[];
   description?: string;
+  hideTitle?: boolean;
 };
 
 /**
@@ -96,6 +107,7 @@ export type PageBuilderSection = {
   id: string;
   name: string;
   titleOverride?: string;
+  hideTitle?: boolean;
   content: string;
   type: SectionType;
   linkTreeLayout?: 'GRID' | 'LIST'; // only used for resource collections
@@ -103,7 +115,7 @@ export type PageBuilderSection = {
   faqs?: FAQItem[];
   stillHaveQuestionsLink?: string; // only in FAQs component
   cta?: CallToAction; // Used in FAQs component
-  imageGallery?: string[];
+  imageGallery?: ImageGalleryItem[];
   viewMoreLink?: string | undefined;
   className?: string; // Location Single pages uses page builder components that want custom padding around
 };
