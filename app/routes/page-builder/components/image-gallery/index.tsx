@@ -18,7 +18,7 @@ export const ImageGallerySection = ({ data }: { data: PageBuilderSection }) => {
   const shouldShowHeader = shouldShowTitle || shouldShowContent;
 
   return (
-    <div className='w-full bg-white py-16 md:py-28 pl-5 md:pl-12 lg:px-18'>
+    <div className='w-full bg-white py-16 pb-10 md:py-28 pl-5 md:pl-12 lg:px-18'>
       <div className='mx-auto flex max-w-screen-content flex-col gap-12 md:gap-20'>
         {shouldShowHeader && (
           <div className='flex max-w-[768px] flex-col gap-5 md:gap-6'>
@@ -58,14 +58,14 @@ const ImageGalleryComponent = ({
         {data.map((item) => (
           <CarouselItem
             key={item.id}
-            className='basis-[85%] sm:basis-[45%] lg:basis-[calc((100%-3rem)/3)]'
+            className='basis-[68%] sm:basis-[45%] lg:basis-[calc((100%-3rem)/3)]'
           >
             <ImageGalleryCard item={item} />
           </CarouselItem>
         ))}
       </CarouselContent>
 
-      <div className='mt-8 flex w-full items-center justify-between md:mt-12'>
+      <div className='mt-5 flex w-full items-center justify-between pr-5 md:mt-8 md:pr-0'>
         <CarouselDots
           className='justify-start'
           activeClassName='bg-ocean'
@@ -83,7 +83,7 @@ const ImageGalleryCard = ({ item }: { item: ImageGalleryItem }) => {
   const shouldShowOverlay = Boolean(title || summary);
 
   return (
-    <div className='relative h-[194px] w-full overflow-hidden rounded-2xl md:h-[261px]'>
+    <div className='relative aspect-square w-full overflow-hidden rounded-2xl md:aspect-auto md:h-[261px]'>
       <img
         src={item.image}
         alt={title || 'Gallery image'}
