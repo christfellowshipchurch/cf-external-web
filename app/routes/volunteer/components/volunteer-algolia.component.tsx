@@ -194,7 +194,7 @@ function VolunteerHitsGrid({ onShowMore }: { onShowMore: () => void }) {
   const canShowMore = hits.length < nbHits;
 
   return (
-    <div className='border-t border-neutral-lighter bg-gray content-padding py-6'>
+    <div className='border-t border-neutral-lighter bg-gray content-padding py-8 md:pb-16'>
       <ul className='mx-auto grid w-full max-w-screen-content grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 lg:gap-8'>
         {hits.map((hit) => (
           <li key={hit.objectID} className='min-w-0'>
