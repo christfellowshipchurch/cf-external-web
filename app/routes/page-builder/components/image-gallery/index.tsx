@@ -28,7 +28,10 @@ export const ImageGallerySection = ({ data }: { data: PageBuilderSection }) => {
               </h2>
             )}
             {shouldShowContent && (
-              <HTMLRenderer className='text-base md:text-lg' html={data.content} />
+              <HTMLRenderer
+                className='text-base md:text-lg'
+                html={data.content}
+              />
             )}
           </div>
         )}

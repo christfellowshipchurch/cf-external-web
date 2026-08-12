@@ -206,8 +206,7 @@ export const mapPageBuilderChildItems = async (
           child.attributeValues?.titleOverride?.value ?? '',
         ),
         hideTitle: getBooleanValue(
-          child.attributeValues?.hideTitle?.value ??
-            attributeValues?.hideTitle,
+          child.attributeValues?.hideTitle?.value ?? attributeValues?.hideTitle,
         ),
         content: child.content,
         linkTreeLayout: await getLinkTreeLayout(child.attributeValues || {}),
@@ -552,7 +551,11 @@ export const mapPageBuilderChildItems = async (
             }),
           };
         } catch (error) {
-          console.error('Failed to load IMAGE_GALLERY section:', child.id, error);
+          console.error(
+            'Failed to load IMAGE_GALLERY section:',
+            child.id,
+            error,
+          );
           return { ...baseChild, imageGallery: [] };
         }
       }
