@@ -439,21 +439,21 @@ export function VolunteerAlgolia({
         }
       />
 
-      {/* Mobile: sticky strip + bottom-sheet filter popups (parent must be `md:hidden` only here) */}
-      <div className='flex flex-col gap-4 md:hidden'>
-        <div className='flex w-full min-w-0 max-w-[100vw] flex-col'>
-          <FinderStickyBar>
-            <div className='mx-auto flex w-full max-w-screen-content flex-col gap-3 py-4'>
-              <SearchFilters
-                onClearAllToUrl={() => {}}
-                desktopFilters={desktopFilters}
-                compactInlineFilterCount={2}
-              />
-            </div>
-            <ActiveFilters />
-          </FinderStickyBar>
+      {/*
+        Mobile sticky filters must be a direct InstantSearch sibling of the
+        results (same as group/class finder). A short `md:hidden` wrapper around
+        only the bar makes `position: sticky` leave with that short box.
+      */}
+      <FinderStickyBar className='md:hidden max-w-[100vw]'>
+        <div className='mx-auto flex w-full max-w-screen-content flex-col gap-3 py-4'>
+          <SearchFilters
+            onClearAllToUrl={() => {}}
+            desktopFilters={desktopFilters}
+            compactInlineFilterCount={2}
+          />
         </div>
-      </div>
+        <ActiveFilters />
+      </FinderStickyBar>
 
       {/* Desktop: inline category pills + clear + campus */}
       <div
