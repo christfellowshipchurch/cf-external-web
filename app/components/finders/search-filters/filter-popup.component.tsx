@@ -1,6 +1,7 @@
 import React, {
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -360,6 +361,40 @@ export const FilterPopup = ({
   const isBottomSheet = layout === 'bottomSheet';
   const isEmbedded = layout === 'embedded';
 
+  // Desktop popovers sit under the sticky filter bar. A fixed vh max-height
+  // ignores that offset, so on short viewports the Clear / Show footer can sit
+  // below the fold while page scroll is locked. Cap height to remaining space.
+  const [viewportMaxHeightPx, setViewportMaxHeightPx] = useState<number | null>(
+    null,
+  );
+
+  useLayoutEffect(() => {
+    if (!showSection || isBottomSheet || isEmbedded) {
+      setViewportMaxHeightPx(null);
+      return;
+    }
+
+    const BOTTOM_GAP_PX = 16;
+    const MIN_HEIGHT_PX = 200;
+
+    const updateMaxHeight = () => {
+      const el = ref.current;
+      if (!el) return;
+      const top = el.getBoundingClientRect().top;
+      setViewportMaxHeightPx(
+        Math.max(MIN_HEIGHT_PX, window.innerHeight - top - BOTTOM_GAP_PX),
+      );
+    };
+
+    updateMaxHeight();
+    const rafId = window.requestAnimationFrame(updateMaxHeight);
+    window.addEventListener('resize', updateMaxHeight);
+    return () => {
+      window.cancelAnimationFrame(rafId);
+      window.removeEventListener('resize', updateMaxHeight);
+    };
+  }, [showSection, isBottomSheet, isEmbedded]);
+
   const multiSection = data.content.length > 1;
 
   const bodyScrollable = (
@@ -471,7 +506,9 @@ export const FilterPopup = ({
     <div
       ref={ref}
       className={cn(
-        'cursor-default z-10 flex max-h-[min(70vh,calc(100dvh-10rem))] flex-col bg-white',
+        // Fallback max-height before layout measurement; JS overrides with
+        // remaining viewport space so the footer stays on-screen on short displays.
+        'cursor-default z-10 flex min-h-0 max-h-[min(70vh,calc(100dvh-12rem))] flex-col bg-white',
         'rounded-2xl border border-neutral-lighter overflow-hidden',
         'absolute top-[65px] right-1/2 w-[280px] translate-x-1/2 xl:w-[320px]',
         showSection
@@ -481,7 +518,12 @@ export const FilterPopup = ({
       )}
       style={
         showSection
-          ? style
+          ? {
+              ...style,
+              ...(viewportMaxHeightPx != null
+                ? { maxHeight: viewportMaxHeightPx }
+                : null),
+            }
           : { ...style, left: '-9999px', pointerEvents: 'none' }
       }
       onClick={(e) => e.stopPropagation()}
