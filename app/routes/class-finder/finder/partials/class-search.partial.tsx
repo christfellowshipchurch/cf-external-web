@@ -29,6 +29,11 @@ import {
   groupClassTypeHits,
   syntheticHitsFromGrouped,
 } from '../components/group-class-type-hits';
+import {
+  JOURNEY_CARD_OBJECT_ID,
+  JOURNEY_CARD_URL,
+  withJourneyCardFirst,
+} from '../components/journey-pinned-card';
 import { useAlgoliaUrlSync } from '~/hooks/use-algolia-url-sync';
 import { useScrollToSearchResultsOnLoad } from '~/hooks/use-scroll-to-search-results-on-load';
 import { HubsTagsRefinementList } from '~/components/hubs-tags-refinement';
@@ -378,7 +383,12 @@ function ClassTypeGroupedResults({
     [grouped],
   );
 
-  const mappedHits = algoliaHits;
+  // Journey is not in the classes index. Pin it after grouping so it is not
+  // rewritten or dropped by isCompleteClassFinderHit / syntheticHitsFromGrouped.
+  const mappedHits = useMemo(
+    () => withJourneyCardFirst(algoliaHits),
+    [algoliaHits],
+  );
 
   const start = (currentPage - 1) * ITEMS_PER_PAGE;
   const pageHits = mappedHits.slice(start, start + ITEMS_PER_PAGE);
@@ -418,6 +428,11 @@ function ClassTypeGroupedResults({
                   key={hit.objectID}
                   hit={hit}
                   fromClassFinderUrl={fromClassFinderUrl}
+                  to={
+                    hit.objectID === JOURNEY_CARD_OBJECT_ID
+                      ? JOURNEY_CARD_URL
+                      : undefined
+                  }
                 />
               ))}
             </div>
