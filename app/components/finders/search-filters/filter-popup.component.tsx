@@ -247,6 +247,7 @@ export function MobileFilterBottomSheet({
           role='dialog'
           aria-modal='true'
           aria-labelledby='filter-sheet-title'
+          data-finder-filter-popup
           className={cn(
             'pointer-events-auto box-border flex w-full min-w-0 max-w-full max-h-[min(85dvh,820px)] min-h-[min(32vh,280px)] flex-col overflow-x-hidden',
             'rounded-t-2xl border-t-2 border-neutral-200 bg-white',
@@ -508,6 +509,7 @@ export const FilterPopup = ({
   return (
     <div
       ref={ref}
+      data-finder-filter-popup
       className={cn(
         // Fallback max-height before layout measurement; JS overrides with
         // remaining viewport space so the footer stays on-screen on short displays.
@@ -530,6 +532,8 @@ export const FilterPopup = ({
           : { ...style, left: '-9999px', pointerEvents: 'none' }
       }
       onClick={(e) => e.stopPropagation()}
+      onPointerDown={(e) => e.stopPropagation()}
+      onMouseDown={(e) => e.stopPropagation()}
     >
       <div className='flex shrink-0 items-center justify-between p-4 pb-1'>
         <h3 className='text-xl font-bold text-black'>{popupTitle}</h3>

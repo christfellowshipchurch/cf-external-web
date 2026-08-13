@@ -20,16 +20,43 @@ const MORE_FILTERS_ID = 'moreFilters';
 
 /** Avoid focusing sticky pills — browsers scroll them to their in-flow (page-top) position. */
 function onFinderFilterPillPointerDown(event: ReactPointerEvent) {
+  // Embedded desktop popups live inside the pill; don't block their inputs/selects.
+  // Clicks on labels may target a Text node (no `.closest`).
+  const el =
+    event.target instanceof Element
+      ? event.target
+      : event.target instanceof Node
+        ? event.target.parentElement
+        : null;
+  if (el?.closest('[data-finder-filter-popup]')) {
+    return;
+  }
   if (event.pointerType === 'mouse') {
     event.preventDefault();
   }
 }
 
-function isInsideSearchFiltersPortal(target: unknown): boolean {
-  if (target == null || typeof target !== 'object') return false;
-  const el = target as { closest?: (selector: string) => unknown };
-  if (typeof el.closest !== 'function') return false;
-  return el.closest('[data-search-filters-portal]') != null;
+function isInsideFinderFilterSurface(event: Event): boolean {
+  const path = typeof event.composedPath === 'function' ? event.composedPath() : [];
+  for (const node of path) {
+    if (!(node instanceof Element)) continue;
+    if (
+      node.matches(
+        '[data-search-filters-portal], [data-finder-filter-popup]',
+      )
+    ) {
+      return true;
+    }
+  }
+  // Fallback when composedPath is empty (older environments).
+  const target = event.target;
+  if (!(target instanceof Node)) return false;
+  const el = target instanceof Element ? target : target.parentElement;
+  return (
+    el?.closest(
+      '[data-search-filters-portal], [data-finder-filter-popup]',
+    ) != null
+  );
 }
 
 function uniqueAttributesFromFilterData(data: FilterPopupData): string[] {
@@ -195,8 +222,10 @@ export function SearchFilters({
   };
 
   useEffect(() => {
-    const handleClickOutside = (event: Event) => {
-      if (isInsideSearchFiltersPortal(event.target)) {
+    // Use `click` (not pointerdown/mousedown): closing on pointerdown unmounts the
+    // sheet before Apply's click runs, so zip geocode never starts.
+    const handleClickOutside = (event: MouseEvent) => {
+      if (isInsideFinderFilterSurface(event)) {
         return;
       }
       const { target } = event;
@@ -210,13 +239,11 @@ export function SearchFilters({
     };
 
     if (activeDropdown) {
-      document.addEventListener('mousedown', handleClickOutside);
-      document.addEventListener('pointerdown', handleClickOutside);
+      document.addEventListener('click', handleClickOutside);
     }
 
     return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-      document.removeEventListener('pointerdown', handleClickOutside);
+      document.removeEventListener('click', handleClickOutside);
     };
   }, [activeDropdown]);
 
