@@ -417,7 +417,7 @@ export const GroupSearch = () => {
             />
 
             <FinderStickyBar>
-              <div className='mx-auto flex max-w-screen-content flex-col gap-3 py-4 md:flex-row md:items-center md:gap-4'>
+              <div className='mx-auto flex w-full min-w-0 max-w-screen-content flex-col gap-3 py-4 md:flex-row md:items-center md:gap-4'>
                 <GroupFinderQueryInput
                   query={urlState.query}
                   onQueryCommit={commitQuery}
@@ -428,34 +428,36 @@ export const GroupSearch = () => {
                   aria-hidden
                   className='hidden h-8 w-px shrink-0 bg-[#DEE0E3] md:block'
                 />
-                <SearchFilters
-                  onClearAllToUrl={clearAllFiltersFromUrl}
-                  desktopFilters={desktopFilters}
-                  compactInlineFilterCount={2}
-                  filterPopupAgeInput={ageInput}
-                  setFilterPopupAgeInput={setAgeInput}
-                  isFilterPillSupplementallyActive={
-                    isFilterPillSupplementallyActive
-                  }
-                  renderMorePanel={({
-                    onHide,
-                    onClearAllToUrl,
-                    mobileBottomSheet,
-                  }) => (
-                    <GroupFinderOverflowFiltersPanel
-                      onHide={onHide}
-                      ageInput={ageInput}
-                      setAgeInput={setAgeInput}
-                      coordinates={coordinates}
-                      setCoordinates={setCoordinates}
-                      locationSource={locationSource}
-                      onLocationKind={setLocationSource}
-                      onClearAllToUrl={onClearAllToUrl}
-                      mobileBottomSheet={mobileBottomSheet}
-                      bottomSheetTitle={GROUP_FINDER_MORE_POPUP_TITLE}
-                    />
-                  )}
-                />
+                <div className='min-w-0 w-full flex-1'>
+                  <SearchFilters
+                    onClearAllToUrl={clearAllFiltersFromUrl}
+                    desktopFilters={desktopFilters}
+                    compactInlineFilterCount={2}
+                    filterPopupAgeInput={ageInput}
+                    setFilterPopupAgeInput={setAgeInput}
+                    isFilterPillSupplementallyActive={
+                      isFilterPillSupplementallyActive
+                    }
+                    renderMorePanel={({
+                      onHide,
+                      onClearAllToUrl,
+                      mobileBottomSheet,
+                    }) => (
+                      <GroupFinderOverflowFiltersPanel
+                        onHide={onHide}
+                        ageInput={ageInput}
+                        setAgeInput={setAgeInput}
+                        coordinates={coordinates}
+                        setCoordinates={setCoordinates}
+                        locationSource={locationSource}
+                        onLocationKind={setLocationSource}
+                        onClearAllToUrl={onClearAllToUrl}
+                        mobileBottomSheet={mobileBottomSheet}
+                        bottomSheetTitle={GROUP_FINDER_MORE_POPUP_TITLE}
+                      />
+                    )}
+                  />
+                </div>
               </div>
               <ActiveFilters
                 onClearAllToUrl={clearAllFiltersFromUrl}
@@ -479,7 +481,7 @@ export const GroupSearch = () => {
                 reserve filter space with a skeleton. This avoids a blank grid
                 while the client-only Algolia widgets boot. */}
             <FinderStickyBar>
-              <div className='mx-auto flex max-w-screen-content flex-col gap-3 py-4 md:flex-row md:items-center md:gap-4'>
+              <div className='mx-auto flex w-full min-w-0 max-w-screen-content flex-col gap-3 py-4 md:flex-row md:items-center md:gap-4'>
                 <GroupFinderQueryInput
                   query={urlState.query}
                   onQueryCommit={commitQuery}
@@ -488,7 +490,9 @@ export const GroupSearch = () => {
                   aria-hidden
                   className='hidden h-8 w-px shrink-0 bg-[#DEE0E3] md:block'
                 />
-                <GroupFinderFiltersSkeleton />
+                <div className='min-w-0 w-full flex-1'>
+                  <GroupFinderFiltersSkeleton />
+                </div>
               </div>
             </FinderStickyBar>
 

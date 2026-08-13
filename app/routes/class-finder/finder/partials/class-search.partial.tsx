@@ -217,8 +217,8 @@ export const ClassSearch = () => {
             <ClassFinderInstantSearchSync />
             <Configure hitsPerPage={CLASS_FINDER_LOADER_HITS_PER_PAGE} />
             <FinderStickyBar>
-              <div className='mx-auto flex max-w-screen-content flex-col gap-3 py-4 md:flex-row md:items-center md:gap-4'>
-                <div className='w-full md:w-[240px] lg:w-[250px] xl:w-[266px] flex items-center rounded-lg border border-[#DEE0E3] focus-within:border-ocean py-2'>
+              <div className='mx-auto flex w-full min-w-0 max-w-screen-content flex-col gap-3 py-4 md:flex-row md:items-center md:gap-4'>
+                <div className='flex w-full shrink-0 items-center rounded-lg border border-[#DEE0E3] py-2 focus-within:border-ocean md:w-[240px] lg:w-[250px] xl:w-[266px]'>
                   <Icon
                     name='searchAlt'
                     className='text-neutral-default ml-3'
@@ -242,7 +242,7 @@ export const ClassSearch = () => {
                   />
                 </div>
 
-                <div className='lg:hidden w-full'>
+                <div className='min-w-0 w-full flex-1 lg:hidden'>
                   <SearchFilters
                     onClearAllToUrl={clearAllFiltersFromUrl}
                     desktopFilters={CLASS_SEARCH_DESKTOP_FILTERS}
@@ -295,12 +295,14 @@ export const ClassSearch = () => {
                 Hold those on screen and show filter skeletons until client-side
                 InstantSearch is ready to take over. */}
             <FinderStickyBar>
-              <div className='mx-auto flex max-w-screen-content flex-col gap-3 py-4 md:flex-row md:items-center md:gap-4'>
+              <div className='mx-auto flex w-full min-w-0 max-w-screen-content flex-col gap-3 py-4 md:flex-row md:items-center md:gap-4'>
                 <div
-                  className='h-[42px] w-full animate-pulse rounded-lg bg-neutral-200 md:w-[240px] lg:w-[250px] xl:w-[266px]'
+                  className='h-[42px] w-full shrink-0 animate-pulse rounded-lg bg-neutral-200 md:w-[240px] lg:w-[250px] xl:w-[266px]'
                   aria-hidden
                 />
-                <ClassFinderFiltersSkeleton />
+                <div className='min-w-0 w-full flex-1'>
+                  <ClassFinderFiltersSkeleton />
+                </div>
               </div>
             </FinderStickyBar>
 
