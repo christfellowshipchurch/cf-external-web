@@ -148,7 +148,13 @@ export function Navbar() {
     return () => {
       window.removeEventListener('scroll', handleScroll);
     };
-  }, [defaultMode, isNavbarHidden, isSearchOpen, openDropdown, isFinderFilterOpenRef]);
+  }, [
+    defaultMode,
+    isNavbarHidden,
+    isSearchOpen,
+    openDropdown,
+    isFinderFilterOpenRef,
+  ]);
 
   // Initial mode setup
   useEffect(() => {
