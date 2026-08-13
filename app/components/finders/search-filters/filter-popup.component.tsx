@@ -471,7 +471,7 @@ export const FilterPopup = ({
     <div
       ref={ref}
       className={cn(
-        'cursor-default z-10 flex flex-col gap-4 bg-white',
+        'cursor-default z-10 flex max-h-[min(70vh,calc(100dvh-10rem))] flex-col bg-white',
         'rounded-2xl border border-neutral-lighter overflow-hidden',
         'absolute top-[65px] right-1/2 w-[280px] translate-x-1/2 xl:w-[320px]',
         showSection
@@ -484,17 +484,23 @@ export const FilterPopup = ({
           ? style
           : { ...style, left: '-9999px', pointerEvents: 'none' }
       }
+      onClick={(e) => e.stopPropagation()}
     >
-      <div className='flex items-center justify-between p-4 pb-1'>
+      <div className='flex shrink-0 items-center justify-between p-4 pb-1'>
         <h3 className='text-xl font-bold text-black'>{popupTitle}</h3>
         <div className='cursor-pointer!' onClick={() => onHide()}>
           <Icon name='x' color='black' />
         </div>
       </div>
 
-      {bodyScrollable}
+      <div
+        data-finder-filter-scroll
+        className='min-h-0 flex-1 overflow-y-auto overscroll-contain'
+      >
+        {bodyScrollable}
+      </div>
 
-      {footerEl}
+      {footerEl ? <div className='shrink-0 bg-white'>{footerEl}</div> : null}
     </div>
   );
 };

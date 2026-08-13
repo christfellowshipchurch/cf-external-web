@@ -53,7 +53,8 @@ export function Navbar() {
 
   const [showSiteBanner, setShowSiteBanner] = useState<boolean>(false);
 
-  const { setIsNavbarVisible, setIsSiteBannerVisible } = useNavbarVisibility();
+  const { setIsNavbarVisible, setIsSiteBannerVisible, isFinderFilterOpenRef } =
+    useNavbarVisibility();
 
   // Check if navbar should be hidden for current route
   const isNavbarHidden = shouldHideNavbar(pathname);
@@ -101,10 +102,13 @@ export function Navbar() {
     }
 
     const handleScroll = () => {
-      // Don't hide/translate the navbar while search or a mega-menu is open.
-      // `-translate-y-full` uses the CSS `translate` property, which makes
-      // fixed/absolute dropdowns position relative to the nav and detaches them.
-      if (isSearchOpen || openDropdown) {
+      // Don't hide/translate the navbar while search, a mega-menu, or a finder
+      // filter popover is open. `-translate-y-full` uses the CSS `translate`
+      // property, which makes fixed/absolute dropdowns position relative to
+      // the nav and detaches them. Finder filters also need the navbar frozen
+      // so scroll cannot re-show the nav/banner over Clear / Show results.
+      // Use the ref so the freeze is synchronous (React state alone races).
+      if (isSearchOpen || openDropdown || isFinderFilterOpenRef.current) {
         return;
       }
 
@@ -144,7 +148,7 @@ export function Navbar() {
     return () => {
       window.removeEventListener('scroll', handleScroll);
     };
-  }, [defaultMode, isNavbarHidden, isSearchOpen, openDropdown]);
+  }, [defaultMode, isNavbarHidden, isSearchOpen, openDropdown, isFinderFilterOpenRef]);
 
   // Initial mode setup
   useEffect(() => {

@@ -14,6 +14,7 @@ import {
   type FilterPopupData,
 } from '~/components/finders/search-filters/filter-popup.component';
 import { cn } from '~/lib/utils';
+import { useNavbarVisibility } from '~/providers/navbar-visibility-context';
 const MORE_FILTERS_ID = 'moreFilters';
 
 function isInsideSearchFiltersPortal(target: unknown): boolean {
@@ -95,6 +96,7 @@ export function SearchFilters({
   groupedFooterCount = false,
 }: SearchFiltersProps) {
   const { indexUiState } = useInstantSearch();
+  const { setIsFinderFilterOpen } = useNavbarVisibility();
   const refinementList = useMemo(
     () => (indexUiState.refinementList ?? {}) as Record<string, string[]>,
     [indexUiState.refinementList],
@@ -111,6 +113,70 @@ export function SearchFilters({
     mq.addEventListener('change', apply);
     return () => mq.removeEventListener('change', apply);
   }, []);
+
+  // Desktop/tablet popovers: freeze navbar hide/show and block page scroll so
+  // the sticky filter bar (and absolute popup) stay put. Do NOT set
+  // overflow:hidden on html/body — that breaks position:sticky and leaves the
+  // popup clipped above the viewport when the navbar was open.
+  // Mobile bottom sheets already lock scroll in MobileFilterBottomSheet.
+  useEffect(() => {
+    const isDesktopFilterOpen =
+      Boolean(activeDropdown) && !useMobileBottomSheet;
+    setIsFinderFilterOpen(isDesktopFilterOpen);
+
+    if (!isDesktopFilterOpen) {
+      return () => setIsFinderFilterOpen(false);
+    }
+
+    const isInFilterPopupScroll = (target: unknown) => {
+      if (!(target instanceof Element)) return false;
+      return target.closest('[data-finder-filter-scroll]') != null;
+    };
+
+    const preventPageScroll = (event: Event) => {
+      if (isInFilterPopupScroll(event.target)) return;
+      event.preventDefault();
+    };
+
+    const preventScrollKeys = (event: Event) => {
+      const key = 'key' in event ? String((event as { key: string }).key) : '';
+      const scrollKeys = new Set([
+        'ArrowUp',
+        'ArrowDown',
+        'PageUp',
+        'PageDown',
+        'Home',
+        'End',
+        ' ',
+      ]);
+      if (!scrollKeys.has(key)) return;
+      const target = event.target;
+      if (
+        target instanceof HTMLElement &&
+        (target.tagName === 'INPUT' ||
+          target.tagName === 'TEXTAREA' ||
+          target.tagName === 'SELECT' ||
+          target.isContentEditable)
+      ) {
+        return;
+      }
+      if (isInFilterPopupScroll(target)) return;
+      event.preventDefault();
+    };
+
+    document.addEventListener('wheel', preventPageScroll, { passive: false });
+    document.addEventListener('touchmove', preventPageScroll, {
+      passive: false,
+    });
+    document.addEventListener('keydown', preventScrollKeys);
+
+    return () => {
+      setIsFinderFilterOpen(false);
+      document.removeEventListener('wheel', preventPageScroll);
+      document.removeEventListener('touchmove', preventPageScroll);
+      document.removeEventListener('keydown', preventScrollKeys);
+    };
+  }, [activeDropdown, useMobileBottomSheet, setIsFinderFilterOpen]);
 
   const hasCompactOverflow =
     compactInlineFilterCount != null &&
