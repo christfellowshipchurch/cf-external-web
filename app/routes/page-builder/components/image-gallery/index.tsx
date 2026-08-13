@@ -154,7 +154,7 @@ const ImageGalleryLightbox = ({
       <Dialog.Portal>
         <Dialog.Overlay className='fixed inset-0 z-499 bg-black/70 data-[state=closed]:animate-dialogOverlayHide data-[state=open]:animate-dialogOverlayShow' />
         <Dialog.Content
-          className='fixed top-1/2 left-1/2 z-500 max-h-[90vh] w-[min(92vw,1100px)] -translate-x-1/2 -translate-y-1/2 outline-none data-[state=closed]:animate-dialogContentHide data-[state=open]:animate-dialogContentShow'
+          className='fixed inset-0 z-500 m-auto h-fit max-h-[90vh] w-[min(92vw,1100px)] origin-center outline-none data-[state=closed]:animate-lightboxHide data-[state=open]:animate-lightboxShow'
           aria-describedby={undefined}
         >
           <VisuallyHidden.Root>
