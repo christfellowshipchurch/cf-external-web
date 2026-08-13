@@ -55,7 +55,9 @@ vi.mock('~/primitives/shadcn-primitives/carousel', () => ({
   CarouselContent: ({ children }: { children: ReactNode }) => (
     <div>{children}</div>
   ),
-  CarouselItem: ({ children }: { children: ReactNode }) => <div>{children}</div>,
+  CarouselItem: ({ children }: { children: ReactNode }) => (
+    <div>{children}</div>
+  ),
   CarouselArrows: () => null,
   CarouselDots: () => null,
 }));

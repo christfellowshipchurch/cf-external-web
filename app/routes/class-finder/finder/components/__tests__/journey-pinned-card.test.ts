@@ -87,9 +87,7 @@ describe('shouldShowJourneyCard', () => {
   });
 
   it('shows the Journey card when the Spiritual Growth topic is selected', () => {
-    expect(
-      shouldShowJourneyCard({ topic: [JOURNEY_CARD_TOPIC] }),
-    ).toBe(true);
+    expect(shouldShowJourneyCard({ topic: [JOURNEY_CARD_TOPIC] })).toBe(true);
   });
 
   // Multi-select topics still include Journey's topic, so keep it pinned.

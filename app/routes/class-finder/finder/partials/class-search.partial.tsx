@@ -399,8 +399,7 @@ function ClassTypeGroupedResults({
   // Journey is not in the classes index. Pin it after grouping so it is not
   // rewritten or dropped by isCompleteClassFinderHit / syntheticHitsFromGrouped.
   const mappedHits = useMemo(
-    () =>
-      showJourneyCard ? withJourneyCardFirst(algoliaHits) : algoliaHits,
+    () => (showJourneyCard ? withJourneyCardFirst(algoliaHits) : algoliaHits),
     [algoliaHits, showJourneyCard],
   );
 
