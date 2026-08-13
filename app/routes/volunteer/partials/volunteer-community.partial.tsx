@@ -19,7 +19,7 @@ export function VolunteerCommunity() {
     <section id='community' className='w-full bg-white md:bg-gray py-28'>
       <div className='flex flex-col gap-4'>
         <div className='content-padding'>
-          <div className='max-w-[1280px] mx-auto flex flex-col gap-6'>
+          <div className='max-w-screen-content mx-auto flex flex-col gap-6'>
             <SectionTitle sectionTitle='Needs in our region' />
             <div className='flex flex-col gap-4 md:flex-row md:items-end md:justify-between'></div>
             <h2 className='text-[40px] font-extrabold leading-tight text-text-primary md:text-[52px]'>
@@ -48,7 +48,7 @@ export function VolunteerCommunity() {
         </div>
 
         <div className='content-padding'>
-          <div className='max-w-[1280px] mx-auto mt-16 flex flex-col md:flex-row items-center justify-center gap-6 text-center'>
+          <div className='max-w-screen-content mx-auto mt-16 flex flex-col md:flex-row items-center justify-center gap-6 text-center'>
             <p className='md:text-lg font-semibold text-neutral-dark'>
               Have a skill set we should know about?
             </p>

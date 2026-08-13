@@ -6,7 +6,7 @@ export type VolunteerFinderBackPayload = {
   /** `location.search` on the originating finder (`""` or `?category=…`). */
   volunteerListSearch: string;
   /** Omitted by existing volunteer cards; they continue to use the volunteer finder. */
-  origin?: 'missions-private-events';
+  origin?: 'missions-private-events' | 'community-opportunities';
 };
 
 export const VOLUNTEER_FINDER_BACK_STORAGE_KEY =
@@ -23,7 +23,11 @@ function parseFinderBackPayload(
     return null;
   }
   if (typeof o.volunteerListSearch !== 'string') return null;
-  if (o.origin !== undefined && o.origin !== 'missions-private-events') {
+  if (
+    o.origin !== undefined &&
+    o.origin !== 'missions-private-events' &&
+    o.origin !== 'community-opportunities'
+  ) {
     return null;
   }
   return {

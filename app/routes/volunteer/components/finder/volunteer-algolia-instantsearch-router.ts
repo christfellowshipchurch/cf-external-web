@@ -31,6 +31,17 @@ export function createVolunteerAlgoliaInstantSearchRouter(
     onUpdateCallbackRef,
   } = refs;
 
+  /**
+   * InstantSearch often emits an empty uiState once before widgets hydrate from
+   * `router.read()`. Writing that clears landing URL params; our searchParams →
+   * onUpdate effect then wipes InstantSearch. Skip that first divergent write.
+   *
+   * Also ignore writes after dispose / after navigating away — the previous
+   * page's InstantSearch can call `setSearchParams({})` against the new route.
+   */
+  let hasCompletedInitialWrite = false;
+  let isDisposed = false;
+
   return {
     createURL(routeState: VolunteerAlgoliaUrlState): string {
       const params = volunteerAlgoliaUrlStateToParams(routeState);
@@ -42,7 +53,28 @@ export function createVolunteerAlgoliaInstantSearchRouter(
       return parseVolunteerAlgoliaUrlState(searchParamsRef.current);
     },
     write(routeState: VolunteerAlgoliaUrlState): void {
-      setSearchParamsRef.current(volunteerAlgoliaUrlStateToParams(routeState), {
+      if (isDisposed) return;
+
+      if (
+        typeof window !== 'undefined' &&
+        window.location.pathname !== pathnameRef.current
+      ) {
+        return;
+      }
+
+      const params = volunteerAlgoliaUrlStateToParams(routeState);
+      const current = searchParamsRef.current?.toString() ?? '';
+      if (params.toString() === current) {
+        hasCompletedInitialWrite = true;
+        return;
+      }
+
+      if (!hasCompletedInitialWrite) {
+        hasCompletedInitialWrite = true;
+        return;
+      }
+
+      setSearchParamsRef.current(params, {
         replace: true,
         preventScrollReset: true,
       });
@@ -51,6 +83,7 @@ export function createVolunteerAlgoliaInstantSearchRouter(
       onUpdateCallbackRef.current = callback;
     },
     dispose(): void {
+      isDisposed = true;
       onUpdateCallbackRef.current = null;
     },
   };
