@@ -5,6 +5,7 @@ import {
   useRef,
   useState,
   type ComponentProps,
+  type PointerEvent as ReactPointerEvent,
   type ReactNode,
 } from 'react';
 import { useInstantSearch } from 'react-instantsearch';
@@ -14,7 +15,15 @@ import {
   type FilterPopupData,
 } from '~/components/finders/search-filters/filter-popup.component';
 import { cn } from '~/lib/utils';
+import { useNavbarVisibility } from '~/providers/navbar-visibility-context';
 const MORE_FILTERS_ID = 'moreFilters';
+
+/** Avoid focusing sticky pills — browsers scroll them to their in-flow (page-top) position. */
+function onFinderFilterPillPointerDown(event: ReactPointerEvent) {
+  if (event.pointerType === 'mouse') {
+    event.preventDefault();
+  }
+}
 
 function isInsideSearchFiltersPortal(target: unknown): boolean {
   if (target == null || typeof target !== 'object') return false;
@@ -53,9 +62,9 @@ export type SearchFiltersAllFiltersRenderProps = {
   onHide: () => void;
   onClearAllToUrl: () => void;
   /**
-   * True when viewport is narrow mobile (`max-width: 767px`): render the overflow
-   * panel as a bottom sheet (same as single-filter popups). False on tablet compact
-   * row — use inline card chrome instead.
+   * True when the overflow “More” panel should render as a bottom sheet.
+   * Compact-row UIs (`lg:hidden`, phone + tablet) always pass true so More does
+   * not expand as an inline card inside the sticky filter bar.
    */
   mobileBottomSheet: boolean;
   /** Same label as the overflow trigger pill (use as bottom sheet title on mobile). */
@@ -95,6 +104,7 @@ export function SearchFilters({
   groupedFooterCount = false,
 }: SearchFiltersProps) {
   const { indexUiState } = useInstantSearch();
+  const { setIsFinderFilterOpen } = useNavbarVisibility();
   const refinementList = useMemo(
     () => (indexUiState.refinementList ?? {}) as Record<string, string[]>,
     [indexUiState.refinementList],
@@ -102,15 +112,28 @@ export function SearchFilters({
 
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const [useMobileBottomSheet, setUseMobileBottomSheet] = useState(false);
+  /** Matches Tailwind `lg` — phone + tablet compact row use bottom sheets. */
+  const [useCompactBottomSheet, setUseCompactBottomSheet] = useState(false);
 
   useEffect(() => {
-    const mq = window.matchMedia('(max-width: 767px)');
-    const apply = () => setUseMobileBottomSheet(mq.matches);
+    const mq = window.matchMedia('(max-width: 1023px)');
+    const apply = () => setUseCompactBottomSheet(mq.matches);
     apply();
     mq.addEventListener('change', apply);
     return () => mq.removeEventListener('change', apply);
   }, []);
+
+  // Freeze navbar whenever any finder filter is open (desktop popover or compact
+  // bottom sheet) so scroll/gesture noise cannot toggle nav visibility mid-sheet.
+  // Do not clear in an effect cleanup on dep change — that briefly unfreezes
+  // between null→open.
+  useEffect(() => {
+    setIsFinderFilterOpen(Boolean(activeDropdown));
+  }, [activeDropdown, setIsFinderFilterOpen]);
+
+  useEffect(() => {
+    return () => setIsFinderFilterOpen(false);
+  }, [setIsFinderFilterOpen]);
 
   const hasCompactOverflow =
     compactInlineFilterCount != null &&
@@ -152,6 +175,8 @@ export function SearchFilters({
     if (activeDropdown === dropdownName) {
       setActiveDropdown(null);
     } else {
+      // Sync freeze before the bottom sheet mounts.
+      setIsFinderFilterOpen(true);
       setActiveDropdown(dropdownName);
     }
   };
@@ -164,6 +189,7 @@ export function SearchFilters({
     if (activeDropdown === MORE_FILTERS_ID) {
       setActiveDropdown(null);
     } else {
+      setIsFinderFilterOpen(true);
       setActiveDropdown(MORE_FILTERS_ID);
     }
   };
@@ -230,6 +256,7 @@ export function SearchFilters({
           embedPopup && 'relative',
           isHighlighted && dropdownButtonOpenStyles,
         )}
+        onPointerDown={onFinderFilterPillPointerDown}
         onClick={() => toggleDropdown(item.id)}
       >
         <div className='flex min-w-0 flex-row items-center gap-2'>
@@ -312,7 +339,7 @@ export function SearchFilters({
               {inlineCompactItems.map((item) => (
                 <Fragment key={item.id}>
                   {renderFilterPill(item, {
-                    embedPopup: !useMobileBottomSheet,
+                    embedPopup: !useCompactBottomSheet,
                     isSingleVisibleButton: compactRowButtonCount === 1,
                     compactEqualWidth: compactRowButtonCount > 1,
                   })}
@@ -322,7 +349,7 @@ export function SearchFilters({
               {overflowDesktopItems.length === 1 ? (
                 <Fragment key={overflowDesktopItems[0].id}>
                   {renderFilterPill(overflowDesktopItems[0], {
-                    embedPopup: !useMobileBottomSheet,
+                    embedPopup: !useCompactBottomSheet,
                     isSingleVisibleButton: compactRowButtonCount === 1,
                     compactEqualWidth: compactRowButtonCount > 1,
                   })}
@@ -334,6 +361,7 @@ export function SearchFilters({
                     compactRowButtonCount > 1 ? 'min-w-0 flex-1' : 'w-fit',
                     isMoreHighlighted && dropdownButtonOpenStyles,
                   )}
+                  onPointerDown={onFinderFilterPillPointerDown}
                   onClick={() => openMorePanel()}
                 >
                   <div className='flex min-w-0 flex-row items-center gap-2'>
@@ -377,7 +405,7 @@ export function SearchFilters({
               ) : null}
             </div>
 
-            {useMobileBottomSheet && compactInlineOpenItem ? (
+            {useCompactBottomSheet && compactInlineOpenItem ? (
               <FilterPopup
                 key={compactInlineOpenItem.id}
                 popupTitle={compactInlineOpenItem.popupTitle}
@@ -391,25 +419,15 @@ export function SearchFilters({
               />
             ) : null}
 
-            {showMoreForOverflow && isMoreOpen && renderMorePanel ? (
-              useMobileBottomSheet ? (
+            {showMoreForOverflow && isMoreOpen && renderMorePanel
+              ? // Compact row (`lg:hidden`) always uses the bottom sheet for More.
                 renderMorePanel({
                   onHide: closeAllDropdowns,
                   onClearAllToUrl,
                   mobileBottomSheet: true,
                   morePanelTitle: moreButtonLabel,
                 })
-              ) : (
-                <div className='w-full overflow-hidden rounded-lg border border-neutral-300 shadow-md'>
-                  {renderMorePanel({
-                    onHide: closeAllDropdowns,
-                    onClearAllToUrl,
-                    mobileBottomSheet: false,
-                    morePanelTitle: moreButtonLabel,
-                  })}
-                </div>
-              )
-            ) : null}
+              : null}
           </div>
         ) : null}
 

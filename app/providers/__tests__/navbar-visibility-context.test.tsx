@@ -11,15 +11,24 @@ function TestConsumer() {
     setIsNavbarVisible,
     isSiteBannerVisible,
     setIsSiteBannerVisible,
+    isFinderFilterOpen,
+    setIsFinderFilterOpen,
+    isFinderFilterOpenRef,
   } = useNavbarVisibility();
   return (
     <div>
       <span data-testid='visibility'>{String(isNavbarVisible)}</span>
       <span data-testid='banner'>{String(isSiteBannerVisible)}</span>
+      <span data-testid='finder-filter'>{String(isFinderFilterOpen)}</span>
+      <span data-testid='finder-filter-ref'>
+        {String(isFinderFilterOpenRef.current)}
+      </span>
       <button onClick={() => setIsNavbarVisible(false)}>hide</button>
       <button onClick={() => setIsNavbarVisible(true)}>show</button>
       <button onClick={() => setIsSiteBannerVisible(true)}>banner-on</button>
       <button onClick={() => setIsSiteBannerVisible(false)}>banner-off</button>
+      <button onClick={() => setIsFinderFilterOpen(true)}>filter-on</button>
+      <button onClick={() => setIsFinderFilterOpen(false)}>filter-off</button>
     </div>
   );
 }
@@ -33,6 +42,8 @@ describe('NavbarVisibilityProvider', () => {
     );
     expect(screen.getByTestId('visibility').textContent).toBe('true');
     expect(screen.getByTestId('banner').textContent).toBe('false');
+    expect(screen.getByTestId('finder-filter').textContent).toBe('false');
+    expect(screen.getByTestId('finder-filter-ref').textContent).toBe('false');
   });
 
   it('updates isSiteBannerVisible', () => {
@@ -45,6 +56,20 @@ describe('NavbarVisibilityProvider', () => {
     expect(screen.getByTestId('banner').textContent).toBe('true');
     fireEvent.click(screen.getByText('banner-off'));
     expect(screen.getByTestId('banner').textContent).toBe('false');
+  });
+
+  it('updates isFinderFilterOpen and sync ref', () => {
+    render(
+      <NavbarVisibilityProvider>
+        <TestConsumer />
+      </NavbarVisibilityProvider>,
+    );
+    fireEvent.click(screen.getByText('filter-on'));
+    expect(screen.getByTestId('finder-filter').textContent).toBe('true');
+    expect(screen.getByTestId('finder-filter-ref').textContent).toBe('true');
+    fireEvent.click(screen.getByText('filter-off'));
+    expect(screen.getByTestId('finder-filter').textContent).toBe('false');
+    expect(screen.getByTestId('finder-filter-ref').textContent).toBe('false');
   });
 
   it('updates isNavbarVisible to false', () => {

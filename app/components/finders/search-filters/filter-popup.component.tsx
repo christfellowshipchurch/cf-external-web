@@ -1,6 +1,7 @@
 import React, {
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -22,6 +23,7 @@ import {
 import { cn } from '~/lib/utils';
 import { Button } from '~/primitives/button/button.primitive';
 import { Icon } from '~/primitives/icon/icon';
+import { formatMeetingFrequencyLabel } from '~/routes/group-finder/format-group-meeting-schedule';
 
 type FilterCoordinates = { lat: number | null; lng: number | null };
 
@@ -134,36 +136,35 @@ export function MobileFilterBottomSheet({
     };
   }, []);
 
-  // Lock scroll with `body { position: fixed }` so the overlay stays viewport-fixed on iOS.
-  useEffect(() => {
-    const scrollY = window.scrollY;
-    const prevBody = {
-      position: document.body.style.position,
-      top: document.body.style.top,
-      left: document.body.style.left,
-      right: document.body.style.right,
-      width: document.body.style.width,
-      overflow: document.body.style.overflow,
-    };
-    const prevHtmlOverflow = document.documentElement.style.overflow;
+  // Keep page scrollY intact. `position: fixed` + top offset was jumping the
+  // page to the top on open (and failing to restore on close) with sticky pills.
+  // Block background wheel/touch instead; sheet body keeps its own scroller.
+  useLayoutEffect(() => {
+    const isSheetScroller = (target: Event['target']) =>
+      target instanceof Element &&
+      target.closest('[data-finder-filter-scroll]') != null;
 
-    document.documentElement.style.overflow = 'hidden';
-    document.body.style.position = 'fixed';
-    document.body.style.top = `-${scrollY}px`;
-    document.body.style.left = '0';
-    document.body.style.right = '0';
-    document.body.style.width = '100%';
-    document.body.style.overflow = 'hidden';
+    const blockBackgroundScroll = (event: Event) => {
+      if (isSheetScroller(event.target)) return;
+      event.preventDefault();
+    };
+
+    document.addEventListener('wheel', blockBackgroundScroll, {
+      passive: false,
+      capture: true,
+    });
+    document.addEventListener('touchmove', blockBackgroundScroll, {
+      passive: false,
+      capture: true,
+    });
 
     return () => {
-      document.documentElement.style.overflow = prevHtmlOverflow;
-      document.body.style.position = prevBody.position;
-      document.body.style.top = prevBody.top;
-      document.body.style.left = prevBody.left;
-      document.body.style.right = prevBody.right;
-      document.body.style.width = prevBody.width;
-      document.body.style.overflow = prevBody.overflow;
-      window.scrollTo(0, scrollY);
+      document.removeEventListener('wheel', blockBackgroundScroll, {
+        capture: true,
+      });
+      document.removeEventListener('touchmove', blockBackgroundScroll, {
+        capture: true,
+      });
     };
   }, []);
 
@@ -289,7 +290,10 @@ export function MobileFilterBottomSheet({
               </button>
             </div>
           </div>
-          <div className='min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain pt-2'>
+          <div
+            data-finder-filter-scroll
+            className='min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain pt-2'
+          >
             {scrollable}
           </div>
           {footer}
@@ -359,6 +363,40 @@ export const FilterPopup = ({
 
   const isBottomSheet = layout === 'bottomSheet';
   const isEmbedded = layout === 'embedded';
+
+  // Desktop popovers sit under the sticky filter bar. A fixed vh max-height
+  // ignores that offset, so on short viewports the Clear / Show footer can sit
+  // below the fold while page scroll is locked. Cap height to remaining space.
+  const [viewportMaxHeightPx, setViewportMaxHeightPx] = useState<number | null>(
+    null,
+  );
+
+  useLayoutEffect(() => {
+    if (!showSection || isBottomSheet || isEmbedded) {
+      setViewportMaxHeightPx(null);
+      return;
+    }
+
+    const BOTTOM_GAP_PX = 16;
+    const MIN_HEIGHT_PX = 200;
+
+    const updateMaxHeight = () => {
+      const el = ref.current;
+      if (!el) return;
+      const top = el.getBoundingClientRect().top;
+      setViewportMaxHeightPx(
+        Math.max(MIN_HEIGHT_PX, window.innerHeight - top - BOTTOM_GAP_PX),
+      );
+    };
+
+    updateMaxHeight();
+    const rafId = window.requestAnimationFrame(updateMaxHeight);
+    window.addEventListener('resize', updateMaxHeight);
+    return () => {
+      window.cancelAnimationFrame(rafId);
+      window.removeEventListener('resize', updateMaxHeight);
+    };
+  }, [showSection, isBottomSheet, isEmbedded]);
 
   const multiSection = data.content.length > 1;
 
@@ -471,7 +509,9 @@ export const FilterPopup = ({
     <div
       ref={ref}
       className={cn(
-        'cursor-default z-10 flex flex-col gap-4 bg-white',
+        // Fallback max-height before layout measurement; JS overrides with
+        // remaining viewport space so the footer stays on-screen on short displays.
+        'cursor-default z-10 flex min-h-0 max-h-[min(70vh,calc(100dvh-12rem))] flex-col bg-white',
         'rounded-2xl border border-neutral-lighter overflow-hidden',
         'absolute top-[65px] right-1/2 w-[280px] translate-x-1/2 xl:w-[320px]',
         showSection
@@ -481,20 +521,31 @@ export const FilterPopup = ({
       )}
       style={
         showSection
-          ? style
+          ? {
+              ...style,
+              ...(viewportMaxHeightPx != null
+                ? { maxHeight: viewportMaxHeightPx }
+                : null),
+            }
           : { ...style, left: '-9999px', pointerEvents: 'none' }
       }
+      onClick={(e) => e.stopPropagation()}
     >
-      <div className='flex items-center justify-between p-4 pb-1'>
+      <div className='flex shrink-0 items-center justify-between p-4 pb-1'>
         <h3 className='text-xl font-bold text-black'>{popupTitle}</h3>
         <div className='cursor-pointer!' onClick={() => onHide()}>
           <Icon name='x' color='black' />
         </div>
       </div>
 
-      {bodyScrollable}
+      <div
+        data-finder-filter-scroll
+        className='min-h-0 flex-1 overflow-y-auto overscroll-contain'
+      >
+        {bodyScrollable}
+      </div>
 
-      {footerEl}
+      {footerEl ? <div className='shrink-0 bg-white'>{footerEl}</div> : null}
     </div>
   );
 };
@@ -502,6 +553,21 @@ export const FilterPopup = ({
 function meetingTypeUsesGlobeIcon(label: string): boolean {
   const t = label.trim().toLowerCase();
   return t === 'virtual' || t === 'online';
+}
+
+function refinementItemDisplayLabel(
+  attribute: string,
+  label: string,
+  value: string,
+): string {
+  if (attribute === 'meetingFrequency') {
+    return formatMeetingFrequencyLabel(label || value);
+  }
+  if (attribute === 'adultsOnly') {
+    if (value === 'false' || value === 'False') return 'Children Welcome';
+    return 'Adult Only';
+  }
+  return label;
 }
 
 const FilterPopupContent = ({
@@ -837,12 +903,11 @@ const FilterPopupContent = ({
                               ) : null}
                             </div>
                             <div className={styles.checkbox}>
-                              {data.attribute === 'adultsOnly'
-                                ? item.value === 'false' ||
-                                  item.value === 'False'
-                                  ? 'Children Welcome'
-                                  : 'Adult Only'
-                                : item.label}
+                              {refinementItemDisplayLabel(
+                                data.attribute,
+                                item.label,
+                                item.value,
+                              )}
                             </div>
                           </div>
                         ) : (
@@ -892,7 +957,11 @@ const FilterPopupContent = ({
                               ? item.label === 'Thursday'
                                 ? 'Thur'
                                 : item.label.substring(0, 3)
-                              : item.label}
+                              : refinementItemDisplayLabel(
+                                  data.attribute,
+                                  item.label,
+                                  item.value,
+                                )}
                           </Button>
                         )}
                       </div>
