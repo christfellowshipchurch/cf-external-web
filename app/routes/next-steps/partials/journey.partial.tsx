@@ -11,7 +11,7 @@ export function JourneySection() {
         <div>
           <p className='mb-8 max-w-xl mx-auto'>
             And your best next step to see what's here for you is the{' '}
-            <strong>Journey class</strong>! In this two-part conversation,
+            <strong>Journey class</strong>! In this three-part conversation,
             you'll get to know <em>a little bit</em> about Christ Fellowship and{' '}
             <em>a lot about</em> how you can know God and grow in your
             relationships so you can discover your purpose and impact the world.
