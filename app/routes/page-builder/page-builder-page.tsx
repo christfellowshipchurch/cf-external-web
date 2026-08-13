@@ -97,7 +97,7 @@ export function renderSection(
       );
       return null;
     case 'IMAGE_GALLERY':
-      if (section.imageGallery) {
+      if (section.imageGallery?.length) {
         return (
           <div key={section.id} id={anchorId} className='scroll-mt-18'>
             <ImageGallerySection data={section} />

@@ -266,6 +266,9 @@ export const fetchRockData = async ({
   assertByIdEndpointHasNoIgnoredParams(endpoint, queryParams);
 
   const previewMode = isPreviewMode();
+  // Local/dev: always bypass Redis so CMS edits (e.g. new child items) show up
+  // without waiting on TTL or manual cache invalidation.
+  const skipCache = previewMode || process.env.NODE_ENV === 'development';
   // Preview mode only bypasses the Status filter — date-range filtering still
   // applies, so a not-yet-scheduled or already-expired item stays hidden.
   const effectiveFilterByDateRange = filterByDateRange;
@@ -298,7 +301,8 @@ export const fetchRockData = async ({
   );
   // Preview never reads or writes the shared Redis cache — this deployment's
   // results (unapproved content) must never be served to or poison prod's cache.
-  const effectiveTtl: number = previewMode
+  // Local development also skips cache so Rock CMS changes are immediately visible.
+  const effectiveTtl: number = skipCache
     ? TTL.NONE
     : ttl !== undefined
       ? ttl
