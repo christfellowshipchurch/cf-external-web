@@ -13,8 +13,8 @@ interface NavbarVisibilityContextType {
   isSiteBannerVisible: boolean;
   setIsSiteBannerVisible: (visible: boolean) => void;
   /**
-   * True while a finder (groups/classes) desktop filter popover is open.
-   * Navbar freezes hide/show-on-scroll so it cannot cover Clear / Show results.
+   * True while a finder (groups/classes) filter popover or bottom sheet is open.
+   * Navbar freezes hide/show-on-scroll while the sheet/popover is up.
    */
   isFinderFilterOpen: boolean;
   setIsFinderFilterOpen: (open: boolean) => void;

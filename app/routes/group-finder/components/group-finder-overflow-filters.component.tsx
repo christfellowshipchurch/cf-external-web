@@ -136,12 +136,15 @@ export function GroupFinderOverflowFiltersPanel({
   }
 
   return (
-    <div className='flex h-auto min-h-0 w-full max-h-[85vh] flex-col overflow-hidden bg-white shadow-md md:max-h-none'>
+    <div className='flex min-h-0 w-full max-h-[min(85vh,calc(100dvh-10rem))] flex-col overflow-hidden bg-white shadow-md'>
       <div className='shrink-0'>
         <FiltersHeader onHide={onHide} />
       </div>
 
-      <div className='min-h-0 flex-1 overflow-y-auto px-4'>
+      <div
+        data-finder-filter-scroll
+        className='min-h-0 flex-1 overflow-y-auto overscroll-contain px-4'
+      >
         {embeddedFilters}
       </div>
 

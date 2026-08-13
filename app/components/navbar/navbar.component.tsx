@@ -103,11 +103,8 @@ export function Navbar() {
 
     const handleScroll = () => {
       // Don't hide/translate the navbar while search, a mega-menu, or a finder
-      // filter popover is open. `-translate-y-full` uses the CSS `translate`
-      // property, which makes fixed/absolute dropdowns position relative to
-      // the nav and detaches them. Finder filters also need the navbar frozen
-      // so scroll cannot re-show the nav/banner over Clear / Show results.
-      // Use the ref so the freeze is synchronous (React state alone races).
+      // filter is open (desktop popover or compact bottom sheet). Use the ref so
+      // the freeze is synchronous with open (React state alone can race).
       if (isSearchOpen || openDropdown || isFinderFilterOpenRef.current) {
         return;
       }

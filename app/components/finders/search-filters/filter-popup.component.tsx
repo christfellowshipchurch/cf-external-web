@@ -23,6 +23,7 @@ import {
 import { cn } from '~/lib/utils';
 import { Button } from '~/primitives/button/button.primitive';
 import { Icon } from '~/primitives/icon/icon';
+import { formatMeetingFrequencyLabel } from '~/routes/group-finder/format-group-meeting-schedule';
 
 type FilterCoordinates = { lat: number | null; lng: number | null };
 
@@ -135,36 +136,35 @@ export function MobileFilterBottomSheet({
     };
   }, []);
 
-  // Lock scroll with `body { position: fixed }` so the overlay stays viewport-fixed on iOS.
-  useEffect(() => {
-    const scrollY = window.scrollY;
-    const prevBody = {
-      position: document.body.style.position,
-      top: document.body.style.top,
-      left: document.body.style.left,
-      right: document.body.style.right,
-      width: document.body.style.width,
-      overflow: document.body.style.overflow,
-    };
-    const prevHtmlOverflow = document.documentElement.style.overflow;
+  // Keep page scrollY intact. `position: fixed` + top offset was jumping the
+  // page to the top on open (and failing to restore on close) with sticky pills.
+  // Block background wheel/touch instead; sheet body keeps its own scroller.
+  useLayoutEffect(() => {
+    const isSheetScroller = (target: Event['target']) =>
+      target instanceof Element &&
+      target.closest('[data-finder-filter-scroll]') != null;
 
-    document.documentElement.style.overflow = 'hidden';
-    document.body.style.position = 'fixed';
-    document.body.style.top = `-${scrollY}px`;
-    document.body.style.left = '0';
-    document.body.style.right = '0';
-    document.body.style.width = '100%';
-    document.body.style.overflow = 'hidden';
+    const blockBackgroundScroll = (event: Event) => {
+      if (isSheetScroller(event.target)) return;
+      event.preventDefault();
+    };
+
+    document.addEventListener('wheel', blockBackgroundScroll, {
+      passive: false,
+      capture: true,
+    });
+    document.addEventListener('touchmove', blockBackgroundScroll, {
+      passive: false,
+      capture: true,
+    });
 
     return () => {
-      document.documentElement.style.overflow = prevHtmlOverflow;
-      document.body.style.position = prevBody.position;
-      document.body.style.top = prevBody.top;
-      document.body.style.left = prevBody.left;
-      document.body.style.right = prevBody.right;
-      document.body.style.width = prevBody.width;
-      document.body.style.overflow = prevBody.overflow;
-      window.scrollTo(0, scrollY);
+      document.removeEventListener('wheel', blockBackgroundScroll, {
+        capture: true,
+      });
+      document.removeEventListener('touchmove', blockBackgroundScroll, {
+        capture: true,
+      });
     };
   }, []);
 
@@ -290,7 +290,10 @@ export function MobileFilterBottomSheet({
               </button>
             </div>
           </div>
-          <div className='min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain pt-2'>
+          <div
+            data-finder-filter-scroll
+            className='min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain pt-2'
+          >
             {scrollable}
           </div>
           {footer}
@@ -550,6 +553,21 @@ export const FilterPopup = ({
 function meetingTypeUsesGlobeIcon(label: string): boolean {
   const t = label.trim().toLowerCase();
   return t === 'virtual' || t === 'online';
+}
+
+function refinementItemDisplayLabel(
+  attribute: string,
+  label: string,
+  value: string,
+): string {
+  if (attribute === 'meetingFrequency') {
+    return formatMeetingFrequencyLabel(label || value);
+  }
+  if (attribute === 'adultsOnly') {
+    if (value === 'false' || value === 'False') return 'Children Welcome';
+    return 'Adult Only';
+  }
+  return label;
 }
 
 const FilterPopupContent = ({
@@ -885,12 +903,11 @@ const FilterPopupContent = ({
                               ) : null}
                             </div>
                             <div className={styles.checkbox}>
-                              {data.attribute === 'adultsOnly'
-                                ? item.value === 'false' ||
-                                  item.value === 'False'
-                                  ? 'Children Welcome'
-                                  : 'Adult Only'
-                                : item.label}
+                              {refinementItemDisplayLabel(
+                                data.attribute,
+                                item.label,
+                                item.value,
+                              )}
                             </div>
                           </div>
                         ) : (
@@ -940,7 +957,11 @@ const FilterPopupContent = ({
                               ? item.label === 'Thursday'
                                 ? 'Thur'
                                 : item.label.substring(0, 3)
-                              : item.label}
+                              : refinementItemDisplayLabel(
+                                  data.attribute,
+                                  item.label,
+                                  item.value,
+                                )}
                           </Button>
                         )}
                       </div>

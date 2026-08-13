@@ -3,6 +3,7 @@ import { useRefinementList } from 'react-instantsearch';
 import { cn } from '~/lib/utils';
 import { Button } from '~/primitives/button/button.primitive';
 import { Icon } from '~/primitives/icon/icon';
+import { formatMeetingFrequencyLabel } from '../../format-group-meeting-schedule';
 import { GroupType } from '../../types';
 
 function meetingTypeUsesGlobeIcon(label: string): boolean {
@@ -86,7 +87,10 @@ export const AllFiltersRefinementContent = ({
         ? item.label === 'Thursday'
           ? 'Thur'
           : item.label.substring(0, 3)
-        : item.label}
+        : content.attribute ===
+            ('meetingFrequency' as const satisfies keyof GroupType)
+          ? formatMeetingFrequencyLabel(item.label || item.value)
+          : item.label}
     </Button>
   );
 
