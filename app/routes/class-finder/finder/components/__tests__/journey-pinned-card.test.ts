@@ -2,8 +2,10 @@ import { describe, expect, it } from 'vitest';
 import type { ClassHitType } from '../../../types';
 import {
   JOURNEY_CARD_OBJECT_ID,
+  JOURNEY_CARD_TOPIC,
   JOURNEY_CARD_URL,
   journeyCard,
+  shouldShowJourneyCard,
   withJourneyCardFirst,
 } from '../journey-pinned-card';
 
@@ -73,5 +75,43 @@ describe('withJourneyCardFirst', () => {
 
   it('still returns the Journey card when the finder has no class hits', () => {
     expect(withJourneyCardFirst([])).toEqual([journeyCard]);
+  });
+});
+
+describe('shouldShowJourneyCard', () => {
+  // Unfiltered browse is where new people should see the first-step class.
+  it('shows the Journey card when no refinements are applied', () => {
+    expect(shouldShowJourneyCard()).toBe(true);
+    expect(shouldShowJourneyCard({})).toBe(true);
+    expect(shouldShowJourneyCard({ topic: [] })).toBe(true);
+  });
+
+  it('shows the Journey card when the Spiritual Growth topic is selected', () => {
+    expect(
+      shouldShowJourneyCard({ topic: [JOURNEY_CARD_TOPIC] }),
+    ).toBe(true);
+  });
+
+  // Multi-select topics still include Journey's topic, so keep it pinned.
+  it('shows the Journey card when Spiritual Growth is selected with other refinements', () => {
+    expect(
+      shouldShowJourneyCard({
+        topic: [JOURNEY_CARD_TOPIC, 'Finances'],
+        format: ['In-Person'],
+      }),
+    ).toBe(true);
+  });
+
+  it('hides the Journey card when another topic is selected without Spiritual Growth', () => {
+    expect(shouldShowJourneyCard({ topic: ['Finances'] })).toBe(false);
+    expect(shouldShowJourneyCard({ topic: ['Parenting'] })).toBe(false);
+  });
+
+  it('hides the Journey card when non-topic filters are on without Spiritual Growth', () => {
+    expect(shouldShowJourneyCard({ campus: ['Palm Beach Gardens'] })).toBe(
+      false,
+    );
+    expect(shouldShowJourneyCard({ format: ['Virtual'] })).toBe(false);
+    expect(shouldShowJourneyCard({ language: ['Español'] })).toBe(false);
   });
 });

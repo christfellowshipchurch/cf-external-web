@@ -5,6 +5,8 @@ export const JOURNEY_CARD_OBJECT_ID = 'pinned-journey';
 
 export const JOURNEY_CARD_URL = '/events/journey';
 
+export const JOURNEY_CARD_TOPIC = 'Spiritual Growth';
+
 /**
  * Journey lives as an event, not a classes-index record. This hard-coded card is
  * prepended to the Class Finder feed so new people still see the first-step class.
@@ -20,7 +22,7 @@ export const journeyCard: ClassHitType = {
   groupId: 0,
   subtitle: '',
   summary:
-    'Your first step to getting connected — a two-part conversation about who we are and how you can know God and grow.',
+    'Your first step to getting connected — a three-part conversation about who we are and how you can know God and grow.',
   coverImage: {
     sources: [
       {
@@ -32,10 +34,30 @@ export const journeyCard: ClassHitType = {
   startDate: '',
   endDate: '',
   schedule: '',
-  topic: 'Spiritual Growth',
+  topic: JOURNEY_CARD_TOPIC,
   language: 'English',
   format: 'In-Person',
 };
+
+function hasAnyRefinement(refinementList?: Record<string, string[]>): boolean {
+  if (!refinementList) return false;
+  return Object.values(refinementList).some((values) => values.length > 0);
+}
+
+/**
+ * Pin Journey on the unfiltered feed, or when the Spiritual Growth topic is
+ * selected. Hide it for every other refinement so it does not sit on unrelated
+ * filtered results.
+ */
+export function shouldShowJourneyCard(
+  refinementList?: Record<string, string[]>,
+): boolean {
+  const topics = refinementList?.topic ?? [];
+  if (topics.includes(JOURNEY_CARD_TOPIC)) {
+    return true;
+  }
+  return !hasAnyRefinement(refinementList);
+}
 
 /** Pins the hard-coded Journey card first. Does not mutate `hits`. */
 export function withJourneyCardFirst(hits: ClassHitType[]): ClassHitType[] {
