@@ -1,9 +1,14 @@
 import { render } from '@testing-library/react';
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { Video } from '../video.primitive';
 
 beforeEach(() => {
   window._wq = [];
+  vi.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue();
+});
+
+afterEach(() => {
+  vi.restoreAllMocks();
 });
 
 describe('Video - src mode', () => {
@@ -23,6 +28,28 @@ describe('Video - src mode', () => {
   it('passes autoPlay prop to <video>', () => {
     render(<Video src='/video.mp4' autoPlay />);
     expect(document.querySelector('video')).toHaveAttribute('autoplay');
+  });
+
+  it('sets playsInline so iOS/iPadOS play inline instead of fullscreen', () => {
+    render(<Video src='/video.mp4' autoPlay muted />);
+    const video = document.querySelector('video');
+    expect(video).toHaveAttribute('playsinline');
+    expect(video).toHaveAttribute('webkit-playsinline', 'true');
+  });
+
+  it('preloads when autoPlay is set so mobile playback can start', () => {
+    render(<Video src='/video.mp4' autoPlay muted />);
+    expect(document.querySelector('video')).toHaveAttribute('preload', 'auto');
+  });
+
+  it('calls play() when autoPlay is set so iOS can start muted inline playback', () => {
+    render(<Video src='/video.mp4' autoPlay muted />);
+    expect(HTMLMediaElement.prototype.play).toHaveBeenCalled();
+  });
+
+  it('does not call play() when autoPlay is false', () => {
+    render(<Video src='/video.mp4' autoPlay={false} muted />);
+    expect(HTMLMediaElement.prototype.play).not.toHaveBeenCalled();
   });
 
   it('does not set autoplay when autoPlay is false', () => {

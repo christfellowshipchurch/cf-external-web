@@ -10,7 +10,7 @@ export const YesWelcomePartial = ({ isSpanish }: { isSpanish?: boolean }) => {
       {/* Confetti animation */}
       <Video
         src='/assets/confetti-animation.webm'
-        className='w-full h-screen object-cover absolute top-0 left-0 z-2'
+        className='pointer-events-none w-full h-screen object-cover absolute top-0 left-0 z-2'
         autoPlay
         loop
         muted
@@ -18,7 +18,7 @@ export const YesWelcomePartial = ({ isSpanish }: { isSpanish?: boolean }) => {
       />
 
       {/* Page Content */}
-      <div className='mx-auto flex flex-col items-center text-center gap-6 w-full max-w-[900px] text-white mt-16 mb-28 lg:mt-32 lg:mb-50 xl:mt-48 xl:mb-82'>
+      <div className='relative z-4 mx-auto flex flex-col items-center text-center gap-6 w-full max-w-[900px] text-white mt-16 mb-28 lg:mt-32 lg:mb-50 xl:mt-48 xl:mb-82'>
         <h1 className='text-[40px] lg:text-[52px] font-extrabold text-dark-navy leading-tight'>
           {isSpanish ? (
             <>

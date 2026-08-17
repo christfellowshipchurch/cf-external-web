@@ -28,6 +28,32 @@ type VideoProps = {
 
 export const Video = (props: VideoProps) => {
   const iframeRef = useRef<HTMLIFrameElement>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+
+  useEffect(() => {
+    if (props.wistiaId || !props.autoPlay) return;
+
+    const video = videoRef.current;
+    if (!video) return;
+
+    // iOS/iPadOS autoplay checks the muted + playsInline properties at play time.
+    video.muted = props.muted !== false;
+    video.defaultMuted = props.muted !== false;
+    video.playsInline = true;
+    video.setAttribute('playsinline', 'true');
+    video.setAttribute('webkit-playsinline', 'true');
+
+    try {
+      const playPromise = video.play?.();
+      if (playPromise && typeof playPromise.catch === 'function') {
+        playPromise.catch(() => {
+          // Autoplay can still be blocked (e.g. Low Power Mode).
+        });
+      }
+    } catch {
+      // jsdom and some WebViews throw instead of returning a rejected promise.
+    }
+  }, [props.src, props.autoPlay, props.muted, props.wistiaId]);
 
   useEffect(() => {
     if (!props?.wistiaId || !props.autoPlay) return;
@@ -148,13 +174,17 @@ export const Video = (props: VideoProps) => {
         />
       ) : (
         <video
+          ref={videoRef}
           src={props.src}
           autoPlay={props.autoPlay || false}
           loop={props.loop || false}
           muted={props.muted || false}
+          playsInline
           controls={props.controls || undefined}
+          preload={props.autoPlay ? 'auto' : undefined}
           className={props.className}
           aria-label='Video'
+          {...{ 'webkit-playsinline': 'true' }}
         />
       )}
     </>
