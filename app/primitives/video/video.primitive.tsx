@@ -36,23 +36,35 @@ export const Video = (props: VideoProps) => {
     const video = videoRef.current;
     if (!video) return;
 
-    // iOS/iPadOS autoplay checks the muted + playsInline properties at play time.
-    video.muted = props.muted !== false;
-    video.defaultMuted = props.muted !== false;
-    video.playsInline = true;
-    video.setAttribute('playsinline', 'true');
-    video.setAttribute('webkit-playsinline', 'true');
+    const tryPlay = () => {
+      // iOS/iPadOS autoplay checks muted + playsInline at play time.
+      video.muted = props.muted !== false;
+      video.defaultMuted = props.muted !== false;
+      video.setAttribute('muted', '');
+      video.playsInline = true;
+      video.setAttribute('playsinline', 'true');
+      video.setAttribute('webkit-playsinline', 'true');
 
-    try {
-      const playPromise = video.play?.();
-      if (playPromise && typeof playPromise.catch === 'function') {
-        playPromise.catch(() => {
-          // Autoplay can still be blocked (e.g. Low Power Mode).
-        });
+      try {
+        const playPromise = video.play?.();
+        if (playPromise && typeof playPromise.catch === 'function') {
+          playPromise.catch(() => {
+            // Autoplay can still be blocked (e.g. Low Power Mode).
+          });
+        }
+      } catch {
+        // jsdom and some WebViews throw instead of returning a rejected promise.
       }
-    } catch {
-      // jsdom and some WebViews throw instead of returning a rejected promise.
-    }
+    };
+
+    tryPlay();
+    video.addEventListener('canplay', tryPlay);
+    video.addEventListener('loadeddata', tryPlay);
+
+    return () => {
+      video.removeEventListener('canplay', tryPlay);
+      video.removeEventListener('loadeddata', tryPlay);
+    };
   }, [props.src, props.autoPlay, props.muted, props.wistiaId]);
 
   useEffect(() => {

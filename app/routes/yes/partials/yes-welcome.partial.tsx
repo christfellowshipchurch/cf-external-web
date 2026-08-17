@@ -9,7 +9,7 @@ export const YesWelcomePartial = ({ isSpanish }: { isSpanish?: boolean }) => {
     <section className='w-full content-padding'>
       {/* Confetti animation */}
       <Video
-        src='/assets/confetti-animation.webm'
+        src='/assets/confetti-animation.mp4'
         className='pointer-events-none w-full h-screen object-cover absolute top-0 left-0 z-2'
         autoPlay
         loop

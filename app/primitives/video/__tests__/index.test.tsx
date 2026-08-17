@@ -47,9 +47,13 @@ describe('Video - src mode', () => {
     expect(HTMLMediaElement.prototype.play).toHaveBeenCalled();
   });
 
-  it('does not call play() when autoPlay is false', () => {
-    render(<Video src='/video.mp4' autoPlay={false} muted />);
-    expect(HTMLMediaElement.prototype.play).not.toHaveBeenCalled();
+  it('retries play() when the video can play so mobile autoplay is not lost', () => {
+    render(<Video src='/video.mp4' autoPlay muted />);
+    const video = document.querySelector('video');
+    expect(video).toBeTruthy();
+    vi.mocked(HTMLMediaElement.prototype.play).mockClear();
+    video?.dispatchEvent(new Event('canplay'));
+    expect(HTMLMediaElement.prototype.play).toHaveBeenCalled();
   });
 
   it('does not set autoplay when autoPlay is false', () => {
