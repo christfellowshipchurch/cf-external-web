@@ -35,6 +35,9 @@
     cubic-bezier(0.16, 1, 0.3, 1);
   --animate-dialogContentHide: dialogContentHide 150ms
     cubic-bezier(0.16, 1, 0.3, 1);
+  /* Image gallery lightbox — scale only (no translate); pairs with inset/m-auto centering */
+  --animate-lightboxShow: lightboxShow 200ms cubic-bezier(0.16, 1, 0.3, 1);
+  --animate-lightboxHide: lightboxHide 150ms cubic-bezier(0.16, 1, 0.3, 1);
 
   /* Accordion */
   --animate-accordion-down: accordion-down 0.3s ease-out;
@@ -234,6 +237,26 @@
   to {
     opacity: 0;
     transform: translate(-50%, -48%) scale(0.96);
+  }
+}
+@keyframes lightboxShow {
+  from {
+    opacity: 0;
+    transform: scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+@keyframes lightboxHide {
+  from {
+    opacity: 1;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.98);
   }
 }
 @keyframes accordion-down {
