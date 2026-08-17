@@ -130,8 +130,7 @@ export const FinderLocationSearch = ({
     // Ignore stale geocode responses after Clear All / a newer request.
     if (
       !lastSubmittedZipRef.current ||
-      (cancelSignalRef &&
-        myZipTokenRef.current !== cancelSignalRef.current)
+      (cancelSignalRef && myZipTokenRef.current !== cancelSignalRef.current)
     ) {
       setIsGeocoding(false);
       return;
@@ -139,7 +138,9 @@ export const FinderLocationSearch = ({
 
     const data = geocodeFetcher.data as {
       results?: {
-        geometry?: { location?: { lat?: number | string; lng?: number | string } };
+        geometry?: {
+          location?: { lat?: number | string; lng?: number | string };
+        };
       }[];
       error?: string;
       error_message?: string;
@@ -194,9 +195,7 @@ export const FinderLocationSearch = ({
     });
   };
 
-  const handleApplyZip = (
-    event?: React.MouseEvent | React.PointerEvent,
-  ) => {
+  const handleApplyZip = (event?: React.MouseEvent | React.PointerEvent) => {
     event?.stopPropagation();
     event?.preventDefault();
     const zip = inputValue.trim();
