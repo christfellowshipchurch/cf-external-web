@@ -22,6 +22,7 @@ import { MenuLink } from './types';
 import { getLatestMessageFeaturedUrl } from './get-latest-message-featured-url';
 import { SiteBanner } from '../site-banner';
 import { RootLoaderData } from '~/routes/navbar/loader';
+import { WatchLiveButton } from './watch-live';
 // import { AuthModal } from "../modals";
 import { useNavbarVisibility } from '~/providers/navbar-visibility-context';
 
@@ -29,7 +30,8 @@ export function Navbar() {
   // Hooks and state
   const { pathname } = useLocation();
   const rootData = useRouteLoaderData('root') as RootLoaderData;
-  const { siteBanner, ministries, watchReadListen } = rootData || {};
+  const { siteBanner, ministries, watchReadListen, isOnlineServiceLive } =
+    rootData || {};
   const { isSmall } = useResponsive();
   const navbarRef = useRef<HTMLDivElement>(null);
 
@@ -443,17 +445,21 @@ export function Navbar() {
                   >
                     Give
                   </Link>
-                  <Button
-                    href='/locations'
-                    className='font-semibold text-sm xl:text-base w-fit min-w-[180px]'
-                    aria-label='Find a Service'
-                  >
-                    <Icon
-                      name='mapFilled'
-                      className='mr-1 xl:mr-2 size-4 xl:size-5'
-                    />
-                    Find a Service
-                  </Button>
+                  {isOnlineServiceLive ? (
+                    <WatchLiveButton />
+                  ) : (
+                    <Button
+                      href='/locations'
+                      className='font-semibold text-sm xl:text-base w-fit min-w-[180px]'
+                      aria-label='Find a Service'
+                    >
+                      <Icon
+                        name='mapFilled'
+                        className='mr-1 xl:mr-2 size-4 xl:size-5'
+                      />
+                      Find a Service
+                    </Button>
+                  )}
                 </div>
               </div>
 
@@ -464,6 +470,7 @@ export function Navbar() {
                 setMode={setMode}
                 showSiteBanner={showSiteBanner}
                 latestMessageTo={latestMessageFeaturedUrl}
+                isOnlineServiceLive={isOnlineServiceLive}
               />
             </div>
           </div>

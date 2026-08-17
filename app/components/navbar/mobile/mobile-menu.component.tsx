@@ -12,11 +12,13 @@ export default function MobileMenu({
   setMode,
   showSiteBanner,
   latestMessageTo,
+  isOnlineServiceLive,
 }: {
   mode: 'light' | 'dark';
   setMode: (mode: 'light' | 'dark') => void;
   showSiteBanner?: boolean;
   latestMessageTo?: string;
+  isOnlineServiceLive?: boolean;
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const [orginalMode] = useState(mode);
@@ -142,6 +144,7 @@ export default function MobileMenu({
           <MobileMenuContent
             closeMenu={() => setIsOpen(false)}
             latestMessageTo={latestMessageTo}
+            isOnlineServiceLive={isOnlineServiceLive}
           />
         </div>
       </div>

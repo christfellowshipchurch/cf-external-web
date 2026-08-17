@@ -14,6 +14,7 @@ import type { RockContentChannelItem } from '~/lib/types/rock-types';
 import { buildPodcastRoutingIndex } from '~/routes/podcasts/podcast-routing.server';
 import type { ContentItemHit } from '~/routes/search/types';
 import { fetchDefaultSearchHits } from './default-search-hits.server';
+import { fetchIsOnlineServiceLive } from './live-service.server';
 
 // Define the return type for the loader
 export interface RootLoaderData {
@@ -41,6 +42,8 @@ export interface RootLoaderData {
       url: string;
     }[];
   };
+  /** True during the Sunday online-broadcast window; gates the navbar's Watch Live indicator. */
+  isOnlineServiceLive: boolean;
 }
 
 const EMPTY_SITE_BANNER = { content: '', link: '' };
@@ -280,12 +283,17 @@ export async function loader({
       parsedUserData = userData as User;
     }
 
-    const [rawFeatureCards, rawSiteBanner, defaultSearchHits] =
-      await Promise.all([
-        fetchFeatureCards(),
-        fetchSiteBanner(),
-        fetchDefaultSearchHits(algoliaIndexes.contentItems),
-      ]);
+    const [
+      rawFeatureCards,
+      rawSiteBanner,
+      defaultSearchHits,
+      isOnlineServiceLive,
+    ] = await Promise.all([
+      fetchFeatureCards(),
+      fetchSiteBanner(),
+      fetchDefaultSearchHits(algoliaIndexes.contentItems),
+      fetchIsOnlineServiceLive(),
+    ]);
     const siteBanner = mapSiteBannerFromRockItem(rawSiteBanner);
 
     // If the API call failed, return empty arrays
@@ -313,6 +321,7 @@ export async function loader({
         popularResults: [],
         defaultSearchHits,
         siteBanner,
+        isOnlineServiceLive,
       };
     }
 
@@ -391,6 +400,7 @@ export async function loader({
       defaultSearchHits,
       // Site Banner Data
       siteBanner: siteBanner,
+      isOnlineServiceLive,
     };
   } catch (error) {
     console.error('Error in navbar loader:', error);
@@ -408,6 +418,7 @@ export async function loader({
       popularResults: [],
       defaultSearchHits: [],
       siteBanner: EMPTY_SITE_BANNER,
+      isOnlineServiceLive: false,
     };
   }
 }
