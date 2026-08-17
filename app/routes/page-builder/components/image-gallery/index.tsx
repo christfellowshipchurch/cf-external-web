@@ -25,7 +25,7 @@ export const ImageGallerySection = ({ data }: { data: PageBuilderSection }) => {
     <div className='w-full bg-white py-16 pb-10 md:py-28 pl-5 md:pl-12 lg:px-18'>
       <div className='mx-auto flex max-w-screen-content flex-col gap-12 md:gap-20'>
         {shouldShowHeader && (
-          <div className='flex max-w-[768px] flex-col gap-5 md:gap-6'>
+          <div className='flex max-w-3xl flex-col gap-5 md:gap-6'>
             {shouldShowTitle && (
               <h2 className='text-[48px] font-extrabold leading-[1.2] text-text-primary md:text-[52px]'>
                 {sectionTitle}
@@ -66,7 +66,7 @@ const ImageGalleryComponent = ({
           align: 'start',
         }}
       >
-        <CarouselContent className='gap-6'>
+        <CarouselContent className='gap-6 py-2'>
           {data.map((item) => (
             <CarouselItem
               key={item.id}
@@ -116,7 +116,7 @@ const ImageGalleryCard = ({
       type='button'
       onClick={onOpen}
       aria-label={title ? `View ${title}` : 'View gallery image'}
-      className='relative aspect-square w-full cursor-pointer overflow-hidden rounded-2xl md:aspect-auto md:h-[261px]'
+      className='relative aspect-square w-full cursor-pointer overflow-hidden rounded-2xl md:aspect-auto md:h-65.25 hover:-translate-y-1.5 transition-transform duration-300'
     >
       <img
         src={item.image}
