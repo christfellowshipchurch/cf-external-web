@@ -37,13 +37,12 @@ function onFinderFilterPillPointerDown(event: ReactPointerEvent) {
 }
 
 function isInsideFinderFilterSurface(event: Event): boolean {
-  const path = typeof event.composedPath === 'function' ? event.composedPath() : [];
+  const path =
+    typeof event.composedPath === 'function' ? event.composedPath() : [];
   for (const node of path) {
     if (!(node instanceof Element)) continue;
     if (
-      node.matches(
-        '[data-search-filters-portal], [data-finder-filter-popup]',
-      )
+      node.matches('[data-search-filters-portal], [data-finder-filter-popup]')
     ) {
       return true;
     }
@@ -53,9 +52,8 @@ function isInsideFinderFilterSurface(event: Event): boolean {
   if (!(target instanceof Node)) return false;
   const el = target instanceof Element ? target : target.parentElement;
   return (
-    el?.closest(
-      '[data-search-filters-portal], [data-finder-filter-popup]',
-    ) != null
+    el?.closest('[data-search-filters-portal], [data-finder-filter-popup]') !=
+    null
   );
 }
 
