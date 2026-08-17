@@ -1,22 +1,18 @@
 // import { useNavigate } from "react-router-dom";
 import { Button } from '~/primitives/button/button.primitive';
-import { Video } from '~/primitives/video/video.primitive';
 
 export const YesWelcomePartial = ({ isSpanish }: { isSpanish?: boolean }) => {
   // const _navigate = useNavigate();
 
   return (
     <section className='w-full content-padding'>
-      {/* H.264 is GPU-decoded on iOS; mix-blend-screen punches out the black
-          so the ocean background shows through (Safari cannot autoplay the
-          transparent WebM, and animated WebP was too heavy on mobile). */}
-      <Video
-        src='/assets/confetti-animation.mp4'
-        className='pointer-events-none w-full h-screen object-cover absolute top-0 left-0 z-2 mix-blend-screen'
-        autoPlay
-        loop
-        muted
-        controls={false}
+      {/* Animated WebP keeps the transparent confetti overlay; iOS will not autoplay the source WebM. */}
+      <img
+        src='/assets/confetti-animation.webp'
+        alt=''
+        aria-hidden
+        decoding='async'
+        className='pointer-events-none w-full h-screen object-cover absolute top-0 left-0 z-2'
       />
 
       {/* Page Content */}
