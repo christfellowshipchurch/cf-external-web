@@ -3,6 +3,7 @@ import { useInstantSearch } from 'react-instantsearch';
 import startCase from 'lodash/startCase';
 import { Icon } from '~/primitives/icon/icon';
 import { AlgoliaFinderClearAllButton } from '~/routes/group-finder/components/clear-all-button.component';
+import { formatMeetingFrequencyLabel } from '~/routes/group-finder/format-group-meeting-schedule';
 import { GroupType } from '~/routes/group-finder/types';
 
 type RefinementChip = {
@@ -17,6 +18,9 @@ function refinementChipDisplayLabel(attribute: string, value: string): string {
     const v = value.toLowerCase();
     if (v === 'true') return 'Adults Only';
     if (v === 'false') return 'Child Welcome';
+  }
+  if (attribute === ('meetingFrequency' as const satisfies keyof GroupType)) {
+    return formatMeetingFrequencyLabel(value);
   }
   if (attribute === 'eventCategories') {
     return startCase(value);

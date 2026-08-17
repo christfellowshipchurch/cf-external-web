@@ -3,7 +3,7 @@ import { Button } from '~/primitives/button/button.primitive';
 import { GroupSearch } from './partials/group-search.partial';
 import { FinderHero } from '../../components/finders/hero';
 
-const leadGroupUrl = '/volunteer/church/cdae1da5-cd92-4d77-bb19-55cdb6ebad27';
+const leadGroupUrl = 'https://rock.gocf.org/page/5984';
 
 export function GroupFinderPage() {
   return (
@@ -34,7 +34,7 @@ export function GroupFinderPage() {
               },
               {
                 href: leadGroupUrl,
-                title: 'Lead a group',
+                title: 'Host a group',
                 intent: 'primary',
                 className:
                   'text-base font-normal hover:bg-white! hover:text-ocean!',
@@ -64,7 +64,7 @@ export function GroupFinderPage() {
               },
               {
                 href: leadGroupUrl,
-                title: 'Lead a group',
+                title: 'Host a group',
                 intent: 'primary',
                 className:
                   'text-base font-normal hover:bg-white! hover:text-ocean!',

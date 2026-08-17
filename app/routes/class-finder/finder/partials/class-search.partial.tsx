@@ -29,6 +29,12 @@ import {
   groupClassTypeHits,
   syntheticHitsFromGrouped,
 } from '../components/group-class-type-hits';
+import {
+  JOURNEY_CARD_OBJECT_ID,
+  JOURNEY_CARD_URL,
+  shouldShowJourneyCard,
+  withJourneyCardFirst,
+} from '../components/journey-pinned-card';
 import { useAlgoliaUrlSync } from '~/hooks/use-algolia-url-sync';
 import { useScrollToSearchResultsOnLoad } from '~/hooks/use-scroll-to-search-results-on-load';
 import { HubsTagsRefinementList } from '~/components/hubs-tags-refinement';
@@ -171,6 +177,11 @@ export const ClassSearch = () => {
     );
   }, [searchParams]);
 
+  const urlShowJourneyCard = useMemo(() => {
+    const s = parseClassFinderUrlState(searchParams);
+    return shouldShowJourneyCard(s.refinementList);
+  }, [searchParams]);
+
   /** SSR/hydration: skeleton filters until react-instantsearch mounts (same pattern as group finder). */
   const [filtersMounted, setFiltersMounted] = useState(false);
   useEffect(() => {
@@ -206,8 +217,8 @@ export const ClassSearch = () => {
             <ClassFinderInstantSearchSync />
             <Configure hitsPerPage={CLASS_FINDER_LOADER_HITS_PER_PAGE} />
             <FinderStickyBar>
-              <div className='mx-auto flex max-w-screen-content flex-col gap-3 py-4 md:flex-row md:items-center md:gap-4'>
-                <div className='w-full md:w-[240px] lg:w-[250px] xl:w-[266px] flex items-center rounded-lg border border-[#DEE0E3] focus-within:border-ocean py-2'>
+              <div className='mx-auto flex w-full min-w-0 max-w-screen-content flex-col gap-3 py-4 md:flex-row md:items-center md:gap-4'>
+                <div className='flex w-full shrink-0 items-center rounded-lg border border-[#DEE0E3] py-2 focus-within:border-ocean md:w-[240px] lg:w-[250px] xl:w-[266px]'>
                   <Icon
                     name='searchAlt'
                     className='text-neutral-default ml-3'
@@ -231,7 +242,7 @@ export const ClassSearch = () => {
                   />
                 </div>
 
-                <div className='lg:hidden w-full'>
+                <div className='min-w-0 w-full flex-1 lg:hidden'>
                   <SearchFilters
                     onClearAllToUrl={clearAllFiltersFromUrl}
                     desktopFilters={CLASS_SEARCH_DESKTOP_FILTERS}
@@ -284,12 +295,14 @@ export const ClassSearch = () => {
                 Hold those on screen and show filter skeletons until client-side
                 InstantSearch is ready to take over. */}
             <FinderStickyBar>
-              <div className='mx-auto flex max-w-screen-content flex-col gap-3 py-4 md:flex-row md:items-center md:gap-4'>
+              <div className='mx-auto flex w-full min-w-0 max-w-screen-content flex-col gap-3 py-4 md:flex-row md:items-center md:gap-4'>
                 <div
-                  className='h-[42px] w-full animate-pulse rounded-lg bg-neutral-200 md:w-[240px] lg:w-[250px] xl:w-[266px]'
+                  className='h-[42px] w-full shrink-0 animate-pulse rounded-lg bg-neutral-200 md:w-[240px] lg:w-[250px] xl:w-[266px]'
                   aria-hidden
                 />
-                <ClassFinderFiltersSkeleton />
+                <div className='min-w-0 w-full flex-1'>
+                  <ClassFinderFiltersSkeleton />
+                </div>
               </div>
             </FinderStickyBar>
 
@@ -300,6 +313,7 @@ export const ClassSearch = () => {
                   isLoading={false}
                   rockCoverImagesByPath={rockCoverImagesByPath}
                   filtersActive={finderFiltersActive}
+                  showJourneyCard={urlShowJourneyCard}
                   fromClassFinderUrl={fromClassFinderUrl}
                   onClearFilters={clearAllFiltersFromUrl}
                 />
@@ -328,13 +342,16 @@ function ClassTypeGroupedInstantSearchResults({
   onClearFilters: () => void;
 }) {
   const { items } = useHits<ClassHitType>();
-  const { status } = useInstantSearch();
+  const { status, indexUiState } = useInstantSearch();
   const isLoading = status === 'loading' || status === 'stalled';
 
   // Keep loader hits visible while the first hydrated InstantSearch request is
   // pending. This preserves the SSR first paint and avoids a flash before
   // client-side Algolia returns equivalent results.
   const hits = isLoading && items.length === 0 ? initialHits : items;
+  const showJourneyCard = shouldShowJourneyCard(
+    indexUiState.refinementList as Record<string, string[]> | undefined,
+  );
 
   return (
     <ClassTypeGroupedResults
@@ -342,6 +359,7 @@ function ClassTypeGroupedInstantSearchResults({
       isLoading={isLoading}
       rockCoverImagesByPath={rockCoverImagesByPath}
       filtersActive={filtersActive}
+      showJourneyCard={showJourneyCard}
       fromClassFinderUrl={fromClassFinderUrl}
       onClearFilters={onClearFilters}
     />
@@ -353,6 +371,7 @@ function ClassTypeGroupedResults({
   isLoading,
   rockCoverImagesByPath,
   filtersActive,
+  showJourneyCard,
   fromClassFinderUrl,
   onClearFilters,
 }: {
@@ -360,6 +379,7 @@ function ClassTypeGroupedResults({
   isLoading: boolean;
   rockCoverImagesByPath: Record<string, string>;
   filtersActive: boolean;
+  showJourneyCard: boolean;
   fromClassFinderUrl?: string;
   onClearFilters: () => void;
 }) {
@@ -378,7 +398,12 @@ function ClassTypeGroupedResults({
     [grouped],
   );
 
-  const mappedHits = algoliaHits;
+  // Journey is not in the classes index. Pin it after grouping so it is not
+  // rewritten or dropped by isCompleteClassFinderHit / syntheticHitsFromGrouped.
+  const mappedHits = useMemo(
+    () => (showJourneyCard ? withJourneyCardFirst(algoliaHits) : algoliaHits),
+    [algoliaHits, showJourneyCard],
+  );
 
   const start = (currentPage - 1) * ITEMS_PER_PAGE;
   const pageHits = mappedHits.slice(start, start + ITEMS_PER_PAGE);
@@ -418,6 +443,11 @@ function ClassTypeGroupedResults({
                   key={hit.objectID}
                   hit={hit}
                   fromClassFinderUrl={fromClassFinderUrl}
+                  to={
+                    hit.objectID === JOURNEY_CARD_OBJECT_ID
+                      ? JOURNEY_CARD_URL
+                      : undefined
+                  }
                 />
               ))}
             </div>

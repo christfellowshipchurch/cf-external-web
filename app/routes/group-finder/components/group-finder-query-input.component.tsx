@@ -32,7 +32,7 @@ export function GroupFinderQueryInput({
   }, [localQuery, onQueryCommit, query]);
 
   return (
-    <div className='w-full md:w-[240px] lg:w-[250px] xl:w-[266px] flex items-center rounded-lg border border-[#DEE0E3] focus-within:border-ocean py-2'>
+    <div className='w-full shrink-0 md:w-[240px] lg:w-[250px] xl:w-[266px] flex items-center rounded-lg border border-[#DEE0E3] focus-within:border-ocean py-2'>
       <Icon name='searchAlt' className='text-neutral-default ml-3' size={16} />
       <input
         type='search'

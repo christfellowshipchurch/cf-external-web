@@ -8,9 +8,11 @@ import { Link } from 'react-router-dom';
 export function ClassHitComponent({
   hit,
   fromClassFinderUrl,
+  to,
 }: {
   hit: ClassHitType;
   fromClassFinderUrl?: string;
+  to?: string;
 }) {
   const coverImage = hit.coverImage?.sources?.[0]?.uri || '';
   const slug = hit.pathName;
@@ -20,7 +22,7 @@ export function ClassHitComponent({
 
   return (
     <Link
-      to={`/class-finder/${pathSegment}`}
+      to={to ?? `/class-finder/${pathSegment}`}
       state={
         fromClassFinderUrl ? { fromClassFinder: fromClassFinderUrl } : undefined
       }

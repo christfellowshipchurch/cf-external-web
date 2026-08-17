@@ -1,6 +1,7 @@
 import { cn } from '~/lib/utils';
 import { TopicBadge } from '../components/group-single-banner.component';
 import { GroupType, splitGroupTopics } from '~/routes/group-finder/types';
+import { formatGroupMeetingScheduleTitle } from '~/routes/group-finder/format-group-meeting-schedule';
 import { icons } from '~/lib/icons';
 import { Icon } from '~/primitives/icon/icon';
 import { Link } from 'react-router-dom';
@@ -108,6 +109,8 @@ const GroupInfo = ({ hit }: { hit: GroupType }) => {
     minMaxAge,
     adultsOnly,
     childCareDescription,
+    summary,
+    title,
   } = hit;
   const adultsOnlyBool = adultsOnly === 'True';
 
@@ -130,6 +133,12 @@ const GroupInfo = ({ hit }: { hit: GroupType }) => {
   const groupItemTitle = `${groupFor || 'Anyone'}${
     peopleWhoAre && peopleWhoAre.length > 0 ? `, ${peopleWhoAre[0]}` : ''
   }`;
+  const meetingScheduleTitle = formatGroupMeetingScheduleTitle({
+    meetingFrequency,
+    meetingDay,
+    summary,
+    title,
+  });
 
   return (
     <div className='flex flex-col md:flex-row md:flex-wrap lg:flex-col gap-8'>
@@ -146,7 +155,7 @@ const GroupInfo = ({ hit }: { hit: GroupType }) => {
       />
       {meetingDay && meetingTime && (
         <InfoItem
-          title={`${meetingFrequency}, ${meetingDay || 'TBD'}`}
+          title={meetingScheduleTitle}
           description={`${formattedMeetingTime} ET`}
           icon='calendarAlt'
           isLayoutReversed={true}

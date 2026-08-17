@@ -53,8 +53,10 @@ export const FinderLocationSearch = ({
   const [inputValue, setInputValue] = useState<string>('');
   const [isGeocoding, setIsGeocoding] = useState(false);
   const [isGpsRequesting, setIsGpsRequesting] = useState(false);
+  const [geocodeError, setGeocodeError] = useState<string | null>(null);
   const geocodeFetcher = useFetcher();
   const lastSubmittedZipRef = useRef<string | null>(null);
+  const pendingZipGeocodeRef = useRef(false);
   const gpsRequestIdRef = useRef(0);
   const myZipTokenRef = useRef(0);
 
@@ -101,51 +103,71 @@ export const FinderLocationSearch = ({
   useEffect(() => {
     if (coordinates === null) {
       gpsRequestIdRef.current += 1;
+      // Don't wipe an in-flight Apply — that drops the pending zip token and
+      // makes a successful geocode look like a no-op.
+      if (pendingZipGeocodeRef.current || isGeocoding) {
+        return;
+      }
       if (showZipInput) {
         setInputValue('');
       }
       lastSubmittedZipRef.current = null;
     }
-  }, [coordinates, showZipInput]);
+  }, [coordinates, showZipInput, isGeocoding]);
 
   useEffect(() => {
-    if (geocodeFetcher.state === 'idle' && geocodeFetcher.data) {
-      // Ignore stale geocode responses after Clear All / input clear. Otherwise
-      // an in-flight zip lookup can re-apply old lat/lng and trigger a URL loop.
-      if (
-        !lastSubmittedZipRef.current ||
-        inputValue !== lastSubmittedZipRef.current
-      ) {
-        setIsGeocoding(false);
-        return;
-      }
-
-      // If another source started after this geocode, discard the result.
-      if (
-        cancelSignalRef &&
-        myZipTokenRef.current !== cancelSignalRef.current
-      ) {
-        setIsGeocoding(false);
-        return;
-      }
-
-      const location = geocodeFetcher.data?.results?.[0]?.geometry?.location;
-      if (
-        location &&
-        typeof location.lat === 'number' &&
-        typeof location.lng === 'number'
-      ) {
-        setCoordinates({ lat: location.lat, lng: location.lng });
-        onLocationKind?.('zip');
-      }
-      setIsGeocoding(false);
+    if (geocodeFetcher.state !== 'idle') {
+      pendingZipGeocodeRef.current = true;
+      return;
     }
+
+    if (!pendingZipGeocodeRef.current || !geocodeFetcher.data) {
+      return;
+    }
+
+    pendingZipGeocodeRef.current = false;
+
+    // Ignore stale geocode responses after Clear All / a newer request.
+    if (
+      !lastSubmittedZipRef.current ||
+      (cancelSignalRef &&
+        myZipTokenRef.current !== cancelSignalRef.current)
+    ) {
+      setIsGeocoding(false);
+      return;
+    }
+
+    const data = geocodeFetcher.data as {
+      results?: {
+        geometry?: { location?: { lat?: number | string; lng?: number | string } };
+      }[];
+      error?: string;
+      error_message?: string;
+      status?: string;
+    };
+
+    const location = data.results?.[0]?.geometry?.location;
+    const lat = location != null ? Number(location.lat) : Number.NaN;
+    const lng = location != null ? Number(location.lng) : Number.NaN;
+
+    if (Number.isFinite(lat) && Number.isFinite(lng)) {
+      setGeocodeError(null);
+      setCoordinates({ lat, lng });
+      onLocationKind?.('zip');
+    } else {
+      setGeocodeError(
+        data.error?.trim() ||
+          data.error_message?.trim() ||
+          'Could not look up that ZIP. Please try again.',
+      );
+    }
+    setIsGeocoding(false);
   }, [
     geocodeFetcher.data,
     geocodeFetcher.state,
-    inputValue,
     setCoordinates,
     onLocationKind,
+    cancelSignalRef,
   ]);
 
   const submitZipGeocode = (zip: string) => {
@@ -161,6 +183,8 @@ export const FinderLocationSearch = ({
       myZipTokenRef.current = cancelSignalRef.current;
     }
     lastSubmittedZipRef.current = zip;
+    pendingZipGeocodeRef.current = true;
+    setGeocodeError(null);
     setIsGeocoding(true);
     const formData = new FormData();
     formData.append('address', zip);
@@ -170,9 +194,14 @@ export const FinderLocationSearch = ({
     });
   };
 
-  const handleApplyZip = () => {
-    if (inputValue.length === 5 && isValidZip(inputValue)) {
-      submitZipGeocode(inputValue);
+  const handleApplyZip = (
+    event?: React.MouseEvent | React.PointerEvent,
+  ) => {
+    event?.stopPropagation();
+    event?.preventDefault();
+    const zip = inputValue.trim();
+    if (zip.length === 5 && isValidZip(zip)) {
+      submitZipGeocode(zip);
     } else {
       lastSubmittedZipRef.current = null;
       setCoordinates(null);
@@ -247,23 +276,43 @@ export const FinderLocationSearch = ({
       onClick={(e) => e.stopPropagation()}
     >
       {manualZipApply ? (
-        <div className='flex w-full min-w-0 flex-row items-stretch gap-2'>
-          <input
-            type='text'
-            placeholder='Enter ZIP'
-            value={inputValue}
-            onChange={(e) => setInputValue(e.target.value)}
-            className={cn(finderLocationInputBaseClass, 'min-w-0 flex-1')}
-            disabled={isGeocoding || isGpsRequesting}
-          />
-          <button
-            type='button'
-            className={finderApplyZipButtonClass}
-            disabled={isGeocoding || isGpsRequesting}
-            onClick={handleApplyZip}
-          >
-            Apply
-          </button>
+        <div className='flex w-full min-w-0 flex-col gap-2'>
+          <div className='flex w-full min-w-0 flex-row items-stretch gap-2'>
+            <input
+              type='text'
+              placeholder='Enter ZIP'
+              value={inputValue}
+              onChange={(e) => {
+                setGeocodeError(null);
+                setInputValue(e.target.value);
+              }}
+              className={cn(finderLocationInputBaseClass, 'min-w-0 flex-1')}
+              disabled={isGeocoding || isGpsRequesting}
+              aria-invalid={geocodeError != null}
+              aria-describedby={
+                geocodeError != null ? 'finder-zip-geocode-error' : undefined
+              }
+            />
+            <button
+              type='button'
+              className={finderApplyZipButtonClass}
+              disabled={isGeocoding || isGpsRequesting}
+              onPointerDown={(e) => e.stopPropagation()}
+              onMouseDown={(e) => e.stopPropagation()}
+              onClick={handleApplyZip}
+            >
+              Apply
+            </button>
+          </div>
+          {geocodeError ? (
+            <p
+              id='finder-zip-geocode-error'
+              role='alert'
+              className='text-sm font-medium text-red-600'
+            >
+              {geocodeError}
+            </p>
+          ) : null}
         </div>
       ) : null}
 
