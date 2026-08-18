@@ -14,16 +14,20 @@ import {
 } from './mobile-menu.data';
 import Icon from '~/primitives/icon';
 import { Link } from 'react-router-dom';
+import { WatchLiveBanner } from '../watch-live';
 
 interface MobileMenuContentProps {
   closeMenu: () => void;
   /** Same URL as the Media dropdown “Latest Message” feature card (from root loader). */
   latestMessageTo?: string;
+  /** True during the Sunday online-broadcast window (from root loader). */
+  isOnlineServiceLive?: boolean;
 }
 
 export default function MobileMenuContent({
   closeMenu,
   latestMessageTo,
+  isOnlineServiceLive,
 }: MobileMenuContentProps) {
   const [openSection, setOpenSection] = useState<string | null>(null);
 
@@ -40,6 +44,7 @@ export default function MobileMenuContent({
   return (
     <div className='h-full overflow-y-auto bg-white'>
       <div className='pb-24'>
+        {isOnlineServiceLive && <WatchLiveBanner closeMenu={closeMenu} />}
         <MenuSection
           title='Welcome to Church'
           items={welcomeItems}
