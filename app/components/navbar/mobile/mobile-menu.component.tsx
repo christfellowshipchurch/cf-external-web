@@ -46,7 +46,7 @@ export default function MobileMenu({
       {/* Back Button */}
       <button
         onClick={() => setIsOpen(false)}
-        className='text-white fixed left-4 top-1/2 -translate-y-1/2 z-[60] pointer-events-auto'
+        className='text-white fixed left-4 top-1/2 -translate-y-1/2 z-1020 pointer-events-auto'
         style={{
           opacity: isOpen ? 1 : 0,
           pointerEvents: isOpen ? 'auto' : 'none',
@@ -57,10 +57,11 @@ export default function MobileMenu({
       </button>
 
       {/* Backdrop */}
+      {/* Sits above the site banner's z-999 so the drawer reads as a full-height
+          overlay: the banner is ocean-filled like the Watch Live indicator, and
+          stacking the two made them merge into one block (CFDP-4225). */}
       <div
-        className={`fixed ${
-          showSiteBanner ? 'top-[48px]' : 'top-[0px]'
-        } inset-0 bg-black/50 z-10 transition-opacity duration-300 lg:hidden
+        className={`fixed inset-0 bg-black/50 z-1000 transition-opacity duration-300 lg:hidden
           ${
             isOpen
               ? 'opacity-100 visible'
@@ -127,10 +128,10 @@ export default function MobileMenu({
       </div>
 
       {/* Menu Content */}
+      {/* top-0 rather than offset below the site banner: h-full is 100% of the
+          viewport, so an offset pushed the foot of the menu off-screen. */}
       <div
-        className={`fixed ${
-          showSiteBanner ? 'top-[48px]' : 'top-[0px]'
-        } right-0 w-4/5 max-w-[400px] h-full bg-white z-50 transform transition-all duration-300 overflow-y-auto
+        className={`fixed top-0 right-0 w-4/5 max-w-[400px] h-full bg-white z-1010 transform transition-all duration-300 overflow-y-auto
           ${
             !isOpen
               ? 'translate-x-full invisible opacity-0'
