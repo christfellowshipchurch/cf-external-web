@@ -66,6 +66,8 @@ export default [
         DOMParser: 'readonly',
         // HTML Elements
         HTMLIFrameElement: 'readonly',
+        HTMLVideoElement: 'readonly',
+        HTMLMediaElement: 'readonly',
       },
     },
     plugins: {
