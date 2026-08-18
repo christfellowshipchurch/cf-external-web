@@ -1,19 +1,13 @@
 // import { useNavigate } from "react-router-dom";
 import { Button } from '~/primitives/button/button.primitive';
+import { YesWelcomeConfetti } from '../components/yes-welcome-confetti.component';
 
 export const YesWelcomePartial = ({ isSpanish }: { isSpanish?: boolean }) => {
   // const _navigate = useNavigate();
 
   return (
     <section className='w-full content-padding'>
-      {/* Animated WebP keeps the transparent confetti overlay; iOS will not autoplay the source WebM. */}
-      <img
-        src='/assets/confetti-animation.webp'
-        alt=''
-        aria-hidden
-        decoding='async'
-        className='pointer-events-none w-full h-screen object-cover absolute top-0 left-0 z-2'
-      />
+      <YesWelcomeConfetti />
 
       {/* Page Content */}
       <div className='relative z-4 mx-auto flex flex-col items-center text-center gap-6 w-full max-w-[900px] text-white mt-16 mb-28 lg:mt-32 lg:mb-50 xl:mt-48 xl:mb-82'>
