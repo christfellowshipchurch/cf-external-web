@@ -12,6 +12,12 @@ import { WhatWeOfferCard } from './what-we-offer-card.component';
 // ~82% slide width leaves a peek of the next card on the right (see volunteer-how-it-works).
 const SLIDE_CLASS = 'pl-0 shrink-0 basis-[82%] sm:basis-[50%] md:basis-[35%]';
 
+const NAV_BUTTON_CLASS = cn(
+  'flex h-12 w-12 cursor-pointer items-center justify-center rounded-full border border-ocean text-ocean transition-colors',
+  'enabled:hover:border-navy enabled:hover:text-navy',
+  'disabled:pointer-events-none disabled:cursor-not-allowed disabled:border-coconut disabled:text-coconut',
+);
+
 function WhatWeOfferCarouselNav({ itemCount }: { itemCount: number }) {
   const { scrollPrev, scrollNext, canScrollPrev, canScrollNext } =
     useCarousel();
@@ -19,32 +25,24 @@ function WhatWeOfferCarouselNav({ itemCount }: { itemCount: number }) {
   if (itemCount <= 1) return null;
 
   return (
-    <div className='flex items-center gap-3 mt-6'>
+    <div className='flex items-center gap-2 mt-6'>
       <button
         type='button'
         onClick={scrollPrev}
         disabled={!canScrollPrev}
         aria-label='Previous slide'
-        className={cn(
-          'flex h-12 w-12 cursor-pointer items-center justify-center rounded-full border border-navy text-navy transition-colors',
-          'enabled:hover:text-neutral-light enabled:hover:border-neutral-light',
-          'disabled:pointer-events-none disabled:cursor-not-allowed disabled:border-gray disabled:opacity-60',
-        )}
+        className={NAV_BUTTON_CLASS}
       >
-        <Icon name='chevronLeft' size={20} />
+        <Icon name='arrowBack' size={20} />
       </button>
       <button
         type='button'
         onClick={scrollNext}
         disabled={!canScrollNext}
         aria-label='Next slide'
-        className={cn(
-          'flex h-12 w-12 cursor-pointer items-center justify-center rounded-full border border-navy text-navy transition-colors',
-          'enabled:hover:text-neutral-light enabled:hover:border-neutral-light',
-          'disabled:pointer-events-none disabled:cursor-not-allowed disabled:border-gray disabled:opacity-60',
-        )}
+        className={NAV_BUTTON_CLASS}
       >
-        <Icon name='chevronRight' size={20} />
+        <Icon name='arrowRight' size={20} />
       </button>
     </div>
   );
@@ -64,7 +62,7 @@ function WhatWeOfferCarouselTrack({
       aria-label='What we offer'
       className='w-full min-w-0'
     >
-      <CarouselContent className='gap-4 pl-5 pt-2 md:pl-8'>
+      <CarouselContent className='gap-4 pl-5 pt-2 pb-4 md:pl-8'>
         {items.map((item, index) => (
           <CarouselItem
             key={index}

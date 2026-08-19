@@ -5,14 +5,14 @@ export function SeniorPastorsSection() {
     <section className='relative z-30 bg-gray py-16 md:py-24 lg:py-30 content-padding'>
       <div className='max-w-screen-content mx-auto flex flex-col gap-10 lg:gap-12'>
         <SectionTitle sectionTitle='our leaders' />
-        <div className='grid gap-10 lg:grid-cols-[minmax(0,620px)_1fr] lg:gap-20 lg:items-center'>
-          <div className='flex flex-col gap-6'>
+        <div className='grid gap-10 lg:grid-cols-2 lg:gap-12 lg:items-center xl:grid-cols-[minmax(0,620px)_1fr] xl:gap-20'>
+          <div className='flex flex-col gap-6 md:flex-row md:items-center md:gap-8 lg:flex-col lg:items-stretch lg:gap-6'>
             <img
               src='/assets/images/home/senior-pastors.png'
               alt='Pastors Todd and Julie Mullins'
               width={620}
               height={680}
-              className='w-full rounded-2xl object-cover aspect-[31/34]'
+              className='w-full rounded-2xl object-cover aspect-[31/34] md:w-[45%] md:shrink-0 lg:w-full'
             />
             <div>
               <h2 className='text-[28px] md:text-[32px] font-extrabold leading-tight'>
@@ -25,7 +25,7 @@ export function SeniorPastorsSection() {
           </div>
           <div className='flex flex-col gap-8 lg:gap-10'>
             <div>
-              <h2 className='text-[32px] md:text-5xl font-extrabold leading-tight'>
+              <h2 className='text-[32px] md:text-[40px] lg:text-5xl font-extrabold leading-tight'>
                 Meet Our Senior Pastors
               </h2>
               <p className='mt-4 text-lg text-text-secondary'>
