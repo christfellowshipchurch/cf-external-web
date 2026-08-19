@@ -66,9 +66,9 @@ export const MobileHeroSection = () => {
 
           {/*  Description */}
           <p className='text-white max-w-[430px] pr-6 md:px-4'>
-            From meaningful messages and genuine community, Christ Fellowship is
-            a place where you and your family can grow in your faith, and live
-            the life you were created for.
+            From inspiring messages to genuine community, Christ Fellowship is a
+            place where you and your family can grow in your faith and make
+            lifelong friendships.
           </p>
 
           {/* Location Search */}

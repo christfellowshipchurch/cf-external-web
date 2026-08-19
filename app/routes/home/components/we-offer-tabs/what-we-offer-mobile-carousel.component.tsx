@@ -26,7 +26,7 @@ function WhatWeOfferCarouselNav({ itemCount }: { itemCount: number }) {
         disabled={!canScrollPrev}
         aria-label='Previous slide'
         className={cn(
-          'flex h-12 w-12 cursor-pointer items-center justify-center rounded-full border border-white text-white transition-colors',
+          'flex h-12 w-12 cursor-pointer items-center justify-center rounded-full border border-navy text-navy transition-colors',
           'enabled:hover:text-neutral-light enabled:hover:border-neutral-light',
           'disabled:pointer-events-none disabled:cursor-not-allowed disabled:border-gray disabled:opacity-60',
         )}
@@ -39,7 +39,7 @@ function WhatWeOfferCarouselNav({ itemCount }: { itemCount: number }) {
         disabled={!canScrollNext}
         aria-label='Next slide'
         className={cn(
-          'flex h-12 w-12 cursor-pointer items-center justify-center rounded-full border border-white text-white transition-colors',
+          'flex h-12 w-12 cursor-pointer items-center justify-center rounded-full border border-navy text-navy transition-colors',
           'enabled:hover:text-neutral-light enabled:hover:border-neutral-light',
           'disabled:pointer-events-none disabled:cursor-not-allowed disabled:border-gray disabled:opacity-60',
         )}

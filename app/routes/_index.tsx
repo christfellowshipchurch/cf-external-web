@@ -3,11 +3,9 @@ import { type MetaFunction } from 'react-router-dom';
 
 import { BeliefsSection } from './about/partials/beliefs.partial';
 import { HistorySection } from './about/partials/history.partial';
-import { LeadershipSection } from './about/partials/leadership.partial';
 import { HeroSection } from './home/partials/hero.partial';
-import { AChanceSection } from './home/partials/a-chance.partial';
-import { DownloadAppSection } from './home/partials/download-app.partial';
-import { WhatToExpectSection } from './home/partials/what-to-expect.partial';
+import { HomeDownloadAppSection } from './home/partials/home-download-app.partial';
+import { SeniorPastorsSection } from './home/partials/senior-pastors.partial';
 import { WhatWeOfferSection } from './home/partials/what-we-offer.partial';
 import { createMeta } from '~/lib/meta-utils';
 
@@ -36,13 +34,11 @@ export default function HomePage() {
     <>
       <div className='w-screen h-screen absolute top-0 left-0 bg-white -z-100' />
       <HeroSection />
-      <AChanceSection />
       <WhatWeOfferSection />
       <HistorySection sectionTitle='history' title='Who We Are' />
       <BeliefsSection />
-      <WhatToExpectSection />
-      <LeadershipSection className='lg:py-52' />
-      <DownloadAppSection />
+      <SeniorPastorsSection />
+      <HomeDownloadAppSection />
     </>
   );
 }

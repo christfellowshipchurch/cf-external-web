@@ -14,7 +14,7 @@ export const WhatWeOfferCard = ({
       to={content.url}
       prefetch='intent'
       className={cn(
-        'flex w-full max-w-[310px] flex-col rounded-[36px] overflow-hidden hover:translate-y-[-4px] transition-all duration-300 h-[405px]',
+        'flex w-full max-w-[310px] flex-col rounded-[36px] overflow-hidden border border-[#E5E7EB] shadow-lg hover:translate-y-[-4px] transition-all duration-300 h-[408px]',
         className,
       )}
     >

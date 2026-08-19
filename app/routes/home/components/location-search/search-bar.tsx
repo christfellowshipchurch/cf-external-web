@@ -26,12 +26,8 @@ export const SearchBar = ({
 }) => {
   const { refine } = useSearchBox();
   const [inputValue, setInputValue] = useState('');
-  const [isFocused, setIsFocused] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
-  const placeholder =
-    isFocused && !inputValue
-      ? 'Search by city or ZIP code'
-      : 'Find a service near you';
+  const placeholder = 'Search by city, zip code, or location';
 
   useEffect(() => {
     // Locations index is not keyword-searchable in Algolia — keep the index
@@ -95,7 +91,7 @@ export const SearchBar = ({
         aria-label='Find a service near you'
       >
         <Icon
-          name='search'
+          name='mapFilled'
           size={20}
           className={`text-white cursor-pointer relative right-px bottom-px`}
         />
@@ -108,11 +104,9 @@ export const SearchBar = ({
         value={inputValue}
         onChange={handleChange}
         onFocus={() => {
-          setIsFocused(true);
           // Open results (and precise-location) on focus — not only after typing.
           onSearchStateChange(true);
         }}
-        onBlur={() => setIsFocused(false)}
         placeholder={placeholder}
         className='w-full grow justify-center text-black px-3 outline-none appearance-none bg-transparent'
         aria-label='Find a service near you'

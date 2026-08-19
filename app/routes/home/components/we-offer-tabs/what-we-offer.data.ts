@@ -23,12 +23,12 @@ export const whatWeOfferData: WhatWeOfferTab[] = [
     label: 'For My Family',
     mobileLabel: 'Families',
     footerSummary:
-      'Empowering your children and strengthening your family through engaging, faith-centered experiences.',
+      'Programs and environments designed to help kids and students grow, build friendships, and enjoy learning about faith.',
     content: [
       {
         image: getImageUrl('3176684'),
         tag: 'Every Sunday',
-        name: 'Christ Fellowship Kids',
+        name: 'Sunday Kids',
         description:
           'Fun, age-based classes for kids during Sunday services with games, music, Bible stories, and small group activities.',
         url: '/ministries/kids',
@@ -37,7 +37,7 @@ export const whatWeOfferData: WhatWeOfferTab[] = [
         image: getImageUrl('7bcd69be-8395-45a6-9221-a547461bdcad', {
           useGuid: true,
         }),
-        tag: 'Wednesdays',
+        tag: 'Mid Week',
         name: 'Kids University',
         description:
           'A weekday program where kids learn about faith, build friendships, and take part in hands-on activities and lessons.',
