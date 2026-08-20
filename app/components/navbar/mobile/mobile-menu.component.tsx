@@ -1,5 +1,6 @@
 import Icon from '~/primitives/icon';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import MobileMenuContent from './mobile-menu-content';
 import { Button } from '~/primitives/button/button.primitive';
 import { MobileSearch } from './search/mobile-search.component';
@@ -24,6 +25,53 @@ export default function MobileMenu({
   const [orginalMode] = useState(mode);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const { isMedium } = useResponsive();
+  const location = useLocation();
+  const navigate = useNavigate();
+  /** Whether the history entry pushed for the open drawer is still live. */
+  const hasHistoryEntry = useRef(false);
+
+  /**
+   * The open drawer owns a history entry so the Android back button and the iOS
+   * left-edge back-swipe — which lands right on the close chevron — dismiss it
+   * instead of leaving the page. Users were being carried off the page and
+   * immediately returning, which Clarity counted as a Quick Back (CFDP-4232).
+   *
+   * The entry keeps the current URL: same-URL entries aren't navigations, so
+   * they stay out of Clarity's page-view sequence. It goes through `navigate`
+   * rather than `history.pushState` so React Router's own history index stays
+   * consistent (raw pushState breaks its scroll restoration bookkeeping).
+   */
+  const openMenu = () => {
+    setIsOpen(true);
+    hasHistoryEntry.current = true;
+    navigate(`${location.pathname}${location.search}`, {
+      state: { menuOpen: true },
+      preventScrollReset: true,
+    });
+  };
+
+  /** Dismissing consumes the drawer's entry so entries don't stack up. */
+  const dismissMenu = () => {
+    if (!isOpen) return;
+    setIsOpen(false);
+    if (hasHistoryEntry.current) {
+      hasHistoryEntry.current = false;
+      navigate(-1);
+    }
+  };
+
+  // A back gesture pops the drawer's entry, so close on `popstate` rather than
+  // on the committed location: React Router revalidates loaders before it
+  // commits a pop, which left the drawer sitting open for that whole request.
+  useEffect(() => {
+    if (!isOpen) return;
+    const closeOnPop = () => {
+      hasHistoryEntry.current = false;
+      setIsOpen(false);
+    };
+    window.addEventListener('popstate', closeOnPop);
+    return () => window.removeEventListener('popstate', closeOnPop);
+  }, [isOpen]);
 
   // Prevent background scroll when menu is open
   useEffect(() => {
@@ -45,7 +93,7 @@ export default function MobileMenu({
     >
       {/* Back Button */}
       <button
-        onClick={() => setIsOpen(false)}
+        onClick={dismissMenu}
         className='text-white fixed left-4 top-1/2 -translate-y-1/2 z-1020 pointer-events-auto'
         style={{
           opacity: isOpen ? 1 : 0,
@@ -67,7 +115,7 @@ export default function MobileMenu({
               ? 'opacity-100 visible'
               : 'opacity-0 invisible pointer-events-none'
           }`}
-        onClick={() => setIsOpen(false)}
+        onClick={dismissMenu}
         aria-hidden='true'
       />
 
@@ -92,7 +140,7 @@ export default function MobileMenu({
                   : orginalMode,
               );
             }, 0);
-            setIsOpen(false);
+            dismissMenu();
             setTimeout(() => {
               const searchInput = document.querySelector(
                 '.ais-SearchBox-input',
@@ -107,7 +155,11 @@ export default function MobileMenu({
         </button>
         <button
           onClick={() => {
-            setIsOpen(!isOpen);
+            if (isOpen) {
+              dismissMenu();
+            } else {
+              openMenu();
+            }
             setMode(
               orginalMode === 'dark' && isMedium
                 ? !isOpen
@@ -117,6 +169,7 @@ export default function MobileMenu({
             );
             setIsSearchOpen(false);
           }}
+          aria-label='Menu'
           className={mobileMenuButtonStyle}
         >
           <Icon
@@ -143,7 +196,13 @@ export default function MobileMenu({
             ${isOpen ? 'opacity-100' : 'opacity-0'}`}
         >
           <MobileMenuContent
-            closeMenu={() => setIsOpen(false)}
+            /* Links close by navigating, so the drawer's entry is left behind
+               under the destination rather than consumed — no `navigate(-1)`
+               here, which would race the link's own navigation. */
+            closeMenu={() => {
+              hasHistoryEntry.current = false;
+              setIsOpen(false);
+            }}
             latestMessageTo={latestMessageTo}
             isOnlineServiceLive={isOnlineServiceLive}
           />
