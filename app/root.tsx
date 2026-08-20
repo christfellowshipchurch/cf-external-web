@@ -42,6 +42,7 @@ export async function loader(args: LoaderFunctionArgs) {
 export function Layout({ children }: { children: ReactNode }) {
   const loaderData = useRouteLoaderData<typeof loader>('root');
   const nonce = loaderData?.nonce;
+  const algoliaAuditEnabled = loaderData?.algolia.auditEnabled === true;
 
   return (
     <html lang='en'>
@@ -65,6 +66,54 @@ export function Layout({ children }: { children: ReactNode }) {
             `,
           }}
         />
+        {algoliaAuditEnabled && (
+          <script
+            nonce={nonce}
+            dangerouslySetInnerHTML={{
+              __html: `
+                (() => {
+                  const requestUrls = new WeakMap();
+                  const originalOpen = XMLHttpRequest.prototype.open;
+                  const originalSend = XMLHttpRequest.prototype.send;
+
+                  XMLHttpRequest.prototype.open = function(method, url, ...args) {
+                    requestUrls.set(this, String(url));
+                    return originalOpen.call(this, method, url, ...args);
+                  };
+
+                  XMLHttpRequest.prototype.send = function(body) {
+                    try {
+                      const requestUrl = new URL(requestUrls.get(this), location.origin);
+                      if (requestUrl.hostname.endsWith('.algolia.net')) {
+                        const endpoint = requestUrl.pathname;
+                        const payload = typeof body === 'string' ? JSON.parse(body) : {};
+                        const requests = Array.isArray(payload.requests) ? payload.requests : null;
+                        const singleIndex = endpoint.match(/^\\/1\\/indexes\\/([^/]+)\\/query$/)?.[1];
+                        const operations = requests?.length ?? (singleIndex ? 1 : 0);
+
+                        if (operations > 0) {
+                          console.info('[algolia-audit]', JSON.stringify({
+                            source: location.pathname,
+                            side: 'browser',
+                            httpRequests: 1,
+                            endpoint: requests ? '/1/indexes/*/queries' : '/1/indexes/:index/query',
+                            indexes: requests
+                              ? requests.map((request) => request.indexName).filter(Boolean)
+                              : [decodeURIComponent(singleIndex)],
+                            operations,
+                            batched: Boolean(requests),
+                          }));
+                        }
+                      }
+                    } catch {}
+
+                    return originalSend.call(this, body);
+                  };
+                })();
+              `,
+            }}
+          />
+        )}
         <meta charSet='utf-8' />
         <meta name='viewport' content='width=device-width, initial-scale=1' />
         <Meta />

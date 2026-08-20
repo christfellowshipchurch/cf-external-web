@@ -23,10 +23,9 @@ requests.
 
 ## Browser requests
 
-Use fresh browser context with cache disabled. Filter network traffic to
-Algolia hosts, preserve log, and capture request payloads. Count each network
-row as one HTTP request. For `/1/indexes/*/queries`, count entries in payload
-`requests` array as operations; single-index `/query` calls count as one.
+Use fresh browser context with cache disabled. Browser console emits same
+`[algolia-audit]` structured record for each outbound Algolia XHR. Count each
+record as one HTTP request and sum `operations` for legacy-plan comparison.
 
 For cold loads, navigate directly and wait for network idle plus one second.
 For interactions, clear network log after cold load, perform one action, then
