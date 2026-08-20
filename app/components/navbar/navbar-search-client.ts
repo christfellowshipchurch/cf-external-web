@@ -7,17 +7,20 @@ type NavbarSearchRequest = {
   facetFilters?: unknown[];
   numericFilters?: unknown[];
   tagFilters?: string | string[];
+  params?: Omit<NavbarSearchRequest, 'indexName' | 'params'>;
 };
 
 function isBlankUnrefinedRequest(request: NavbarSearchRequest): boolean {
+  const params = request.params ?? request;
+
   return (
-    !request.query?.trim() &&
-    !request.filters?.trim() &&
-    !request.facetFilters?.length &&
-    !request.numericFilters?.length &&
-    !(Array.isArray(request.tagFilters)
-      ? request.tagFilters.length
-      : request.tagFilters?.trim())
+    !params.query?.trim() &&
+    !params.filters?.trim() &&
+    !params.facetFilters?.length &&
+    !params.numericFilters?.length &&
+    !(Array.isArray(params.tagFilters)
+      ? params.tagFilters.length
+      : params.tagFilters?.trim())
   );
 }
 
@@ -27,12 +30,10 @@ export function suppressBlankNavbarSearches(
 ): SearchClient {
   const wrappedClient = Object.create(searchClient) as SearchClient;
 
-  wrappedClient.search = ((searchParams: {
-    requests: NavbarSearchRequest[];
-  }) => {
-    if (searchParams.requests.every(isBlankUnrefinedRequest)) {
+  wrappedClient.search = ((searchParams: NavbarSearchRequest[]) => {
+    if (searchParams.every(isBlankUnrefinedRequest)) {
       return Promise.resolve({
-        results: searchParams.requests.map((request) => ({
+        results: searchParams.map((request) => ({
           hits: [],
           nbHits: 0,
           page: 0,
@@ -48,7 +49,11 @@ export function suppressBlankNavbarSearches(
       });
     }
 
-    return searchClient.search(searchParams);
+    return (
+      searchClient.search as unknown as (
+        requests: NavbarSearchRequest[],
+      ) => ReturnType<SearchClient['search']>
+    )(searchParams);
   }) as SearchClient['search'];
 
   return wrappedClient;

@@ -14,9 +14,9 @@ describe('navbar Algolia request count', () => {
 
     await (
       client as unknown as { search: (request: unknown) => Promise<unknown> }
-    ).search({
-      requests: [{ indexName: 'content', query: '', hitsPerPage: 10 }],
-    });
+    ).search([
+      { indexName: 'content', params: { query: '', hitsPerPage: 10 } },
+    ]);
 
     expect(search).not.toHaveBeenCalled();
   });
@@ -24,9 +24,7 @@ describe('navbar Algolia request count', () => {
   it('forwards one nonblank search', async () => {
     const search = vi.fn().mockResolvedValue({ results: [] });
     const client = suppressBlankNavbarSearches({ search } as never);
-    const request = {
-      requests: [{ indexName: 'content', query: 'leadership' }],
-    };
+    const request = [{ indexName: 'content', params: { query: 'leadership' } }];
 
     await (
       client as unknown as { search: (request: unknown) => Promise<unknown> }
