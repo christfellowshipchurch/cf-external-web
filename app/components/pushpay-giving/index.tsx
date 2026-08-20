@@ -7,8 +7,6 @@ export const GIVE_TYPES = [
   'Impact Offering',
   'Kingdom Builders',
   'Missions',
-  'Heart for the House',
-  'Christ Birthday Offering',
 ] as const;
 
 export const PushpayGiving = ({ campusList }: { campusList: string[] }) => {
@@ -69,20 +67,6 @@ export const PushpayGiving = ({ campusList }: { campusList: string[] }) => {
     const baseUrl = 'https://pushpay.com/g/christfellowship';
     const amount = inputValue.replace('$', '');
 
-    // Handle special case for "Heart for the House"
-    if (giveType === 'Heart for the House') {
-      return (
-        'https://pushpay.com/g/cfh4th?fnd=jt-LCSg3OxQQuMJmf0SzbQ&lang=en' +
-        '?f[0]=' +
-        campus +
-        '&a=' +
-        amount +
-        '&' +
-        (giftType === 'recurring' && 'r=weekly')
-      );
-    }
-
-    // Handle regular giving types
     const campusParam =
       campus === 'Westlake - Loxahatchee'
         ? 'Westlake%20%E2%80%93%20Loxahatchee'
