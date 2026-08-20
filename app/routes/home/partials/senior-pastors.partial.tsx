@@ -8,7 +8,7 @@ export function SeniorPastorsSection() {
         <div className='grid gap-10 lg:grid-cols-2 lg:gap-12 lg:items-center xl:grid-cols-[minmax(0,620px)_1fr] xl:gap-20'>
           <div className='flex flex-col gap-6 md:flex-row md:items-center md:gap-8 lg:flex-col lg:items-stretch lg:gap-6'>
             <img
-              src='/assets/images/home/senior-pastors.png'
+              src='/assets/images/home/senior-pastors.webp'
               alt='Pastors Todd and Julie Mullins'
               width={620}
               height={680}
