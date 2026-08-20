@@ -7,9 +7,8 @@
  * filter — the same assumption the messages and events pages already make when
  * they read the current series / featured cards.
  */
-import { algoliasearch } from 'algoliasearch';
-
 import { resolveSearchHitLinkFromHit } from '~/components/navbar/search-hit-links';
+import { createAuditedServerAlgoliaClient } from '~/lib/.server/algolia-request-audit.server';
 import {
   FEATURED_EVENTS_FILTER,
   FEATURED_EVENTS_HITS_PER_PAGE,
@@ -35,7 +34,11 @@ export async function fetchDefaultSearchHits(
   }
 
   try {
-    const client = algoliasearch(appId, searchApiKey, {});
+    const client = createAuditedServerAlgoliaClient(
+      appId,
+      searchApiKey,
+      'root.navbar-default-search',
+    );
 
     const { results } = await client.searchForHits<Record<string, unknown>>([
       ...LATEST_CONTENT_TYPES.map((contentType) => ({

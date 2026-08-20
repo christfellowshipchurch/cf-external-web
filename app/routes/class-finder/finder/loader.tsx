@@ -1,8 +1,7 @@
 import type { LoaderFunctionArgs } from 'react-router';
 
-import { algoliasearch } from 'algoliasearch';
-
 import { AuthenticationError } from '~/lib/.server/error-types';
+import { createAuditedServerAlgoliaClient } from '~/lib/.server/algolia-request-audit.server';
 import { getServerAlgoliaIndexes } from '~/lib/.server/algolia-indexes.server';
 import { fetchRockData } from '~/lib/.server/fetch-rock-data';
 import type { RockContentChannelItem } from '~/lib/types/rock-types';
@@ -94,7 +93,11 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   // by InstantSearch, but a full request still needs to honor the URL.
   const urlState = parseClassFinderUrlState(url.searchParams);
 
-  const client = algoliasearch(appId, searchApiKey, {});
+  const client = createAuditedServerAlgoliaClient(
+    appId,
+    searchApiKey,
+    'class-finder.loader',
+  );
 
   try {
     const built = buildClassFinderAlgoliaSearchParams(
