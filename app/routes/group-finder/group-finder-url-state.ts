@@ -103,14 +103,18 @@ export {
   groupFinderEmptyState,
 };
 
-/** Whether URL has filters “Clear All” should reset (group finder, URL-only mode). */
-export function hasGroupFinderUrlActiveFilters(
+/**
+ * Whether the user has actually applied a filter — what the “Active Filters” bar
+ * announces. `page` is deliberately excluded: pagination is navigation, not
+ * filtering, and counting it made the bar claim filters were applied on page 2+.
+ */
+export function hasGroupFinderAppliedFilters(
   state: GroupFinderUrlState,
+  coordinates?: { lat: number | null; lng: number | null } | null,
 ): boolean {
   if ((state.query?.trim()?.length ?? 0) > 0) return true;
   if (hasRefinementListValues(state.refinementList)) return true;
   if ((state.age?.trim().length ?? 0) > 0) return true;
-  if (state.page != null && state.page > 0) return true;
   if (
     state.lat != null &&
     state.lng != null &&
@@ -119,7 +123,19 @@ export function hasGroupFinderUrlActiveFilters(
   ) {
     return true;
   }
+  if (coordinates?.lat != null && coordinates?.lng != null) return true;
   return false;
+}
+
+/**
+ * Whether URL has anything “Clear All” should reset (group finder, URL-only mode).
+ * Includes `page`, since clearing returns the user to the first page.
+ */
+export function hasGroupFinderUrlActiveFilters(
+  state: GroupFinderUrlState,
+): boolean {
+  if (hasGroupFinderAppliedFilters(state)) return true;
+  return state.page != null && state.page > 0;
 }
 
 /** @deprecated Use {@link hasGroupFinderUrlActiveFilters} — coordinates now live in URL. */
