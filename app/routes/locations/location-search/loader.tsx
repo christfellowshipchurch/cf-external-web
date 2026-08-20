@@ -1,6 +1,5 @@
-import { algoliasearch } from 'algoliasearch';
-
 import { AuthenticationError } from '~/lib/.server/error-types';
+import { createAuditedServerAlgoliaClient } from '~/lib/.server/algolia-request-audit.server';
 import { getServerAlgoliaIndexes } from '~/lib/.server/algolia-indexes.server';
 import type { AlgoliaIndexMap } from '~/lib/algolia-indexes';
 
@@ -29,7 +28,11 @@ export async function loader() {
   }
 
   let initialLocationHits: CampusHit[] = [];
-  const client = algoliasearch(appId, searchApiKey, {});
+  const client = createAuditedServerAlgoliaClient(
+    appId,
+    searchApiKey,
+    'locations.loader',
+  );
 
   try {
     const res = await client.searchSingleIndex({

@@ -1,7 +1,6 @@
 import type { LoaderFunction } from 'react-router';
-import { algoliasearch } from 'algoliasearch';
-
 import { mapPageBuilderChildItems } from '~/routes/page-builder/loader';
+import { createAuditedServerAlgoliaClient } from '~/lib/.server/algolia-request-audit.server';
 import { PageBuilderSection } from '~/routes/page-builder/types';
 import { fetchRockData } from '~/lib/.server/fetch-rock-data';
 import { getServerAlgoliaIndexes } from '~/lib/.server/algolia-indexes.server';
@@ -81,7 +80,11 @@ export const loader: LoaderFunction = async ({ params }) => {
   }
 
   let campusHit: LocationHitType | null = null;
-  const client = algoliasearch(appId, searchApiKey, {});
+  const client = createAuditedServerAlgoliaClient(
+    appId,
+    searchApiKey,
+    'location-detail.loader',
+  );
 
   try {
     const res = await client.searchSingleIndex({

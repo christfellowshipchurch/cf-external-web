@@ -29,6 +29,7 @@ export interface RootLoaderData {
     ALGOLIA_APP_ID: string | undefined;
     ALGOLIA_SEARCH_API_KEY: string | undefined;
     indexes: AlgoliaIndexMap;
+    auditEnabled: boolean;
   };
   /** Popular results (content users click most). From Algolia getTopHits when available; else empty and UI uses hardcoded fallback. */
   popularResults: { title: string; pathname: string }[];
@@ -317,6 +318,7 @@ export async function loader({
           ALGOLIA_APP_ID: process.env.ALGOLIA_APP_ID,
           ALGOLIA_SEARCH_API_KEY: process.env.ALGOLIA_SEARCH_API_KEY,
           indexes: algoliaIndexes,
+          auditEnabled: process.env.ALGOLIA_REQUEST_AUDIT === '1',
         },
         popularResults: [],
         defaultSearchHits,
@@ -395,6 +397,7 @@ export async function loader({
         ALGOLIA_APP_ID: process.env.ALGOLIA_APP_ID,
         ALGOLIA_SEARCH_API_KEY: process.env.ALGOLIA_SEARCH_API_KEY,
         indexes: algoliaIndexes,
+        auditEnabled: process.env.ALGOLIA_REQUEST_AUDIT === '1',
       },
       popularResults: [],
       defaultSearchHits,
@@ -414,6 +417,7 @@ export async function loader({
         ALGOLIA_APP_ID: process.env.ALGOLIA_APP_ID,
         ALGOLIA_SEARCH_API_KEY: process.env.ALGOLIA_SEARCH_API_KEY,
         indexes: algoliaIndexes,
+        auditEnabled: process.env.ALGOLIA_REQUEST_AUDIT === '1',
       },
       popularResults: [],
       defaultSearchHits: [],
