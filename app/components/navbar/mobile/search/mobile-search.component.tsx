@@ -96,6 +96,7 @@ export const MobileSearch = ({
                 />
               </button>
               <SearchBox
+                autoFocus
                 queryHook={queryHook}
                 classNames={{
                   root: 'flex-grow',

@@ -142,14 +142,6 @@ export default function MobileMenu({
               );
             }, 0);
             dismissMenu();
-            setTimeout(() => {
-              const searchInput = document.querySelector(
-                '.ais-SearchBox-input',
-              );
-              if (searchInput instanceof HTMLInputElement) {
-                searchInput.focus();
-              }
-            }, 0);
           }}
         >
           <Icon name='search' size={20} className='mb-[2px]' />

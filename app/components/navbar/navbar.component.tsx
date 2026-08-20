@@ -227,12 +227,6 @@ export function Navbar() {
   const handleSearchClick = () => {
     setIsSearchOpen(true);
     setOpenDropdown(null); // Close any open dropdown
-    setTimeout(() => {
-      const searchInput = document.querySelector('.ais-SearchBox-input');
-      if (searchInput instanceof HTMLInputElement) {
-        searchInput.focus();
-      }
-    }, 0);
   };
 
   // Dropdown handling

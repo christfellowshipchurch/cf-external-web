@@ -136,6 +136,7 @@ export const SearchBar = ({
               />
             </button>
             <SearchBox
+              autoFocus
               queryHook={queryHook}
               classNames={{
                 root: 'flex-grow',
