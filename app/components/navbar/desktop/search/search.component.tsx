@@ -103,23 +103,6 @@ export const SearchBar = ({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [setIsSearchOpen, isSearchOpen]);
 
-  useEffect(() => {
-    if (isSearchOpen) {
-      // Fade in the search popup
-      const searchPopup = document.querySelector(
-        '.popup-search-container',
-      ) as HTMLDivElement;
-      if (searchPopup) {
-        searchPopup.style.maxHeight = '0';
-        searchPopup.style.paddingTop = '0';
-        setTimeout(() => {
-          searchPopup.style.maxHeight = '700px';
-          searchPopup.style.paddingTop = '16px';
-        }, 0);
-      }
-    }
-  }, [isSearchOpen]);
-
   return (
     <div className='relative size-full' ref={searchBarRef}>
       <InstantSearch
