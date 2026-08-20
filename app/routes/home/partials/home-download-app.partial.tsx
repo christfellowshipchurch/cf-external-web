@@ -33,7 +33,7 @@ export function HomeDownloadAppSection() {
     <section className='relative z-30 overflow-hidden bg-linear-to-br from-[#1C3647] to-navy py-16 md:py-24 lg:py-30 content-padding'>
       <div className='max-w-screen-content mx-auto grid items-center gap-12 lg:grid-cols-[333px_1fr] lg:gap-20'>
         <img
-          src='/assets/images/home/app-phone-redesign.png'
+          src='/assets/images/home/app-image.webp'
           alt='Christ Fellowship app'
           width={333}
           height={699}
