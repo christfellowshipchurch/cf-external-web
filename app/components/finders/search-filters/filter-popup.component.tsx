@@ -381,6 +381,8 @@ export const FilterPopup = ({
     const BOTTOM_GAP_PX = 16;
     const MIN_HEIGHT_PX = 200;
 
+    let rafId: number | null = null;
+
     const updateMaxHeight = () => {
       const el = ref.current;
       if (!el) return;
@@ -390,12 +392,31 @@ export const FilterPopup = ({
       );
     };
 
+    // Page scroll slides the popup up with the sticky bar, freeing space it was
+    // not measured with. Re-measure per frame so it grows back while scrolling
+    // instead of staying cropped at whatever fit when it opened.
+    const scheduleUpdate = () => {
+      if (rafId != null) return;
+      rafId = window.requestAnimationFrame(() => {
+        rafId = null;
+        updateMaxHeight();
+      });
+    };
+
     updateMaxHeight();
-    const rafId = window.requestAnimationFrame(updateMaxHeight);
+    scheduleUpdate();
     window.addEventListener('resize', updateMaxHeight);
+    // Capture: the finder can scroll inside a container, not only the window.
+    document.addEventListener('scroll', scheduleUpdate, {
+      capture: true,
+      passive: true,
+    });
     return () => {
-      window.cancelAnimationFrame(rafId);
+      if (rafId != null) window.cancelAnimationFrame(rafId);
       window.removeEventListener('resize', updateMaxHeight);
+      document.removeEventListener('scroll', scheduleUpdate, {
+        capture: true,
+      });
     };
   }, [showSection, isBottomSheet, isEmbedded]);
 

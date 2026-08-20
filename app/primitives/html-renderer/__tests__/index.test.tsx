@@ -80,6 +80,19 @@ describe('HTMLRenderer - link handling', () => {
     const link = screen.getByRole('link', { name: 'External' });
     expect(link).not.toHaveAttribute('rel');
   });
+
+  // A client-side Link stays in the current tab, so routing an internal
+  // target="_blank" link through it discards the author's intent — CMS content
+  // relies on this to keep the reader's place (CFDP-4231).
+  it('keeps internal links with target=_blank as new-tab <a> tags', () => {
+    renderHTML('<a href="/events/journey" target="_blank">Journey</a>');
+    expect(screen.queryByTestId('router-link')).not.toBeInTheDocument();
+    const link = screen.getByRole('link', { name: 'Journey' });
+    expect(link.tagName).toBe('A');
+    expect(link).toHaveAttribute('href', '/events/journey');
+    expect(link).toHaveAttribute('target', '_blank');
+    expect(link).toHaveAttribute('rel', 'noopener noreferrer');
+  });
 });
 
 describe('HTMLRenderer - image handling', () => {

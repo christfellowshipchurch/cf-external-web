@@ -52,8 +52,15 @@ export const HTMLRenderer = ({
         const htmlProps = attributesToProps(domNode.attribs);
         const { href, className, target } = htmlProps;
 
-        // Only convert internal links to React Router Link
-        if (href && typeof href === 'string' && !href.startsWith('http')) {
+        // Only convert internal links to React Router Link. `target="_blank"`
+        // is excluded: a client-side Link can't open a new tab, so authored
+        // targets were silently dropped (CFDP-4231).
+        if (
+          href &&
+          typeof href === 'string' &&
+          !href.startsWith('http') &&
+          target !== '_blank'
+        ) {
           return (
             <Link
               to={href}
@@ -68,7 +75,7 @@ export const HTMLRenderer = ({
           );
         }
 
-        // External links remain as regular <a> tags
+        // External links — and any link opening a new tab — stay plain <a> tags
         return (
           <a
             href={href?.toString()}
