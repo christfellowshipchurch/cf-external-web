@@ -7,6 +7,7 @@ export const GIVE_TYPES = [
   'Impact Offering',
   'Kingdom Builders',
   'Missions',
+  'Crisis Fund',
 ] as const;
 
 export const PushpayGiving = ({ campusList }: { campusList: string[] }) => {
