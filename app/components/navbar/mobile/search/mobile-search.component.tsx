@@ -66,22 +66,34 @@ export const MobileSearch = ({
   useEffect(() => {
     const container = searchContainerRef.current;
     if (!container) return;
+    let animationFrame: number | null = null;
 
     const focusSearchInput = () => {
       const input = container.querySelector('.ais-SearchBox-input');
       if (!(input instanceof HTMLInputElement)) return false;
-      input.focus();
+      animationFrame = window.requestAnimationFrame(() => input.focus());
       return true;
     };
 
-    if (focusSearchInput()) return;
+    if (focusSearchInput()) {
+      return () => {
+        if (animationFrame !== null) {
+          window.cancelAnimationFrame(animationFrame);
+        }
+      };
+    }
 
     const observer = new window.MutationObserver(() => {
       if (focusSearchInput()) observer.disconnect();
     });
     observer.observe(container, { childList: true, subtree: true });
 
-    return () => observer.disconnect();
+    return () => {
+      observer.disconnect();
+      if (animationFrame !== null) {
+        window.cancelAnimationFrame(animationFrame);
+      }
+    };
   }, []);
 
   return (
