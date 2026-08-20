@@ -36,7 +36,7 @@ import {
   parseGroupFinderUrlState,
   groupFinderUrlStateToParams,
   groupFinderEmptyState,
-  hasGroupFinderNonInstantSearchFilters,
+  hasGroupFinderAppliedFilters,
   type GroupFinderUrlState,
 } from '../group-finder-url-state';
 import { useAlgoliaUrlSync } from '~/hooks/use-algolia-url-sync';
@@ -275,7 +275,7 @@ export const GroupSearch = () => {
     location.pathname +
     (searchParams.toString() ? `?${searchParams.toString()}` : '');
 
-  const additionalClearAllFiltersActive = hasGroupFinderNonInstantSearchFilters(
+  const additionalClearAllFiltersActive = hasGroupFinderAppliedFilters(
     parseGroupFinderUrlState(searchParams),
     coordinates,
   );
