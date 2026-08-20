@@ -1,8 +1,7 @@
 import type { LoaderFunctionArgs } from 'react-router';
 
-import { algoliasearch } from 'algoliasearch';
-
 import { escapeAlgoliaFilterString } from '~/components/finders/finder-algolia.utils';
+import { createAuditedServerAlgoliaClient } from '~/lib/.server/algolia-request-audit.server';
 import { getServerAlgoliaIndexes } from '~/lib/.server/algolia-indexes.server';
 import { AuthenticationError } from '~/lib/.server/error-types';
 import { fetchRockData } from '~/lib/.server/fetch-rock-data';
@@ -93,7 +92,11 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   const urlState = parseAllMessagesUrlState(url.searchParams);
   const allMessagesPage = urlState.page ?? 0;
 
-  const client = algoliasearch(appId, searchApiKey, {});
+  const client = createAuditedServerAlgoliaClient(
+    appId,
+    searchApiKey,
+    'messages.loader',
+  );
 
   try {
     const [seriesRes, gridRes] = await Promise.all([

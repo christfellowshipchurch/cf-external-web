@@ -1,5 +1,5 @@
 import type { LoaderFunctionArgs } from 'react-router';
-import { algoliasearch } from 'algoliasearch';
+import { createAuditedServerAlgoliaClient } from '~/lib/.server/algolia-request-audit.server';
 
 import { escapeAlgoliaFilterString } from '~/components/finders/finder-algolia.utils';
 import { getServerAlgoliaIndexes } from '~/lib/.server/algolia-indexes.server';
@@ -95,7 +95,11 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   const eventsPage = urlState.page ?? 0;
 
   if (appId && searchApiKey) {
-    const client = algoliasearch(appId, searchApiKey, {});
+    const client = createAuditedServerAlgoliaClient(
+      appId,
+      searchApiKey,
+      'events.loader',
+    );
 
     try {
       const [featuredRes, mainRes] = await Promise.all([
