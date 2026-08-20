@@ -1,11 +1,13 @@
 import { algoliasearch, SearchClient } from 'algoliasearch';
-import { useEffect, useRef } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { Configure, InstantSearch, SearchBox } from 'react-instantsearch';
 import { useRouteLoaderData } from 'react-router-dom';
 import Icon from '~/primitives/icon';
 import { SearchPopup } from './search-popup.component';
 import { RootLoaderData } from '~/routes/navbar/loader';
 import { GlobalSearchLocationProvider } from '../../global-search-location-context';
+import { suppressBlankNavbarSearches } from '../../navbar-search-client';
+import { useDebouncedNavbarSearch } from '../../use-debounced-navbar-search';
 
 // Create a stable search instance ID that persists between unmounts
 const SEARCH_INSTANCE_ID = 'navbar-search';
@@ -50,10 +52,7 @@ export const SearchBar = ({
   };
   const { ALGOLIA_APP_ID, ALGOLIA_SEARCH_API_KEY } = algolia;
   const contentItemsIndexName = algolia.indexes?.contentItems ?? '';
-  const locationsIndexName = algolia.indexes?.locations ?? '';
-
-  // Create or retrieve the Algolia client
-  useEffect(() => {
+  const searchClient = useMemo(() => {
     if (ALGOLIA_APP_ID && ALGOLIA_SEARCH_API_KEY && !globalSearchClient) {
       globalSearchClient = algoliasearch(
         ALGOLIA_APP_ID,
@@ -61,13 +60,11 @@ export const SearchBar = ({
         {},
       );
     }
+    return globalSearchClient
+      ? suppressBlankNavbarSearches(globalSearchClient)
+      : (emptySearchClient as unknown as SearchClient);
   }, [ALGOLIA_APP_ID, ALGOLIA_SEARCH_API_KEY]);
-
-  const searchClient =
-    globalSearchClient ||
-    (ALGOLIA_APP_ID && ALGOLIA_SEARCH_API_KEY
-      ? algoliasearch(ALGOLIA_APP_ID, ALGOLIA_SEARCH_API_KEY, {})
-      : emptySearchClient);
+  const queryHook = useDebouncedNavbarSearch();
 
   const searchBarRef = useRef<HTMLDivElement>(null);
 
@@ -135,9 +132,6 @@ export const SearchBar = ({
           [contentItemsIndexName]: {
             query: '',
           },
-          [locationsIndexName]: {
-            query: '',
-          },
         }}
         insights={false}
         key={SEARCH_INSTANCE_ID}
@@ -159,6 +153,7 @@ export const SearchBar = ({
               />
             </button>
             <SearchBox
+              queryHook={queryHook}
               classNames={{
                 root: 'flex-grow',
                 form: 'flex',
@@ -173,11 +168,7 @@ export const SearchBar = ({
               }}
             />
           </div>
-          <SearchPopup
-            setIsSearchOpen={setIsSearchOpen}
-            searchClient={searchClient}
-            locationsIndexName={locationsIndexName}
-          />
+          <SearchPopup setIsSearchOpen={setIsSearchOpen} />
         </GlobalSearchLocationProvider>
       </InstantSearch>
     </div>

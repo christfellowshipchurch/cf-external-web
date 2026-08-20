@@ -44,6 +44,14 @@ afterEach(() => {
 });
 
 describe('MobileMenu history behavior', () => {
+  it('does not mount search until visitor opens it', () => {
+    renderMenu();
+
+    expect(screen.queryByTestId('mobile-search')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByLabelText('Search'));
+    expect(screen.getByTestId('mobile-search')).toBeInTheDocument();
+  });
+
   // Without an entry of its own, the back gesture carried the user off the page
   // and Clarity logged the return trip as a Quick Back (CFDP-4232).
   it('gives the open drawer a history entry at the current URL', () => {

@@ -128,6 +128,7 @@ export default function MobileMenu({
           </Button>
         </div>
         <button
+          aria-label='Search'
           className={mobileMenuButtonStyle}
           onClick={() => {
             setIsSearchOpen(!isSearchOpen);
@@ -224,7 +225,7 @@ export default function MobileMenu({
           className={`h-full flex flex-col transition-opacity duration-500
             ${isSearchOpen ? 'opacity-100' : 'opacity-0'}`}
         >
-          <MobileSearch setIsSearchOpen={setIsSearchOpen} />
+          {isSearchOpen && <MobileSearch setIsSearchOpen={setIsSearchOpen} />}
         </div>
       </div>
     </div>

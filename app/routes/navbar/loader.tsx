@@ -13,6 +13,7 @@ import { ContentChannelIds } from '~/lib/rock-config';
 import type { RockContentChannelItem } from '~/lib/types/rock-types';
 import { buildPodcastRoutingIndex } from '~/routes/podcasts/podcast-routing.server';
 import type { ContentItemHit } from '~/routes/search/types';
+import type { GlobalSearchLocationHit } from '~/components/navbar/search-locations';
 import { fetchDefaultSearchHits } from './default-search-hits.server';
 import { fetchIsOnlineServiceLive } from './live-service.server';
 
@@ -35,6 +36,8 @@ export interface RootLoaderData {
   popularResults: { title: string; pathname: string }[];
   /** Desktop site search's initial-open list, before a query is typed. */
   defaultSearchHits: ContentItemHit[];
+  /** Campus records fetched with default search hits and filtered locally. */
+  locationSearchHits: GlobalSearchLocationHit[];
   siteBanner: {
     content: string;
     link?: string;
@@ -287,12 +290,15 @@ export async function loader({
     const [
       rawFeatureCards,
       rawSiteBanner,
-      defaultSearchHits,
+      navbarSearchData,
       isOnlineServiceLive,
     ] = await Promise.all([
       fetchFeatureCards(),
       fetchSiteBanner(),
-      fetchDefaultSearchHits(algoliaIndexes.contentItems),
+      fetchDefaultSearchHits(
+        algoliaIndexes.contentItems,
+        algoliaIndexes.locations,
+      ),
       fetchIsOnlineServiceLive(),
     ]);
     const siteBanner = mapSiteBannerFromRockItem(rawSiteBanner);
@@ -321,7 +327,7 @@ export async function loader({
           auditEnabled: process.env.ALGOLIA_REQUEST_AUDIT === '1',
         },
         popularResults: [],
-        defaultSearchHits,
+        ...navbarSearchData,
         siteBanner,
         isOnlineServiceLive,
       };
@@ -400,7 +406,7 @@ export async function loader({
         auditEnabled: process.env.ALGOLIA_REQUEST_AUDIT === '1',
       },
       popularResults: [],
-      defaultSearchHits,
+      ...navbarSearchData,
       // Site Banner Data
       siteBanner: siteBanner,
       isOnlineServiceLive,
@@ -421,6 +427,7 @@ export async function loader({
       },
       popularResults: [],
       defaultSearchHits: [],
+      locationSearchHits: [],
       siteBanner: EMPTY_SITE_BANNER,
       isOnlineServiceLive: false,
     };

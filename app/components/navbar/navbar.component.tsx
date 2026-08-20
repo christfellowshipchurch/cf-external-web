@@ -391,18 +391,15 @@ export function Navbar() {
                   height: isSearchOpen ? '52px' : 'auto',
                 }}
               >
-                <div
-                  style={{
-                    display: isSearchOpen ? 'block' : 'none',
-                    width: '100%',
-                  }}
-                >
-                  <SearchBar
-                    mode={mode}
-                    isSearchOpen={isSearchOpen}
-                    setIsSearchOpen={setIsSearchOpen}
-                  />
-                </div>
+                {isSearchOpen && (
+                  <div style={{ width: '100%' }}>
+                    <SearchBar
+                      mode={mode}
+                      isSearchOpen={isSearchOpen}
+                      setIsSearchOpen={setIsSearchOpen}
+                    />
+                  </div>
+                )}
 
                 {!isSearchOpen && (
                   <button
