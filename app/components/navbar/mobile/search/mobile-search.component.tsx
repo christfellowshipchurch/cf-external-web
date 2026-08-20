@@ -1,5 +1,5 @@
 import { algoliasearch, SearchClient } from 'algoliasearch';
-import { useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { Configure, InstantSearch, SearchBox } from 'react-instantsearch';
 import { useRouteLoaderData } from 'react-router-dom';
 import Icon from '~/primitives/icon';
@@ -61,9 +61,31 @@ export const MobileSearch = ({
       : (emptySearchClient as unknown as SearchClient);
   }, [ALGOLIA_APP_ID, ALGOLIA_SEARCH_API_KEY]);
   const queryHook = useDebouncedNavbarSearch();
+  const searchContainerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const container = searchContainerRef.current;
+    if (!container) return;
+
+    const focusSearchInput = () => {
+      const input = container.querySelector('.ais-SearchBox-input');
+      if (!(input instanceof HTMLInputElement)) return false;
+      input.focus();
+      return true;
+    };
+
+    if (focusSearchInput()) return;
+
+    const observer = new window.MutationObserver(() => {
+      if (focusSearchInput()) observer.disconnect();
+    });
+    observer.observe(container, { childList: true, subtree: true });
+
+    return () => observer.disconnect();
+  }, []);
 
   return (
-    <div className='h-full overflow-y-auto bg-white'>
+    <div ref={searchContainerRef} className='h-full overflow-y-auto bg-white'>
       <InstantSearch
         indexName={contentItemsIndexName}
         searchClient={searchClient}
