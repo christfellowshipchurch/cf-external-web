@@ -308,7 +308,7 @@ export const faqCfEverywhereData = [
   },
   {
     title: 'How can I sign up for baptism?',
-    content: `We are excited that you are preparing to take the next step in your faith! Please email <a href="mailto:hello@christfellowship.church">hello@christfellowship.church</a> to connect with a member of our CFEverywhere Team or <a href="/baptism-sign-up">sign up to get baptized</a> at your nearest Christ Fellowship location.`,
+    content: `We are excited that you are preparing to take the next step in your faith! Please email <a href="mailto:hello@christfellowship.church">hello@christfellowship.church</a> to connect with a member of our CFEverywhere Team or <a href="/events/interested-in-getting-baptized">sign up to get baptized</a> at your nearest Christ Fellowship location.`,
   },
 ];
 
