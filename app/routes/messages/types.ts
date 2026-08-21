@@ -24,3 +24,11 @@ export type MessageType = {
     url: string;
   }[];
 };
+
+export type MessageCardType = {
+  id: string;
+  title: string;
+  summary: string;
+  coverImage: string;
+  url: string;
+};
