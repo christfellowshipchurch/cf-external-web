@@ -1,14 +1,22 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const searchForHits = vi.fn();
+const { searchForHits, redisGet, redisSet } = vi.hoisted(() => ({
+  searchForHits: vi.fn(),
+  redisGet: vi.fn(),
+  redisSet: vi.fn(),
+}));
 
 vi.mock('algoliasearch', () => ({
   algoliasearch: vi.fn(() => ({ searchForHits })),
+}));
+vi.mock('~/lib/.server/redis-config', () => ({
+  default: { get: redisGet, set: redisSet },
 }));
 
 import { fetchDefaultSearchHits } from '../default-search-hits.server';
 
 const INDEX = 'test_contentItems';
+const LOCATIONS_INDEX = 'test_locations';
 
 function hit(title: string, contentType: string, url: string) {
   return { objectID: `${contentType}-${title}`, title, contentType, url };
@@ -23,6 +31,8 @@ function respondWith(...hitGroups: unknown[][]) {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  redisGet.mockResolvedValue(null);
+  redisSet.mockResolvedValue('OK');
   process.env.ALGOLIA_APP_ID = 'test-app-id';
   process.env.ALGOLIA_SEARCH_API_KEY = 'test-search-key';
 });
@@ -41,7 +51,10 @@ describe('fetchDefaultSearchHits', () => {
       ],
     );
 
-    const hits = await fetchDefaultSearchHits(INDEX);
+    const { defaultSearchHits: hits } = await fetchDefaultSearchHits(
+      INDEX,
+      LOCATIONS_INDEX,
+    );
 
     expect(hits.map((h) => h.title)).toEqual([
       'Latest Message',
@@ -66,7 +79,10 @@ describe('fetchDefaultSearchHits', () => {
       ],
     );
 
-    const hits = await fetchDefaultSearchHits(INDEX);
+    const { defaultSearchHits: hits } = await fetchDefaultSearchHits(
+      INDEX,
+      LOCATIONS_INDEX,
+    );
 
     expect(hits.map((h) => h.title)).toEqual([
       'Latest Message',
@@ -85,7 +101,10 @@ describe('fetchDefaultSearchHits', () => {
       [],
     );
 
-    const hits = await fetchDefaultSearchHits(INDEX);
+    const { defaultSearchHits: hits } = await fetchDefaultSearchHits(
+      INDEX,
+      LOCATIONS_INDEX,
+    );
 
     expect(hits.map((h) => h.title)).toEqual(['Latest Article']);
   });
@@ -94,13 +113,67 @@ describe('fetchDefaultSearchHits', () => {
   it('returns an empty list when Algolia fails', async () => {
     searchForHits.mockRejectedValue(new Error('algolia down'));
 
-    await expect(fetchDefaultSearchHits(INDEX)).resolves.toEqual([]);
+    await expect(
+      fetchDefaultSearchHits(INDEX, LOCATIONS_INDEX),
+    ).resolves.toEqual({
+      defaultSearchHits: [],
+      locationSearchHits: [],
+      contentTypeFacets: {},
+    });
   });
 
   it('skips the request entirely without Algolia credentials', async () => {
     delete process.env.ALGOLIA_APP_ID;
 
-    await expect(fetchDefaultSearchHits(INDEX)).resolves.toEqual([]);
+    await expect(
+      fetchDefaultSearchHits(INDEX, LOCATIONS_INDEX),
+    ).resolves.toEqual({
+      defaultSearchHits: [],
+      locationSearchHits: [],
+      contentTypeFacets: {},
+    });
     expect(searchForHits).not.toHaveBeenCalled();
+  });
+
+  it('batches curated content and campuses into one cached request', async () => {
+    const campus = { campusName: 'Jupiter', campusUrl: 'jupiter' };
+    respondWith([], [], [], [], [campus]);
+
+    const first = await fetchDefaultSearchHits(INDEX, LOCATIONS_INDEX);
+    redisGet.mockResolvedValueOnce(JSON.stringify(first));
+    const second = await fetchDefaultSearchHits(INDEX, LOCATIONS_INDEX);
+
+    expect(searchForHits).toHaveBeenCalledTimes(1);
+    expect(searchForHits.mock.calls[0][0]).toHaveLength(6);
+    expect(first.locationSearchHits).toEqual([campus]);
+    expect(second).toEqual(first);
+    expect(redisSet).toHaveBeenCalledTimes(1);
+  });
+
+  it('includes contentType facets for navbar filter chips', async () => {
+    searchForHits.mockResolvedValue({
+      results: [
+        { hits: [] },
+        { hits: [] },
+        { hits: [] },
+        { hits: [] },
+        { hits: [] },
+        {
+          hits: [],
+          facets: { contentType: { Article: 4, Sermon: 2 } },
+        },
+      ],
+    });
+
+    const { contentTypeFacets } = await fetchDefaultSearchHits(
+      INDEX,
+      LOCATIONS_INDEX,
+    );
+
+    expect(contentTypeFacets).toEqual({ Article: 4, Sermon: 2 });
+    expect(searchForHits.mock.calls[0][0][5].params).toMatchObject({
+      facets: ['contentType'],
+      hitsPerPage: 0,
+    });
   });
 });

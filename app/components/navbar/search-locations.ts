@@ -1,10 +1,6 @@
-import type { SearchClient } from 'algoliasearch';
-
 import type { ContentItemHit } from '~/routes/search/types';
 
 import type { MobileContentHitType } from './mobile/search/mobile-content-hit.component';
-
-export const GLOBAL_SEARCH_LOCATIONS_HITS_PER_PAGE = 20;
 
 export type GlobalSearchLocationHit = {
   campusName?: string;
@@ -19,12 +15,6 @@ export type GlobalSearchLocationHit = {
   };
   objectID?: string;
 };
-
-export function isAlgoliaSearchClient(
-  searchClient: SearchClient | { search: () => Promise<unknown> },
-): searchClient is SearchClient {
-  return 'transporter' in searchClient;
-}
 
 function hasNonBlankCampusUrl(hit: GlobalSearchLocationHit): boolean {
   return typeof hit.campusUrl === 'string' && hit.campusUrl.trim().length > 0;
@@ -62,38 +52,6 @@ export function filterLocationHitsByQuery(
       value?.toLowerCase().includes(normalizedQuery),
     );
   });
-}
-
-export async function fetchGlobalSearchLocationHits({
-  searchClient,
-  locationsIndexName,
-  query,
-}: {
-  searchClient: SearchClient | { search: () => Promise<unknown> };
-  locationsIndexName: string;
-  query: string;
-}): Promise<GlobalSearchLocationHit[]> {
-  if (!locationsIndexName || !isAlgoliaSearchClient(searchClient)) {
-    return [];
-  }
-
-  const response = await searchClient.search<GlobalSearchLocationHit>({
-    requests: [
-      {
-        indexName: locationsIndexName,
-        query: '',
-        hitsPerPage: GLOBAL_SEARCH_LOCATIONS_HITS_PER_PAGE,
-      },
-    ],
-  });
-
-  const firstResult = response.results[0];
-  const hits =
-    'hits' in firstResult
-      ? (firstResult.hits as GlobalSearchLocationHit[])
-      : [];
-
-  return filterLocationHitsByQuery(hits, query);
 }
 
 export function toDesktopLocationContentHit(

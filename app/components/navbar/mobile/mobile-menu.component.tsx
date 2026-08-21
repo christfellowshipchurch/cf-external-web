@@ -128,6 +128,7 @@ export default function MobileMenu({
           </Button>
         </div>
         <button
+          aria-label='Search'
           className={mobileMenuButtonStyle}
           onClick={() => {
             setIsSearchOpen(!isSearchOpen);
@@ -141,14 +142,6 @@ export default function MobileMenu({
               );
             }, 0);
             dismissMenu();
-            setTimeout(() => {
-              const searchInput = document.querySelector(
-                '.ais-SearchBox-input',
-              );
-              if (searchInput instanceof HTMLInputElement) {
-                searchInput.focus();
-              }
-            }, 0);
           }}
         >
           <Icon name='search' size={20} className='mb-[2px]' />
@@ -224,7 +217,7 @@ export default function MobileMenu({
           className={`h-full flex flex-col transition-opacity duration-500
             ${isSearchOpen ? 'opacity-100' : 'opacity-0'}`}
         >
-          <MobileSearch setIsSearchOpen={setIsSearchOpen} />
+          {isSearchOpen && <MobileSearch setIsSearchOpen={setIsSearchOpen} />}
         </div>
       </div>
     </div>

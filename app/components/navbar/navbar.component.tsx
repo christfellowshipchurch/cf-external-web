@@ -227,12 +227,6 @@ export function Navbar() {
   const handleSearchClick = () => {
     setIsSearchOpen(true);
     setOpenDropdown(null); // Close any open dropdown
-    setTimeout(() => {
-      const searchInput = document.querySelector('.ais-SearchBox-input');
-      if (searchInput instanceof HTMLInputElement) {
-        searchInput.focus();
-      }
-    }, 0);
   };
 
   // Dropdown handling
@@ -391,18 +385,15 @@ export function Navbar() {
                   height: isSearchOpen ? '52px' : 'auto',
                 }}
               >
-                <div
-                  style={{
-                    display: isSearchOpen ? 'block' : 'none',
-                    width: '100%',
-                  }}
-                >
-                  <SearchBar
-                    mode={mode}
-                    isSearchOpen={isSearchOpen}
-                    setIsSearchOpen={setIsSearchOpen}
-                  />
-                </div>
+                {isSearchOpen && (
+                  <div style={{ width: '100%' }}>
+                    <SearchBar
+                      mode={mode}
+                      isSearchOpen={isSearchOpen}
+                      setIsSearchOpen={setIsSearchOpen}
+                    />
+                  </div>
+                )}
 
                 {!isSearchOpen && (
                   <button

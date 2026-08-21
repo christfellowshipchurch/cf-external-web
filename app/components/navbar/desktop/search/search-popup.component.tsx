@@ -1,5 +1,4 @@
-import type { SearchClient } from 'algoliasearch';
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useHits, useInstantSearch, useSearchBox } from 'react-instantsearch';
 import { useRouteLoaderData } from 'react-router-dom';
 
@@ -7,7 +6,7 @@ import type { RootLoaderData } from '~/routes/navbar/loader';
 import type { ContentItemHit } from '~/routes/search/types';
 
 import {
-  fetchGlobalSearchLocationHits,
+  filterLocationHitsByQuery,
   toDesktopLocationContentHit,
 } from '../../search-locations';
 import { shouldIncludeLocationResultsInGlobalSearch } from '../../search-page-refinements';
@@ -35,19 +34,14 @@ const ContentItemsHitsCollector = ({
 
 export const SearchPopup = ({
   setIsSearchOpen,
-  searchClient,
-  locationsIndexName,
 }: {
   setIsSearchOpen: (isSearchOpen: boolean) => void;
-  searchClient: SearchClient | { search: () => Promise<unknown> };
-  locationsIndexName: string;
 }) => {
   const { query } = useSearchBox();
   const { indexUiState } = useInstantSearch();
   const { setHasMatchingLocations } = useGlobalSearchLocationMatches();
   const rootData = useRouteLoaderData('root') as RootLoaderData | undefined;
   const [contentHits, setContentHits] = useState<ContentItemHit[]>([]);
-  const [locationHits, setLocationHits] = useState<ContentItemHit[]>([]);
 
   const selectedContentTypes =
     (indexUiState?.refinementList?.contentType as string[]) || [];
@@ -58,44 +52,16 @@ export const SearchPopup = ({
     trimmedQuery.length > 0 &&
     shouldIncludeLocationResultsInGlobalSearch(selectedContentTypes);
 
-  const searchLocations = useCallback(
-    async (searchQuery: string) => {
-      const hits = await fetchGlobalSearchLocationHits({
-        searchClient,
-        locationsIndexName,
-        query: searchQuery,
-      });
-
-      return hits.map(toDesktopLocationContentHit);
-    },
-    [locationsIndexName, searchClient],
+  const locationHits = useMemo(
+    () =>
+      shouldShowLocations
+        ? filterLocationHitsByQuery(
+            rootData?.locationSearchHits ?? [],
+            trimmedQuery,
+          ).map(toDesktopLocationContentHit)
+        : [],
+    [rootData?.locationSearchHits, shouldShowLocations, trimmedQuery],
   );
-
-  useEffect(() => {
-    if (!shouldShowLocations) {
-      setLocationHits([]);
-      return;
-    }
-
-    let isCancelled = false;
-
-    void searchLocations(trimmedQuery)
-      .then((hits) => {
-        if (!isCancelled) {
-          setLocationHits(hits);
-        }
-      })
-      .catch((error) => {
-        console.error('Error searching locations:', error);
-        if (!isCancelled) {
-          setLocationHits([]);
-        }
-      });
-
-    return () => {
-      isCancelled = true;
-    };
-  }, [shouldShowLocations, trimmedQuery, searchLocations]);
 
   useEffect(() => {
     setHasMatchingLocations(shouldShowLocations && locationHits.length > 0);
@@ -112,7 +78,7 @@ export const SearchPopup = ({
     : (rootData?.defaultSearchHits ?? []);
 
   return (
-    <div className='absolute left-0 top-[52px] w-full bg-gray rounded-b-lg shadow-lg px-12 z-4 popup-search-container transition-all duration-800 ease-in-out max-h-0 overflow-hidden'>
+    <div className='absolute left-0 top-[52px] w-full bg-gray rounded-b-lg shadow-lg px-12 pt-4 z-4 popup-search-container max-h-[700px] overflow-hidden animate-in fade-in slide-in-from-top-2 duration-300'>
       <div className='flex items-center gap-2 pb-4'>
         <div className='flex flex-col gap-2'>
           <h2 className='text-xs text-[#2F2F2F] opacity-50 font-semibold'>

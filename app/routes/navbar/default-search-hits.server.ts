@@ -9,15 +9,31 @@
  */
 import { resolveSearchHitLinkFromHit } from '~/components/navbar/search-hit-links';
 import { createAuditedServerAlgoliaClient } from '~/lib/.server/algolia-request-audit.server';
+import redis from '~/lib/.server/redis-config';
+import { TTL } from '~/lib/.server/cache-utils';
 import {
   FEATURED_EVENTS_FILTER,
   FEATURED_EVENTS_HITS_PER_PAGE,
   moveFeaturedJourneyCardFirst,
 } from '~/routes/events/featured-events';
 import type { ContentItemHit } from '~/routes/search/types';
+import type { GlobalSearchLocationHit } from '~/components/navbar/search-locations';
 
 /** Content types listed above the featured events, in display order. */
 const LATEST_CONTENT_TYPES = ['Sermon', 'Article', 'Podcast'] as const;
+
+export type NavbarSearchData = {
+  defaultSearchHits: ContentItemHit[];
+  locationSearchHits: GlobalSearchLocationHit[];
+  /** Facet counts for the navbar "I'm looking for" chips on a blank query. */
+  contentTypeFacets: Record<string, number>;
+};
+
+const EMPTY_NAVBAR_SEARCH_DATA: NavbarSearchData = {
+  defaultSearchHits: [],
+  locationSearchHits: [],
+  contentTypeFacets: {},
+};
 
 function hasResolvableLink(hit: ContentItemHit): boolean {
   return resolveSearchHitLinkFromHit(hit).to.trim().length > 0;
@@ -25,12 +41,29 @@ function hasResolvableLink(hit: ContentItemHit): boolean {
 
 export async function fetchDefaultSearchHits(
   contentItemsIndexName: string,
-): Promise<ContentItemHit[]> {
+  locationsIndexName: string,
+): Promise<NavbarSearchData> {
   const appId = process.env.ALGOLIA_APP_ID;
   const searchApiKey = process.env.ALGOLIA_SEARCH_API_KEY;
 
-  if (!appId || !searchApiKey || !contentItemsIndexName) {
-    return [];
+  if (
+    !appId ||
+    !searchApiKey ||
+    !contentItemsIndexName ||
+    !locationsIndexName
+  ) {
+    return EMPTY_NAVBAR_SEARCH_DATA;
+  }
+
+  const cacheKey = `navbar-search:v2:${contentItemsIndexName}:${locationsIndexName}`;
+
+  if (process.env.SHOW_UNAPPROVED_CONTENT !== 'true' && redis) {
+    try {
+      const cached = await redis.get(cacheKey);
+      if (cached) return JSON.parse(cached) as NavbarSearchData;
+    } catch (error) {
+      console.error('[navbar] search cache read failed', error);
+    }
   }
 
   try {
@@ -55,6 +88,22 @@ export async function fetchDefaultSearchHits(
           hitsPerPage: FEATURED_EVENTS_HITS_PER_PAGE,
         },
       },
+      {
+        indexName: locationsIndexName,
+        params: {
+          query: '',
+          hitsPerPage: 20,
+        },
+      },
+      {
+        indexName: contentItemsIndexName,
+        params: {
+          query: '',
+          hitsPerPage: 0,
+          facets: ['contentType'],
+          maxValuesPerFacet: 20,
+        },
+      },
     ]);
 
     const hitsAt = (index: number) =>
@@ -67,9 +116,29 @@ export async function fetchDefaultSearchHits(
       hitsAt(LATEST_CONTENT_TYPES.length),
     );
 
-    return [...latestHits, ...featuredEventHits].filter(hasResolvableLink);
+    const locationResultIndex = LATEST_CONTENT_TYPES.length + 1;
+    const contentTypeFacetsResult = results[locationResultIndex + 1];
+
+    const data = {
+      defaultSearchHits: [...latestHits, ...featuredEventHits].filter(
+        hasResolvableLink,
+      ),
+      locationSearchHits: (results[locationResultIndex]?.hits ??
+        []) as GlobalSearchLocationHit[],
+      contentTypeFacets: contentTypeFacetsResult?.facets?.contentType ?? {},
+    };
+
+    if (process.env.SHOW_UNAPPROVED_CONTENT !== 'true' && redis) {
+      try {
+        await redis.set(cacheKey, JSON.stringify(data), 'EX', TTL.SHORT);
+      } catch (error) {
+        console.error('[navbar] search cache write failed', error);
+      }
+    }
+
+    return data;
   } catch (error) {
     console.error('[navbar] default search hits fetch failed', error);
-    return [];
+    return EMPTY_NAVBAR_SEARCH_DATA;
   }
 }

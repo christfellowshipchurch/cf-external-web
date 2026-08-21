@@ -1,5 +1,5 @@
 import { algoliasearch, SearchClient } from 'algoliasearch';
-import { useEffect } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { Configure, InstantSearch, SearchBox } from 'react-instantsearch';
 import { useRouteLoaderData } from 'react-router-dom';
 import Icon from '~/primitives/icon';
@@ -7,6 +7,8 @@ import { SearchPopup } from './search-popup.component';
 import { RootLoaderData } from '~/routes/navbar/loader';
 import { GlobalSearchLocationProvider } from '../../global-search-location-context';
 import { MobileSearchCustomRefinementList } from './customRefinements.component';
+import { suppressBlankNavbarSearches } from '../../navbar-search-client';
+import { useDebouncedNavbarSearch } from '../../use-debounced-navbar-search';
 
 // Create a stable search instance ID that persists between unmounts
 const SEARCH_INSTANCE_ID = 'navbar-search';
@@ -46,10 +48,7 @@ export const MobileSearch = ({
     indexes: undefined,
   };
   const contentItemsIndexName = rootData?.algolia.indexes.contentItems ?? '';
-  const locationsIndexName = rootData?.algolia.indexes.locations ?? '';
-
-  // Create or retrieve the Algolia client
-  useEffect(() => {
+  const searchClient = useMemo(() => {
     if (ALGOLIA_APP_ID && ALGOLIA_SEARCH_API_KEY && !globalSearchClient) {
       globalSearchClient = algoliasearch(
         ALGOLIA_APP_ID,
@@ -57,16 +56,50 @@ export const MobileSearch = ({
         {},
       );
     }
-  }, [ALGOLIA_APP_ID, ALGOLIA_SEARCH_API_KEY]);
+    return globalSearchClient
+      ? suppressBlankNavbarSearches(globalSearchClient, {
+          contentType: rootData?.contentTypeFacets ?? {},
+        })
+      : (emptySearchClient as unknown as SearchClient);
+  }, [ALGOLIA_APP_ID, ALGOLIA_SEARCH_API_KEY, rootData?.contentTypeFacets]);
+  const queryHook = useDebouncedNavbarSearch();
+  const searchContainerRef = useRef<HTMLDivElement>(null);
 
-  const searchClient =
-    globalSearchClient ||
-    (ALGOLIA_APP_ID && ALGOLIA_SEARCH_API_KEY
-      ? algoliasearch(ALGOLIA_APP_ID, ALGOLIA_SEARCH_API_KEY, {})
-      : emptySearchClient);
+  useEffect(() => {
+    const container = searchContainerRef.current;
+    if (!container) return;
+    let animationFrame: number | null = null;
+
+    const focusSearchInput = () => {
+      const input = container.querySelector('.ais-SearchBox-input');
+      if (!(input instanceof HTMLInputElement)) return false;
+      animationFrame = window.requestAnimationFrame(() => input.focus());
+      return true;
+    };
+
+    if (focusSearchInput()) {
+      return () => {
+        if (animationFrame !== null) {
+          window.cancelAnimationFrame(animationFrame);
+        }
+      };
+    }
+
+    const observer = new window.MutationObserver(() => {
+      if (focusSearchInput()) observer.disconnect();
+    });
+    observer.observe(container, { childList: true, subtree: true });
+
+    return () => {
+      observer.disconnect();
+      if (animationFrame !== null) {
+        window.cancelAnimationFrame(animationFrame);
+      }
+    };
+  }, []);
 
   return (
-    <div className='h-full overflow-y-auto bg-white'>
+    <div ref={searchContainerRef} className='h-full overflow-y-auto bg-white'>
       <InstantSearch
         indexName={contentItemsIndexName}
         searchClient={searchClient}
@@ -75,9 +108,6 @@ export const MobileSearch = ({
         }}
         initialUiState={{
           [contentItemsIndexName]: {
-            query: '',
-          },
-          [locationsIndexName]: {
             query: '',
           },
         }}
@@ -102,6 +132,8 @@ export const MobileSearch = ({
                 />
               </button>
               <SearchBox
+                autoFocus
+                queryHook={queryHook}
                 classNames={{
                   root: 'flex-grow',
                   form: 'flex',
@@ -119,11 +151,7 @@ export const MobileSearch = ({
           </div>
 
           {/* Search Results + Refinements */}
-          <SearchPopup
-            setIsSearchOpen={setIsSearchOpen}
-            searchClient={searchClient}
-            locationsIndexName={locationsIndexName}
-          />
+          <SearchPopup setIsSearchOpen={setIsSearchOpen} />
         </GlobalSearchLocationProvider>
       </InstantSearch>
     </div>
