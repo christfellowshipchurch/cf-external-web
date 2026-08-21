@@ -1,7 +1,11 @@
 import { useLoaderData } from 'react-router-dom';
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { liteClient as algoliasearch } from 'algoliasearch/lite';
-import { Configure, InstantSearch } from 'react-instantsearch';
+import {
+  Configure,
+  InstantSearch,
+  InstantSearchSSRProvider,
+} from 'react-instantsearch';
 
 import { createInstantSearchUrlSync } from '~/components/finders/instant-search-url-sync/create-instant-search-url-sync';
 import { SectionTitle } from '~/components';
@@ -21,20 +25,14 @@ import {
 } from '../all-events.constants';
 
 import { AllEventsInstantFilters } from './all-events-instant-filters.component';
-import {
-  AllEventsInstantResults,
-  AllEventsResultsLayout,
-} from './all-events-results.component';
-import { EventsFiltersViewport } from './events-filters-viewport.component';
+import { AllEventsInstantResults } from './all-events-results.component';
 
 export function AllEventsContent() {
   const {
     ALGOLIA_APP_ID,
     ALGOLIA_SEARCH_API_KEY,
     featuredHits,
-    mainEventHits,
-    eventsNbPages,
-    eventsPage,
+    serverState,
     algoliaIndexes,
   } = useLoaderData<AllEventsLoaderData>();
   const eventsIndexName = algoliaIndexes.contentItems;
@@ -54,7 +52,6 @@ export function AllEventsContent() {
     urlState,
     applyUrlState,
     searchParams,
-    clearAllFiltersFromUrl,
     fromEventsUrl,
     eventsMobilePinEndRef,
   } = useEventsAlgoliaRouting();
@@ -82,14 +79,6 @@ export function AllEventsContent() {
     );
   });
 
-  const isFirstPage = eventsPage <= 0;
-  const isLastPage = eventsNbPages <= 0 || eventsPage >= eventsNbPages - 1;
-
-  const [filtersMounted, setFiltersMounted] = useState(false);
-  useEffect(() => {
-    setFiltersMounted(true);
-  }, []);
-
   return (
     <>
       <FeaturedEventsSectionLayout>
@@ -112,7 +101,7 @@ export function AllEventsContent() {
           </div>
         </div>
 
-        {filtersMounted ? (
+        <InstantSearchSSRProvider {...serverState}>
           <InstantSearch
             indexName={eventsIndexName}
             searchClient={searchClient}
@@ -154,48 +143,9 @@ export function AllEventsContent() {
                 buildAllEventsInstantSearchUiState
               }
             />
-            <AllEventsInstantResults
-              initialEventHits={mainEventHits}
-              fromEventsUrl={fromEventsUrl}
-            />
+            <AllEventsInstantResults fromEventsUrl={fromEventsUrl} />
           </InstantSearch>
-        ) : (
-          <>
-            {/* Before hydration, show the loader-backed grid and the events
-                filter skeleton. The real filter facet values come from
-                `useRefinementList` after InstantSearch mounts. */}
-            <EventsFiltersViewport
-              onClearAllToUrl={clearAllFiltersFromUrl}
-              eventsMobilePinEndRef={eventsMobilePinEndRef}
-              urlState={urlState}
-              applyUrlState={applyUrlState}
-              categoryFacets={[]}
-              locationFacets={[]}
-            />
-            <AllEventsResultsLayout
-              eventHits={mainEventHits}
-              eventsNbPages={eventsNbPages}
-              eventsPage={eventsPage}
-              isFirstPage={isFirstPage}
-              isLastPage={isLastPage}
-              isLoading={false}
-              fromEventsUrl={fromEventsUrl}
-              goToPage={(nextPage) => {
-                applyUrlState({
-                  ...urlState,
-                  page: Math.max(0, nextPage),
-                });
-                const scrollTarget = document.querySelector(
-                  '.pagination-scroll-to',
-                );
-                if (scrollTarget) {
-                  scrollTarget.scrollIntoView({ behavior: 'smooth' });
-                }
-              }}
-              eventsMobilePinEndRef={eventsMobilePinEndRef}
-            />
-          </>
-        )}
+        </InstantSearchSSRProvider>
       </div>
     </>
   );
