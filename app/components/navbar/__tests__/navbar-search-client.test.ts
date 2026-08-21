@@ -21,6 +21,31 @@ describe('navbar Algolia request count', () => {
     expect(search).not.toHaveBeenCalled();
   });
 
+  it('returns cached contentType facets for blank initial searches', async () => {
+    const search = vi.fn();
+    const client = suppressBlankNavbarSearches({ search } as never, {
+      contentType: { Article: 4, Sermon: 2 },
+    });
+
+    const response = await (
+      client as unknown as {
+        search: (request: unknown) => Promise<{
+          results: Array<{ facets?: { contentType?: Record<string, number> } }>;
+        }>;
+      }
+    ).search([
+      {
+        indexName: 'content',
+        params: { query: '', hitsPerPage: 10, facets: ['contentType'] },
+      },
+    ]);
+
+    expect(search).not.toHaveBeenCalled();
+    expect(response.results[0]?.facets).toEqual({
+      contentType: { Article: 4, Sermon: 2 },
+    });
+  });
+
   it('forwards one nonblank search', async () => {
     const search = vi.fn().mockResolvedValue({ results: [] });
     const client = suppressBlankNavbarSearches({ search } as never);

@@ -38,6 +38,8 @@ export interface RootLoaderData {
   defaultSearchHits: ContentItemHit[];
   /** Campus records fetched with default search hits and filtered locally. */
   locationSearchHits: GlobalSearchLocationHit[];
+  /** contentType facet counts for navbar search filters on a blank query. */
+  contentTypeFacets: Record<string, number>;
   siteBanner: {
     content: string;
     link?: string;
@@ -428,6 +430,7 @@ export async function loader({
       popularResults: [],
       defaultSearchHits: [],
       locationSearchHits: [],
+      contentTypeFacets: {},
       siteBanner: EMPTY_SITE_BANNER,
       isOnlineServiceLive: false,
     };

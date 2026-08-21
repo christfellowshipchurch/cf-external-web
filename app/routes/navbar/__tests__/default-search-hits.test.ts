@@ -115,7 +115,11 @@ describe('fetchDefaultSearchHits', () => {
 
     await expect(
       fetchDefaultSearchHits(INDEX, LOCATIONS_INDEX),
-    ).resolves.toEqual({ defaultSearchHits: [], locationSearchHits: [] });
+    ).resolves.toEqual({
+      defaultSearchHits: [],
+      locationSearchHits: [],
+      contentTypeFacets: {},
+    });
   });
 
   it('skips the request entirely without Algolia credentials', async () => {
@@ -123,7 +127,11 @@ describe('fetchDefaultSearchHits', () => {
 
     await expect(
       fetchDefaultSearchHits(INDEX, LOCATIONS_INDEX),
-    ).resolves.toEqual({ defaultSearchHits: [], locationSearchHits: [] });
+    ).resolves.toEqual({
+      defaultSearchHits: [],
+      locationSearchHits: [],
+      contentTypeFacets: {},
+    });
     expect(searchForHits).not.toHaveBeenCalled();
   });
 
@@ -136,9 +144,36 @@ describe('fetchDefaultSearchHits', () => {
     const second = await fetchDefaultSearchHits(INDEX, LOCATIONS_INDEX);
 
     expect(searchForHits).toHaveBeenCalledTimes(1);
-    expect(searchForHits.mock.calls[0][0]).toHaveLength(5);
+    expect(searchForHits.mock.calls[0][0]).toHaveLength(6);
     expect(first.locationSearchHits).toEqual([campus]);
     expect(second).toEqual(first);
     expect(redisSet).toHaveBeenCalledTimes(1);
+  });
+
+  it('includes contentType facets for navbar filter chips', async () => {
+    searchForHits.mockResolvedValue({
+      results: [
+        { hits: [] },
+        { hits: [] },
+        { hits: [] },
+        { hits: [] },
+        { hits: [] },
+        {
+          hits: [],
+          facets: { contentType: { Article: 4, Sermon: 2 } },
+        },
+      ],
+    });
+
+    const { contentTypeFacets } = await fetchDefaultSearchHits(
+      INDEX,
+      LOCATIONS_INDEX,
+    );
+
+    expect(contentTypeFacets).toEqual({ Article: 4, Sermon: 2 });
+    expect(searchForHits.mock.calls[0][0][5].params).toMatchObject({
+      facets: ['contentType'],
+      hitsPerPage: 0,
+    });
   });
 });

@@ -57,9 +57,11 @@ export const MobileSearch = ({
       );
     }
     return globalSearchClient
-      ? suppressBlankNavbarSearches(globalSearchClient)
+      ? suppressBlankNavbarSearches(globalSearchClient, {
+          contentType: rootData?.contentTypeFacets ?? {},
+        })
       : (emptySearchClient as unknown as SearchClient);
-  }, [ALGOLIA_APP_ID, ALGOLIA_SEARCH_API_KEY]);
+  }, [ALGOLIA_APP_ID, ALGOLIA_SEARCH_API_KEY, rootData?.contentTypeFacets]);
   const queryHook = useDebouncedNavbarSearch();
   const searchContainerRef = useRef<HTMLDivElement>(null);
 

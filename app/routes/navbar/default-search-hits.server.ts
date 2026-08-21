@@ -25,11 +25,14 @@ const LATEST_CONTENT_TYPES = ['Sermon', 'Article', 'Podcast'] as const;
 export type NavbarSearchData = {
   defaultSearchHits: ContentItemHit[];
   locationSearchHits: GlobalSearchLocationHit[];
+  /** Facet counts for the navbar "I'm looking for" chips on a blank query. */
+  contentTypeFacets: Record<string, number>;
 };
 
 const EMPTY_NAVBAR_SEARCH_DATA: NavbarSearchData = {
   defaultSearchHits: [],
   locationSearchHits: [],
+  contentTypeFacets: {},
 };
 
 function hasResolvableLink(hit: ContentItemHit): boolean {
@@ -52,7 +55,7 @@ export async function fetchDefaultSearchHits(
     return EMPTY_NAVBAR_SEARCH_DATA;
   }
 
-  const cacheKey = `navbar-search:${contentItemsIndexName}:${locationsIndexName}`;
+  const cacheKey = `navbar-search:v2:${contentItemsIndexName}:${locationsIndexName}`;
 
   if (process.env.SHOW_UNAPPROVED_CONTENT !== 'true' && redis) {
     try {
@@ -92,6 +95,15 @@ export async function fetchDefaultSearchHits(
           hitsPerPage: 20,
         },
       },
+      {
+        indexName: contentItemsIndexName,
+        params: {
+          query: '',
+          hitsPerPage: 0,
+          facets: ['contentType'],
+          maxValuesPerFacet: 20,
+        },
+      },
     ]);
 
     const hitsAt = (index: number) =>
@@ -104,12 +116,16 @@ export async function fetchDefaultSearchHits(
       hitsAt(LATEST_CONTENT_TYPES.length),
     );
 
+    const locationResultIndex = LATEST_CONTENT_TYPES.length + 1;
+    const contentTypeFacetsResult = results[locationResultIndex + 1];
+
     const data = {
       defaultSearchHits: [...latestHits, ...featuredEventHits].filter(
         hasResolvableLink,
       ),
-      locationSearchHits: (results[LATEST_CONTENT_TYPES.length + 1]?.hits ??
+      locationSearchHits: (results[locationResultIndex]?.hits ??
         []) as GlobalSearchLocationHit[],
+      contentTypeFacets: contentTypeFacetsResult?.facets?.contentType ?? {},
     };
 
     if (process.env.SHOW_UNAPPROVED_CONTENT !== 'true' && redis) {
