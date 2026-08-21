@@ -1,28 +1,11 @@
 import { useLoaderData } from 'react-router-dom';
-import { useMemo } from 'react';
-import { InstantSearch, Hits, Configure, useHits } from 'react-instantsearch';
 import { LoaderReturnType } from '../loader';
 import { SeriesCard } from '../components/this-series-card.component';
-import { ContentItemHit } from '~/routes/search/types';
-import { createSearchClient } from '~/lib/create-search-client';
 
-const SeriesHitComponent = ({ hit }: { hit: ContentItemHit }) => {
-  return (
-    <SeriesCard
-      message={{
-        title: hit.title,
-        summary: hit.summary,
-        coverImage: hit.coverImage.sources[0].uri,
-        url: hit.url || hit.routing.pathname,
-      }}
-    />
-  );
-};
+export const InThisSeries = () => {
+  const { message, seriesMessages } = useLoaderData<LoaderReturnType>();
 
-const SeriesContent = ({ seriesTitle }: { seriesTitle: string }) => {
-  const { items } = useHits<ContentItemHit>();
-
-  if (items.length === 0) {
+  if (!message.seriesTitle || seriesMessages.length === 0) {
     return null;
   }
 
@@ -33,51 +16,24 @@ const SeriesContent = ({ seriesTitle }: { seriesTitle: string }) => {
           <h2 className='font-extrabold text-[28px] lg:text-[32px]'>
             In This Series
           </h2>
-          <p className='text-[#AAAAAA]'>{seriesTitle}</p>
+          <p className='text-[#AAAAAA]'>{message.seriesTitle}</p>
         </div>
       </div>
 
       <div className='pl-5 md:pl-12 lg:pl-18 2xl:pr-18'>
         <div className='max-w-screen-content mx-auto'>
-          <Hits
-            hitComponent={SeriesHitComponent}
-            classNames={{
-              list: 'flex overflow-y-hidden overflow-x-auto gap-6 xl:gap-8 py-2 max-w-screen-content w-full max-h-[300px]',
-              item: 'w-full min-w-[318px] max-w-[350px]',
-            }}
-          />
+          <ul className='flex overflow-y-hidden overflow-x-auto gap-6 xl:gap-8 py-2 max-w-screen-content w-full max-h-[300px]'>
+            {seriesMessages.map((seriesMessage) => (
+              <li
+                key={seriesMessage.id}
+                className='w-full min-w-[318px] max-w-[350px]'
+              >
+                <SeriesCard message={seriesMessage} />
+              </li>
+            ))}
+          </ul>
         </div>
       </div>
     </div>
-  );
-};
-
-export const InThisSeries = () => {
-  const { message, ALGOLIA_APP_ID, ALGOLIA_SEARCH_API_KEY, algoliaIndexes } =
-    useLoaderData<LoaderReturnType>();
-
-  const searchClient = useMemo(
-    () =>
-      createSearchClient(ALGOLIA_APP_ID || '', ALGOLIA_SEARCH_API_KEY || ''),
-    [ALGOLIA_APP_ID, ALGOLIA_SEARCH_API_KEY],
-  );
-
-  if (!message.seriesTitle) {
-    return null;
-  }
-
-  const filter = `contentType:"Sermon" AND seriesName:"${message.seriesTitle}" AND rockItemId != ${message.id}`;
-
-  return (
-    <InstantSearch
-      indexName={algoliaIndexes.contentItems}
-      searchClient={searchClient}
-      future={{
-        preserveSharedStateOnUnmount: true,
-      }}
-    >
-      <Configure filters={filter} hitsPerPage={10} />
-      <SeriesContent seriesTitle={message.seriesTitle} />
-    </InstantSearch>
   );
 };
