@@ -8,6 +8,7 @@ import {
   useHits,
   usePagination,
   useRefinementList,
+  useSearchBox,
 } from 'react-instantsearch';
 
 type RefinementListOptions = Parameters<typeof useRefinementList>[0];
@@ -23,15 +24,31 @@ function RefinementListCollector({
 
 function FinderServerWidgets({
   refinementLists,
+  collectPagination,
 }: {
   refinementLists: RefinementListOptions[];
+  collectPagination: boolean;
 }) {
   useHits();
-  usePagination();
+  return (
+    <>
+      <SearchBoxCollector />
+      {collectPagination ? <PaginationCollector /> : null}
+      {refinementLists.map((options) => (
+        <RefinementListCollector key={options.attribute} options={options} />
+      ))}
+    </>
+  );
+}
 
-  return refinementLists.map((options) => (
-    <RefinementListCollector key={options.attribute} options={options} />
-  ));
+function SearchBoxCollector() {
+  useSearchBox();
+  return null;
+}
+
+function PaginationCollector() {
+  usePagination();
+  return null;
 }
 
 export function getFinderServerState({
@@ -40,12 +57,14 @@ export function getFinderServerState({
   initialUiState,
   configure,
   refinementLists = [],
+  collectPagination = true,
 }: {
   searchClient: SearchClient;
   indexName: string;
   initialUiState?: Record<string, Record<string, unknown>>;
   configure: ComponentProps<typeof Configure>;
   refinementLists?: RefinementListOptions[];
+  collectPagination?: boolean;
 }) {
   return getServerState(
     <InstantSearch
@@ -54,7 +73,10 @@ export function getFinderServerState({
       initialUiState={initialUiState}
     >
       <Configure {...configure} />
-      <FinderServerWidgets refinementLists={refinementLists} />
+      <FinderServerWidgets
+        refinementLists={refinementLists}
+        collectPagination={collectPagination}
+      />
     </InstantSearch>,
     { renderToString },
   );
