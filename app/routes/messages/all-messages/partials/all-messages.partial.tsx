@@ -1,9 +1,12 @@
 import { useLoaderData, useSearchParams } from 'react-router-dom';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useMemo, useRef } from 'react';
 import { liteClient as algoliasearch } from 'algoliasearch/lite';
 import {
   Configure,
   InstantSearch,
+  InstantSearchSSRProvider,
+  useHits,
+  useInstantSearch,
   usePagination,
   useRefinementList,
 } from 'react-instantsearch';
@@ -11,7 +14,6 @@ import {
 import { SectionTitle } from '~/components';
 import { RefinementPills } from '~/components/finders/refinement-pills/refinement-pills.component';
 import { createInstantSearchUrlSync } from '~/components/finders/instant-search-url-sync/create-instant-search-url-sync';
-import { useHydratedHitsFallback } from '~/components/finders/use-hydrated-hits-fallback';
 import { ResourceCard } from '~/primitives/cards/resource-card';
 import type { ContentItemHit } from '~/routes/search/types';
 import { Icon } from '~/primitives/icon/icon';
@@ -33,9 +35,9 @@ import {
 } from '../all-messages-url-state';
 
 /**
- * Hybrid hub flow:
+ * SSR-hydrated hub flow:
  *
- * - The loader fetches the initial message grid for SSR/first paint.
+ * - The loader gets InstantSearch server state for SSR/first paint.
  * - Current-series content remains loader-backed and independent of grid filters.
  * - Once hydrated, InstantSearch owns the message grid refinements and pagination.
  * - `onStateChange` mirrors InstantSearch state into the existing `/messages`
@@ -45,9 +47,7 @@ export function AllMessages() {
   const {
     ALGOLIA_APP_ID,
     ALGOLIA_SEARCH_API_KEY,
-    allMessagesHits,
-    allMessagesNbPages,
-    allMessagesPage,
+    serverState,
     algoliaIndexes,
   } = useLoaderData<AllMessagesLoaderReturnType>();
   const messagesIndexName = algoliaIndexes.contentItems;
@@ -95,15 +95,6 @@ export function AllMessages() {
     );
   });
 
-  const isFirstPage = allMessagesPage <= 0;
-  const isLastPage =
-    allMessagesNbPages <= 0 || allMessagesPage >= allMessagesNbPages - 1;
-
-  const [filtersMounted, setFiltersMounted] = useState(false);
-  useEffect(() => {
-    setFiltersMounted(true);
-  }, []);
-
   return (
     <section className='relative py-32 min-h-screen bg-white content-padding pagination-scroll-to'>
       <div className='relative max-w-screen-content mx-auto'>
@@ -113,7 +104,7 @@ export function AllMessages() {
           title='Christ Fellowship Church Messages'
         />
 
-        {filtersMounted ? (
+        <InstantSearchSSRProvider {...serverState}>
           <InstantSearch
             indexName={messagesIndexName}
             searchClient={searchClient}
@@ -150,34 +141,9 @@ export function AllMessages() {
               hitsPerPage={ALL_MESSAGES_GRID_HITS_PER_PAGE}
             />
             <AllMessagesFilters />
-            <AllMessagesInstantResults initialMessageHits={allMessagesHits} />
+            <AllMessagesInstantResults />
           </InstantSearch>
-        ) : (
-          <>
-            {/* SSR fallback: preserve the loader-rendered cards and reserve the
-                filter row while the client-only InstantSearch widgets mount. */}
-            <div className='mt-10 mb-12'>
-              <HubsTagsRefinementLoadingSkeleton />
-            </div>
-            <AllMessagesResultsLayout
-              messageHits={allMessagesHits}
-              messagesNbPages={allMessagesNbPages}
-              messagesPage={allMessagesPage}
-              isFirstPage={isFirstPage}
-              isLastPage={isLastPage}
-              isLoading={false}
-              goToPage={(nextPage) => {
-                updateUrlIfChanged({ page: Math.max(0, nextPage) });
-                const scrollTarget = document.querySelector(
-                  '.pagination-scroll-to',
-                );
-                if (scrollTarget) {
-                  scrollTarget.scrollIntoView({ behavior: 'smooth' });
-                }
-              }}
-            />
-          </>
-        )}
+        </InstantSearchSSRProvider>
       </div>
     </section>
   );
@@ -221,15 +187,10 @@ function AllMessagesFilters() {
   );
 }
 
-function AllMessagesInstantResults({
-  initialMessageHits,
-}: {
-  initialMessageHits: ContentItemHit[];
-}) {
-  const { hits: messageHits, isLoading } =
-    useHydratedHitsFallback<ContentItemHit>({
-      initialHits: initialMessageHits,
-    });
+function AllMessagesInstantResults() {
+  const { items: messageHits } = useHits<ContentItemHit>();
+  const { status } = useInstantSearch();
+  const isLoading = status === 'loading' || status === 'stalled';
   const { currentRefinement, nbPages, isFirstPage, isLastPage, refine } =
     usePagination();
 

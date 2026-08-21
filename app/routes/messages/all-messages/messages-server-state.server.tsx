@@ -6,15 +6,15 @@ import {
 } from '~/components/finders/instant-search-ssr/get-finder-server-state.server';
 
 import {
-  ALL_ARTICLES_CATEGORY_FACET,
-  ALL_ARTICLES_HITS_PER_PAGE,
-  ALL_ARTICLES_TYPE_FILTER,
-} from './all-articles.constants';
-import type { AllArticlesUrlState } from './all-articles-url-state';
+  ALL_MESSAGES_GRID_HITS_PER_PAGE,
+  MESSAGES_SERMON_FILTER,
+  SERMON_PRIMARY_CATEGORY_FACET,
+} from './all-messages.constants';
+import type { AllMessagesUrlState } from './all-messages-url-state';
 
-export function buildArticlesInitialUiState(
+export function buildMessagesInitialUiState(
   indexName: string,
-  urlState: AllArticlesUrlState,
+  urlState: AllMessagesUrlState,
 ) {
   const indexState: Record<string, unknown> = {};
   if (urlState.query) indexState.query = urlState.query;
@@ -30,26 +30,25 @@ export function buildArticlesInitialUiState(
     : undefined;
 }
 
-export function getArticlesServerState({
+export function getMessagesServerState({
   searchClient,
   indexName,
   urlState,
 }: {
   searchClient: SearchClient;
   indexName: string;
-  urlState: AllArticlesUrlState;
+  urlState: AllMessagesUrlState;
 }) {
   return getFinderServerState({
     searchClient,
     indexName,
-    initialUiState: buildArticlesInitialUiState(indexName, urlState),
+    initialUiState: buildMessagesInitialUiState(indexName, urlState),
     configure: {
-      filters: ALL_ARTICLES_TYPE_FILTER,
-      hitsPerPage: ALL_ARTICLES_HITS_PER_PAGE,
-      distinct: true,
+      filters: MESSAGES_SERMON_FILTER,
+      hitsPerPage: ALL_MESSAGES_GRID_HITS_PER_PAGE,
     },
-    refinementLists: [{ attribute: ALL_ARTICLES_CATEGORY_FACET, limit: 50 }],
+    refinementLists: [{ attribute: SERMON_PRIMARY_CATEGORY_FACET, limit: 50 }],
   });
 }
 
-export type ArticlesServerState = FinderServerState;
+export type MessagesServerState = FinderServerState;
