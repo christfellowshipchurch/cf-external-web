@@ -7,6 +7,7 @@ import { Video } from '~/primitives/video/video.primitive';
 import { useResponsive } from '~/hooks/use-responsive';
 import {
   expectEnglishItems,
+  expectOnlineItems,
   expectSpanishItems,
   getKidsGrade,
 } from '../../../location-single-data';
@@ -25,7 +26,9 @@ export const WhatToExpect = ({
   const title = isSpanish ? '¿Qué esperar?' : 'What to Expect';
   const expectItems = isSpanish
     ? expectSpanishItems
-    : expectEnglishItems(getKidsGrade(campusUrl));
+    : isOnline
+      ? expectOnlineItems
+      : expectEnglishItems(getKidsGrade(campusUrl));
   const { isSmall } = useResponsive();
 
   return (

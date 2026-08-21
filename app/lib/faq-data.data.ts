@@ -302,6 +302,14 @@ export const faqCfEverywhereData = [
     title: 'How can I get involved?',
     content: `We are so excited to get you involved with Christ Fellowship Everywhere and want to help you take your next step. <a href=/events/journey>Journey</a> is a great first step that will lay out a variety of ways to get involved. Looking for your next step? <a target="blank" href="mailto:online@christfellowship.church"> Send us an email</a> so we can help you discover your next step!`,
   },
+  {
+    title: 'Can I participate in communion from home?',
+    content: `We would love to invite you to take communion in your home—by yourself or with your family! <a href="/articles/how-to-lead-communion-in-your-home">Click here</a> for a breakdown on how to lead communion in your home.`,
+  },
+  {
+    title: 'How can I sign up for baptism?',
+    content: `We are excited that you are preparing to take the next step in your faith! Please email <a href="mailto:hello@christfellowship.church">hello@christfellowship.church</a> to connect with a member of our CFEverywhere Team or <a href="/baptism-sign-up">sign up to get baptized</a> at your nearest Christ Fellowship location.`,
+  },
 ];
 
 // CF Kids upper grade varies by campus, so the "Is childcare provided?" answer
