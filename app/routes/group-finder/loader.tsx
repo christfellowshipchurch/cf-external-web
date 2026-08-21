@@ -7,18 +7,17 @@ import { fetchRockData } from '~/lib/.server/fetch-rock-data';
 import type { AlgoliaIndexMap } from '~/lib/algolia-indexes';
 import { ContentItemIds } from '~/lib/rock-config';
 
-import { buildGroupFinderAlgoliaSearchParams } from './components/build-group-finder-algolia-search';
 import { parseGroupFinderUrlState } from './group-finder-url-state';
-import { type GroupType } from './types';
+import {
+  getGroupFinderServerState,
+  type GroupFinderServerState,
+} from './group-finder-server-state.server';
 
 export type LoaderReturnType = {
   ALGOLIA_APP_ID: string;
   ALGOLIA_SEARCH_API_KEY: string;
   algoliaIndexes: AlgoliaIndexMap;
-  groupHits: GroupType[];
-  groupNbHits: number;
-  groupNbPages: number;
-  groupPage: number;
+  serverState: GroupFinderServerState;
   minMaxAgeValues: string[];
   /** Campus name -> campus city, for group cards whose groups have no meeting location. */
   campusCityByName: Record<string, string>;
@@ -45,9 +44,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     throw new AuthenticationError('Algolia credentials not found');
   }
 
-  let groupHits: GroupType[] = [];
-  let groupNbHits = 0;
-  let groupNbPages = 0;
+  let serverState: GroupFinderServerState = { initialResults: {} };
   let minMaxAgeValues: string[] = [];
   const campusCityByName: Record<string, string> = {};
   let showGroupsLaunchNotify = false;
@@ -57,7 +54,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   // changes are handled by InstantSearch, but a full request must still reflect
   // the URL so shared links and refreshes render correctly.
   const urlState = parseGroupFinderUrlState(url.searchParams);
-  const groupPage = urlState.page ?? 0;
 
   const client = createAuditedServerAlgoliaClient(
     appId,
@@ -101,20 +97,12 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       if (name && city) campusCityByName[name] = city;
     }
 
-    const built = buildGroupFinderAlgoliaSearchParams(
+    serverState = await getGroupFinderServerState({
+      searchClient: client,
+      indexName: algoliaIndexes.groups,
       urlState,
       minMaxAgeValues,
-      algoliaIndexes.groups,
-    );
-    const { indexName, ...indexSearchParams } = built;
-    const hitsRes = await client.searchSingleIndex({
-      indexName,
-      searchParams: indexSearchParams,
     });
-
-    groupHits = (hitsRes.hits ?? []).map((h) => h as unknown as GroupType);
-    groupNbHits = hitsRes.nbHits ?? 0;
-    groupNbPages = hitsRes.nbPages ?? 0;
   } catch (error) {
     console.error('[group-finder] Algolia loader fetch failed', error);
   }
@@ -139,10 +127,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     ALGOLIA_APP_ID: appId,
     ALGOLIA_SEARCH_API_KEY: searchApiKey,
     algoliaIndexes,
-    groupHits,
-    groupNbHits,
-    groupNbPages,
-    groupPage,
+    serverState,
     minMaxAgeValues,
     campusCityByName,
     showGroupsLaunchNotify,
