@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { CampusInfo } from './campus-info.partial';
 import { LocationFAQ } from './faq.partial';
 import { DynamicHero } from '~/components/dynamic-hero';
-import { LocationHitType } from '../types';
+import { LocationViewModel } from '../types';
 import { CampusTabs } from '../components/tabs-component/campus-tabs.component';
 import { AboutUs } from './tabs/about-us';
 import { SundayDetails } from './tabs/sunday-details';
@@ -84,11 +84,7 @@ function useLocationHeroBackgroundImage(
   return wistiaPosterUrl ?? buildWistiaSwatchImageUrl(trimmed);
 }
 
-export function LocationSingle({ hit }: { hit: LocationHitType }) {
-  if (!hit) {
-    return <></>;
-  }
-
+export function LocationSingle({ location }: { location: LocationViewModel }) {
   const [activeTab, setActiveTab] = useState('sunday-details');
   const fetcher = useFetcher<{ isValid: boolean }>();
 
@@ -107,7 +103,7 @@ export function LocationSingle({ hit }: { hit: LocationHitType }) {
     additionalInfo,
     backgroundVideoMobile,
     backgroundVideoDesktop,
-  } = hit;
+  } = location;
 
   // Validate Wistia ID if it exists
   useEffect(() => {
@@ -146,7 +142,7 @@ export function LocationSingle({ hit }: { hit: LocationHitType }) {
   const isSpanish = campusName?.includes('Español');
 
   if (isOnline) {
-    return <OnlineCampus hit={hit} />;
+    return <OnlineCampus location={location} />;
   }
 
   // Dynamic Hero Hardcoded Content / Data
@@ -160,7 +156,7 @@ export function LocationSingle({ hit }: { hit: LocationHitType }) {
     },
     {
       title: isSpanish ? 'Mapa y direcciones' : 'Map & Directions',
-      href: hit.mapLink || '#',
+      href: location.mapLink || '#',
       target: '_blank',
     },
   ];
@@ -204,7 +200,7 @@ export function LocationSingle({ hit }: { hit: LocationHitType }) {
   );
 }
 
-const OnlineCampus = ({ hit }: { hit: LocationHitType }) => {
+const OnlineCampus = ({ location }: { location: LocationViewModel }) => {
   const fetcher = useFetcher<{ isValid: boolean }>();
 
   const {
@@ -219,7 +215,7 @@ const OnlineCampus = ({ hit }: { hit: LocationHitType }) => {
     additionalInfo,
     backgroundVideoMobile,
     backgroundVideoDesktop,
-  } = hit;
+  } = location;
 
   // Validate Wistia ID if it exists
   useEffect(() => {
