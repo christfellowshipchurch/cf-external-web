@@ -11,12 +11,20 @@ function isOnlineCampus(locationData: LoaderReturnType): boolean {
   );
 }
 
+function isSpanishCampus(campusName: string): boolean {
+  const normalized = campusName.toLowerCase();
+  return normalized.includes('iglesia') || normalized.includes('español');
+}
+
+function spanishCampusLocation(campusName: string): string {
+  return campusName
+    .replace(/Christ Fellowship Español/i, '')
+    .replace(/Iglesia/i, '')
+    .trim();
+}
+
 function getLocationTitle(locationData: LoaderReturnType): string {
-  const espanolCampusName = locationData.campusName
-    ?.toLowerCase()
-    .includes('iglesia')
-    ? locationData.campusName.replace('Iglesia', '').trim()
-    : locationData.campusName;
+  const espanolCampusName = spanishCampusLocation(locationData.campusName);
 
   // Match by URL slug — campusName from the loader is "Trinity" (no trailing space).
   if (locationData.campusUrl === 'trinity') {
@@ -25,18 +33,14 @@ function getLocationTitle(locationData: LoaderReturnType): string {
   if (isOnlineCampus(locationData)) {
     return 'Christ Fellowship Church Online | Get the Most Out of Life';
   }
-  if (locationData.campusName?.toLowerCase().includes('iglesia')) {
+  if (isSpanishCampus(locationData.campusName)) {
     return `Christ Fellowship Español en ${espanolCampusName}, FL | Christ Fellowship Church`;
   }
   return `Christ Fellowship Church | ${locationData.campusName?.trim()}, FL`;
 }
 
 function getLocationDescription(locationData: LoaderReturnType): string {
-  const espanolCampusName = locationData.campusName
-    ?.toLowerCase()
-    .includes('iglesia')
-    ? locationData.campusName.replace('Iglesia', '').trim()
-    : locationData.campusName;
+  const espanolCampusName = spanishCampusLocation(locationData.campusName);
 
   if (locationData.campusUrl === 'trinity') {
     return 'Join us at Trinity at Christ Fellowship Church in Palm Beach Gardens, FL for uplifting worship and community.';
@@ -44,7 +48,7 @@ function getLocationDescription(locationData: LoaderReturnType): string {
   if (isOnlineCampus(locationData)) {
     return 'Experience Christ Fellowship Church online with worship, community, and resources to help you get the most out of life.';
   }
-  if (locationData.campusName?.toLowerCase().includes('iglesia')) {
+  if (isSpanishCampus(locationData.campusName)) {
     return `Únete a Christ Fellowship Español en ${espanolCampusName}, FL.`;
   }
   return `Looking for a church in ${locationData.campusName?.trim()}, FL? Visit Christ Fellowship this Sunday! Enjoy live worship music, biblical teachings, and programs for all ages.`;
