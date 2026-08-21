@@ -6,7 +6,7 @@ import { WhatWeOfferCard } from './what-we-offer-card.component';
 import { WhatWeOfferMobileCarousel } from './what-we-offer-mobile-carousel.component';
 
 const tabListClassName =
-  'flex w-full gap-1 rounded-full bg-white/10 border border-white/10 p-[5px] max-w-[420px] mx-auto';
+  'flex w-full gap-1 rounded-full bg-white border border-[#E5E7EB] shadow-sm p-1 max-w-[420px] mx-auto';
 
 // Avoid the button primitive here — its default lg size adds min-w-24 and px-6
 // which overflow the three-label pill on narrow viewports.
@@ -14,10 +14,10 @@ const tabTriggerClassName = cn(
   'flex flex-1 min-w-0 items-center justify-center',
   'rounded-full py-3 px-3',
   'border border-transparent',
-  'text-white font-bold text-sm whitespace-nowrap cursor-pointer',
+  'text-[#4B5563] font-bold text-sm whitespace-nowrap cursor-pointer',
   'transition-colors duration-150',
   'hover:border-ocean',
-  'data-[state=active]:text-navy data-[state=active]:bg-white',
+  'data-[state=active]:text-white data-[state=active]:bg-ocean',
 );
 
 export const WhatWeOfferTabs = () => {
@@ -33,11 +33,11 @@ export const WhatWeOfferTabs = () => {
         <div className='flex items-center justify-center gap-3'>
           <div className='w-6 h-1 bg-[#56CAEB]' />
           <p className='text-base font-extrabold leading-none text-[#56CAEB]'>
-            See What’s Here For You
+            what we offer.
           </p>
           <div className='w-6 h-1 bg-[#56CAEB]' />
         </div>
-        <h2 className='text-white font-extrabold text-[32px] text-center md:text-[52px] leading-tight'>
+        <h2 className='text-text-primary font-extrabold text-[32px] text-center md:text-[52px] leading-tight'>
           Something For Everyone
         </h2>
       </div>
@@ -123,7 +123,7 @@ export const WhatWeOfferTabs = () => {
       </div>
 
       <div className='hidden md:block'>
-        <p className='text-white text-center max-w-[630px] mx-auto'>
+        <p className='text-text-secondary text-center max-w-[630px] mx-auto'>
           {activeTabData?.footerSummary}
         </p>
       </div>
