@@ -8,15 +8,17 @@ import type { RockContentChannelItem } from '~/lib/types/rock-types';
 import { createImageUrlFromGuid } from '~/lib/utils';
 import type { AlgoliaIndexMap } from '~/lib/algolia-indexes';
 
-import type { ClassHitType } from '../types';
-import { buildClassFinderAlgoliaSearchParams } from './components/build-class-finder-algolia-search';
 import { parseClassFinderUrlState } from './components/class-finder-url-state';
+import {
+  getClassFinderServerState,
+  type ClassFinderServerState,
+} from './class-finder-server-state.server';
 
 export type LoaderReturnType = {
   ALGOLIA_APP_ID: string;
   ALGOLIA_SEARCH_API_KEY: string;
   algoliaIndexes: AlgoliaIndexMap;
-  classHits: ClassHitType[];
+  serverState: ClassFinderServerState;
   /** Cover images keyed by class URL slug (`pathName` / Rock `url` attribute). */
   rockCoverImagesByPath: Record<string, string>;
 };
@@ -84,7 +86,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     throw new AuthenticationError('Algolia credentials not found');
   }
 
-  let classHits: ClassHitType[] = [];
+  let serverState: ClassFinderServerState = { initialResults: {} };
 
   const url = new URL(request.url);
 
@@ -100,18 +102,11 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   );
 
   try {
-    const built = buildClassFinderAlgoliaSearchParams(
+    serverState = await getClassFinderServerState({
+      searchClient: client,
+      indexName: algoliaIndexes.classes,
       urlState,
-      algoliaIndexes.classes,
-    );
-    const { indexName, ...indexSearchParams } = built;
-
-    const res = await client.searchSingleIndex({
-      indexName,
-      searchParams: indexSearchParams,
     });
-
-    classHits = (res.hits ?? []).map((h) => h as unknown as ClassHitType);
   } catch (error) {
     console.error('[class-finder] Algolia loader fetch failed', error);
   }
@@ -127,7 +122,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     ALGOLIA_APP_ID: appId,
     ALGOLIA_SEARCH_API_KEY: searchApiKey,
     algoliaIndexes,
-    classHits,
+    serverState,
     rockCoverImagesByPath,
   } satisfies LoaderReturnType);
 };

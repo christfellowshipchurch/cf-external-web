@@ -1,24 +1,20 @@
 import type { LoaderFunctionArgs } from 'react-router';
 import { createAuditedServerAlgoliaClient } from '~/lib/.server/algolia-request-audit.server';
 
-import { escapeAlgoliaFilterString } from '~/components/finders/finder-algolia.utils';
 import { getServerAlgoliaIndexes } from '~/lib/.server/algolia-indexes.server';
 import type { AlgoliaIndexMap } from '~/lib/algolia-indexes';
 import type { ContentItemHit } from '~/routes/search/types';
 
-import {
-  MAIN_EVENTS_GRID_HITS_PER_PAGE,
-  MAIN_EVENTS_TYPE_FILTER,
-} from './all-events.constants';
-import {
-  parseEventsFinderUrlState,
-  type EventsFinderUrlState,
-} from '../events-url-state';
+import { parseEventsFinderUrlState } from '../events-url-state';
 import {
   FEATURED_EVENTS_FILTER,
   FEATURED_EVENTS_HITS_PER_PAGE,
   moveFeaturedJourneyCardFirst,
 } from '../featured-events';
+import {
+  getEventsServerState,
+  type EventsServerState,
+} from './events-server-state.server';
 
 export type EventFinderFacetItem = {
   value: string;
@@ -31,54 +27,7 @@ export interface AllEventsLoaderData {
   ALGOLIA_SEARCH_API_KEY: string;
   algoliaIndexes: AlgoliaIndexMap;
   featuredHits: ContentItemHit[];
-  mainEventHits: ContentItemHit[];
-  eventsNbPages: number;
-  eventsPage: number;
-}
-
-function refinementListToFacetFilters(
-  refinementList: Record<string, string[]> | undefined,
-): string[][] | undefined {
-  if (!refinementList || Object.keys(refinementList).length === 0) {
-    return undefined;
-  }
-  const groups: string[][] = [];
-  for (const [attr, values] of Object.entries(refinementList)) {
-    if (!values?.length) {
-      continue;
-    }
-    groups.push(values.map((v) => `${attr}:"${escapeAlgoliaFilterString(v)}"`));
-  }
-  return groups.length > 0 ? groups : undefined;
-}
-
-function buildMainEventsSearchParams(urlState: EventsFinderUrlState): {
-  filters: string;
-  hitsPerPage: number;
-  page: number;
-  query?: string;
-  facetFilters?: string[][];
-} {
-  const params: {
-    filters: string;
-    hitsPerPage: number;
-    page: number;
-    query?: string;
-    facetFilters?: string[][];
-  } = {
-    filters: MAIN_EVENTS_TYPE_FILTER,
-    hitsPerPage: MAIN_EVENTS_GRID_HITS_PER_PAGE,
-    page: urlState.page ?? 0,
-  };
-  const q = urlState.query?.trim();
-  if (q) {
-    params.query = q;
-  }
-  const facetFilters = refinementListToFacetFilters(urlState.refinementList);
-  if (facetFilters) {
-    params.facetFilters = facetFilters;
-  }
-  return params;
+  serverState: EventsServerState;
 }
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
@@ -87,12 +36,10 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   const algoliaIndexes = getServerAlgoliaIndexes();
 
   let featuredHits: ContentItemHit[] = [];
-  let mainEventHits: ContentItemHit[] = [];
-  let eventsNbPages = 0;
+  let serverState: EventsServerState = { initialResults: {} };
 
   const url = new URL(request.url);
   const urlState = parseEventsFinderUrlState(url.searchParams);
-  const eventsPage = urlState.page ?? 0;
 
   if (appId && searchApiKey) {
     const client = createAuditedServerAlgoliaClient(
@@ -102,7 +49,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     );
 
     try {
-      const [featuredRes, mainRes] = await Promise.all([
+      const [featuredRes, nextServerState] = await Promise.all([
         client.searchForHits<Record<string, unknown>>([
           {
             indexName: algoliaIndexes.contentItems,
@@ -112,20 +59,18 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
             },
           },
         ]),
-        client.searchSingleIndex({
+        getEventsServerState({
+          searchClient: client,
           indexName: algoliaIndexes.contentItems,
-          searchParams: buildMainEventsSearchParams(urlState),
+          urlState,
         }),
       ]);
+      serverState = nextServerState;
 
       const rawFeatured = featuredRes.results[0]?.hits ?? [];
       featuredHits = moveFeaturedJourneyCardFirst(
         rawFeatured.map((h) => h as unknown as ContentItemHit),
       );
-
-      const rawMain = mainRes.hits ?? [];
-      mainEventHits = rawMain.map((h) => h as unknown as ContentItemHit);
-      eventsNbPages = mainRes.nbPages ?? 0;
     } catch (error) {
       console.error('[events/all-events] Algolia loader fetch failed', error);
     }
@@ -136,8 +81,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     ALGOLIA_SEARCH_API_KEY: searchApiKey,
     algoliaIndexes,
     featuredHits,
-    mainEventHits,
-    eventsNbPages,
-    eventsPage,
+    serverState,
   } satisfies AllEventsLoaderData);
 };
