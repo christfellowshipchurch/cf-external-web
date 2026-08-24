@@ -4,8 +4,12 @@ import {
   useRouteLoaderData,
 } from 'react-router-dom';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { algoliasearch, SearchClient } from 'algoliasearch';
-import { Configure, InstantSearch } from 'react-instantsearch';
+import { algoliasearch, type SearchClient } from 'algoliasearch';
+import {
+  Configure,
+  InstantSearch,
+  InstantSearchSSRProvider,
+} from 'react-instantsearch';
 
 import { ANCHOR_SCROLL_OFFSET } from '~/components/navbar/scroll-offset.constants';
 import { useResponsive } from '~/hooks/use-responsive';
@@ -13,10 +17,7 @@ import { getCurrentPositionFromUserGesture } from '~/lib/browser-geolocation';
 import { RootLoaderData } from '~/routes/navbar/loader';
 import { emptySearchClient } from '~/routes/search/route';
 import type { LocationSearchLoaderData } from './loader';
-import {
-  LocationCardGrid,
-  LocationCardList,
-} from './partials/location-card-list.partial';
+import { LocationCardList } from './partials/location-card-list.partial';
 import { Search } from './partials/locations-search-hero.partial';
 
 export type LocationSearchCoordinatesType = {
@@ -57,7 +58,6 @@ function LocationSearchIndexBody({
   beginCoordinateRequest,
   isLatestCoordinateRequest,
   geocodeLoading,
-  initialLocationHits,
 }: {
   coordinates: { lat: number | null; lng: number | null } | null;
   setSearchCoordinates: (
@@ -68,7 +68,6 @@ function LocationSearchIndexBody({
   beginCoordinateRequest: (source: CoordinateRequestSource) => string;
   isLatestCoordinateRequest: (requestId: string) => boolean;
   geocodeLoading: boolean;
-  initialLocationHits: LocationSearchLoaderData['initialLocationHits'];
 }) {
   const hasCoordinates = coordinates?.lat != null && coordinates.lng != null;
 
@@ -90,11 +89,7 @@ function LocationSearchIndexBody({
         beginCoordinateRequest={beginCoordinateRequest}
         isLatestCoordinateRequest={isLatestCoordinateRequest}
       />
-      <LocationCardList
-        loading={geocodeLoading}
-        initialHits={initialLocationHits}
-        sortByGeo={hasCoordinates}
-      />
+      <LocationCardList loading={geocodeLoading} sortByGeo={hasCoordinates} />
     </>
   );
 }
@@ -275,67 +270,9 @@ export function LocationSearchPage() {
       ? algoliasearch(ALGOLIA_APP_ID, ALGOLIA_SEARCH_API_KEY, {})
       : emptySearchClient);
 
-  const [algoliaBootstrapped, setAlgoliaBootstrapped] = useState(false);
-
-  useEffect(() => {
-    let cancelled = false;
-    const client =
-      globalSearchClient ||
-      (ALGOLIA_APP_ID && ALGOLIA_SEARCH_API_KEY
-        ? algoliasearch(ALGOLIA_APP_ID, ALGOLIA_SEARCH_API_KEY, {})
-        : emptySearchClient);
-
-    const finish = () => {
-      if (!cancelled) setAlgoliaBootstrapped(true);
-    };
-
-    void (async () => {
-      try {
-        if (
-          'searchSingleIndex' in client &&
-          typeof (client as SearchClient).searchSingleIndex === 'function'
-        ) {
-          await (client as SearchClient).searchSingleIndex({
-            indexName: locationIndexName,
-            searchParams: { hitsPerPage: 1, query: '' },
-          });
-        } else if ('search' in client && typeof client.search === 'function') {
-          await (
-            client as { search: (params?: unknown) => Promise<unknown> }
-          ).search([]);
-        }
-      } catch {
-        // Network or Algolia errors — still mount finder so the page is usable
-      } finally {
-        finish();
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [ALGOLIA_APP_ID, ALGOLIA_SEARCH_API_KEY, locationIndexName]);
-
-  const hasCoordinates = coordinates?.lat != null && coordinates?.lng != null;
-
   return (
     <div className='flex w-full flex-col min-h-screen'>
-      {!algoliaBootstrapped ? (
-        <>
-          <Search
-            handleSearch={handleSearch}
-            setCoordinates={setSearchCoordinates}
-            beginCoordinateRequest={beginCoordinateRequest}
-            isLatestCoordinateRequest={isLatestCoordinateRequest}
-            instantSearchReady={false}
-          />
-          <LocationCardGrid
-            items={loaderData.initialLocationHits}
-            loading={false}
-            sortByGeo={hasCoordinates}
-          />
-        </>
-      ) : (
+      <InstantSearchSSRProvider {...loaderData.serverState}>
         <InstantSearch
           indexName={locationIndexName}
           searchClient={searchClient}
@@ -356,10 +293,9 @@ export function LocationSearchPage() {
             beginCoordinateRequest={beginCoordinateRequest}
             isLatestCoordinateRequest={isLatestCoordinateRequest}
             geocodeLoading={geocodeFetcher.state === 'loading'}
-            initialLocationHits={loaderData.initialLocationHits}
           />
         </InstantSearch>
-      )}
+      </InstantSearchSSRProvider>
     </div>
   );
 }
