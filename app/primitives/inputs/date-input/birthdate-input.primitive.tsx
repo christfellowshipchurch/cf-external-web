@@ -154,7 +154,7 @@ const BirthdateInput: React.FC<BirthdateInputProps> = ({
             <span className={formRequiredMarkerStyles}>{'*'}</span>
           )}
           {label}
-          {isRequired && (
+          {(isRequired || showRequiredHint) && (
             <span className={formRequiredHintStyles}>{'(required)'}</span>
           )}
         </legend>
