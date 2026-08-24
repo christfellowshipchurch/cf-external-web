@@ -1,6 +1,6 @@
 import type { WeeklyMinistryService } from './components/during-the-week.component';
 
-export type LocationHitType = {
+export type LocationViewModel = {
   _geoloc?: {
     latitude: number;
     longitude: number;

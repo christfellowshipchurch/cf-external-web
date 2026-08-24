@@ -259,3 +259,27 @@ export const expectEnglishItems = (kidsGrade: '5th' | '6th') => [
       'Wear whatever you’re most comfortable in! Whether you want to keep it casual or dress up in your favorite outfit—you’ll fit right in.',
   },
 ];
+
+// CF Everywhere is online-only, so the in-person list above doesn't apply.
+export const expectOnlineItems = [
+  {
+    title: 'Live Stream',
+    description:
+      'Sunday mornings are way better together! Tune in live through the YouTube app on your TV and experience church from wherever you are. Want to make it even more fun? Grab your phone and jump into the YouTube live chat to connect, share, and be part of the conversation!',
+  },
+  {
+    title: 'Pre-Service',
+    description:
+      'Don’t wait for service to start, join us 6 minutes early! Our interactive pre-service is full of energy, lots of surprises, and a little bit of the unexpected. You never know what’s coming, but one thing’s for sure: you’re going to have fun!',
+  },
+  {
+    title: 'Stay Engaged',
+    description:
+      'Want to know what’s happening and stay in the loop? Check out the Service Guide on the Christ Fellowship mobile app. It’s your go-to spot for everything you need to follow along, participate, and get the most out of your Sunday experience.',
+  },
+  {
+    title: 'Next Steps',
+    description:
+      'Ready to go beyond Sunday? Take your next step with the Journey class! Discover new ways to connect, grow, and be part of the Christ Fellowship Everywhere family. Wherever you live, there’s a place for you here!',
+  },
+];
