@@ -5,20 +5,130 @@ import {
   ensureArray,
   parseRockKeyValueList,
 } from '~/lib/utils';
-import { MessageType } from '../types';
+import type { MessageCardType, MessageType } from '../types';
 import { fetchWistiaDataFromRock } from '~/lib/.server/fetch-wistia-data';
-import { attributeProps, attributeValuesProps } from '~/lib/types/rock-types';
-import { RockContentChannelItem } from '~/lib/types/rock-types';
+import type {
+  attributeProps,
+  attributeValuesProps,
+  RockContentChannelItem,
+} from '~/lib/types/rock-types';
 import { getImages } from '~/lib/.server/rock-utils';
-import { getServerAlgoliaIndexes } from '~/lib/.server/algolia-indexes.server';
-import type { AlgoliaIndexMap } from '~/lib/algolia-indexes';
 
 export type LoaderReturnType = {
   message: MessageType;
-  ALGOLIA_APP_ID: string | undefined;
-  ALGOLIA_SEARCH_API_KEY: string | undefined;
-  algoliaIndexes: AlgoliaIndexMap;
+  seriesMessages: MessageCardType[];
+  relatedMessages: MessageCardType[];
   hostUrl: string;
+};
+
+const MESSAGE_CHANNEL_ID = 63;
+const SECTION_RESULT_LIMIT = 10;
+
+const toRockItems = (data: unknown): RockContentChannelItem[] => {
+  if (!data) return [];
+  return (Array.isArray(data) ? data : [data]) as RockContentChannelItem[];
+};
+
+export const mapRockDataToMessageCard = (
+  rockItem: RockContentChannelItem,
+): MessageCardType => {
+  const coverImages = getImages({
+    attributeValues: rockItem.attributeValues as attributeValuesProps,
+    attributes: rockItem.attributes as attributeProps,
+  });
+
+  return {
+    id: rockItem.id,
+    title: rockItem.title,
+    summary: rockItem.attributeValues?.summary?.value || '',
+    coverImage:
+      coverImages?.[0] ||
+      createImageUrlFromGuid(rockItem.attributeValues?.image?.value || '') ||
+      '',
+    url: rockItem.attributeValues?.url?.value || '',
+  };
+};
+
+export const selectSeriesMessages = (
+  items: RockContentChannelItem[],
+  currentId: string,
+): MessageCardType[] =>
+  items
+    .filter((item) => String(item.id) !== String(currentId))
+    .slice(0, SECTION_RESULT_LIMIT)
+    .map(mapRockDataToMessageCard);
+
+export const selectRelatedMessages = (
+  items: RockContentChannelItem[],
+  currentMessage: Pick<MessageType, 'title' | 'seriesId'>,
+): MessageCardType[] =>
+  items
+    .filter(
+      (item) =>
+        item.title !== currentMessage.title &&
+        (item.attributeValues?.messageSeries?.value || '') !==
+          currentMessage.seriesId,
+    )
+    .slice(0, SECTION_RESULT_LIMIT)
+    .map(mapRockDataToMessageCard);
+
+export const fetchSectionMessageData = async (
+  messageData: RockContentChannelItem,
+): Promise<{
+  seriesItems: RockContentChannelItem[];
+  relatedItems: RockContentChannelItem[];
+}> => {
+  const seriesGuid = messageData.attributeValues?.messageSeries?.value?.trim();
+  const primaryTopicGuid = messageData.attributeValues?.primaryCategory?.value
+    ?.split(',')[0]
+    ?.trim();
+
+  const commonOptions = {
+    queryParams: {
+      $filter: `ContentChannelId eq ${MESSAGE_CHANNEL_ID}`,
+      $orderby: 'StartDateTime desc',
+      loadAttributes: 'simple' as const,
+    },
+    filterByDateRange: true,
+    filterByStatusApproved: true,
+  };
+
+  const seriesRequest = seriesGuid
+    ? fetchRockData({
+        endpoint: 'ContentChannelItems/GetByAttributeValue',
+        ...commonOptions,
+        queryParams: {
+          ...commonOptions.queryParams,
+          attributeKey: 'MessageSeries',
+          value: seriesGuid,
+        },
+      })
+    : Promise.resolve([]);
+
+  const relatedRequest = primaryTopicGuid
+    ? fetchRockData({
+        endpoint: 'ContentChannelItems/GetByAttributeValue',
+        ...commonOptions,
+        queryParams: {
+          ...commonOptions.queryParams,
+          attributeKey: 'PrimaryCategory',
+          value: primaryTopicGuid,
+        },
+      })
+    : fetchRockData({
+        endpoint: 'ContentChannelItems',
+        ...commonOptions,
+      });
+
+  const [seriesData, relatedData] = await Promise.all([
+    seriesRequest,
+    relatedRequest,
+  ]);
+
+  return {
+    seriesItems: toRockItems(seriesData),
+    relatedItems: toRockItems(relatedData),
+  };
 };
 
 export const mapRockDataToMessage = async (
@@ -233,13 +343,15 @@ export const loader: LoaderFunction = async ({
     });
   }
 
-  const message = await mapRockDataToMessage(messageData);
+  const [message, sectionData] = await Promise.all([
+    mapRockDataToMessage(messageData),
+    fetchSectionMessageData(messageData),
+  ]);
 
   return {
     message,
-    ALGOLIA_APP_ID: process.env.ALGOLIA_APP_ID,
-    ALGOLIA_SEARCH_API_KEY: process.env.ALGOLIA_SEARCH_API_KEY,
-    algoliaIndexes: getServerAlgoliaIndexes(),
+    seriesMessages: selectSeriesMessages(sectionData.seriesItems, message.id),
+    relatedMessages: selectRelatedMessages(sectionData.relatedItems, message),
     hostUrl: origin,
   };
 };
