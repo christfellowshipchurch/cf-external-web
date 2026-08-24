@@ -3,9 +3,11 @@ import { liteClient as algoliasearch } from 'algoliasearch/lite';
 import {
   Configure,
   InstantSearch,
+  InstantSearchSSRProvider,
   useHits,
   useInstantSearch,
   usePagination,
+  useRefinementList,
   useStats,
 } from 'react-instantsearch';
 
@@ -15,13 +17,13 @@ import { GroupFinderNotifyModal } from '~/components/modals';
 import { useResponsive } from '~/hooks/use-responsive';
 import { cn } from '~/lib/utils';
 import { Icon } from '~/primitives/icon/icon';
-import { GroupFinderFiltersSkeleton } from '../components/filters/group-finder-filters-skeleton.component';
 import {
   buildGroupFinderInstantSearchUiState,
   GroupFinderInstantSearchSync,
 } from '../components/group-finder-instant-search-sync.component';
 import { GroupFinderQueryInput } from '../components/group-finder-query-input.component';
 import type { LoaderReturnType } from '../loader';
+import type { GroupType } from '../types';
 import { GroupHit } from '../components/group-hit.component';
 import {
   useCallback,
@@ -52,16 +54,16 @@ import {
 } from '../group-search-filters.data';
 import {
   buildMinMaxAgeFilter,
+  GROUP_FINDER_FACET_ATTRIBUTES,
   GROUP_FINDER_LOADER_HITS_PER_PAGE,
 } from '../components/build-group-finder-algolia-search';
 
 /**
  * Group finder data flow (SSR-friendly):
  *
- * 1. Route loader fetches initial Algolia hits so first paint has real group cards.
- * 2. After hydration, InstantSearch mounts with the real client Algolia search key.
+ * 1. Route loader builds InstantSearch server state so first paint has real group cards.
+ * 2. InstantSearch hydrates those results with the client Algolia search key.
  * 3. Same-route query param changes do not re-run this loader (`route.tsx`); filters/search fetch client-side.
- * 4. `filtersMounted` defers InstantSearch until after hydration so the initial grid is not blocked.
  *
  * See also `.github/ALGOLIA-URL-STATE-REUSABILITY.md` (Pattern A).
  */
@@ -119,10 +121,7 @@ export const GroupSearch = () => {
   const {
     ALGOLIA_APP_ID,
     ALGOLIA_SEARCH_API_KEY,
-    groupHits,
-    groupNbHits,
-    groupNbPages,
-    groupPage,
+    serverState,
     minMaxAgeValues,
     algoliaIndexes,
     campusCityByName,
@@ -155,7 +154,7 @@ export const GroupSearch = () => {
     debounceMs: 400,
   });
 
-  // Captured once when this route mounts; InstantSearch mounts one frame later (see `filtersMounted`).
+  // Captured once when this route mounts; later URL changes use the sync component.
   const initial = useMemo(
     () => getInitialStateFromUrl(searchParams, groupIndexName),
     [groupIndexName],
@@ -334,19 +333,6 @@ export const GroupSearch = () => {
     [mergeUrlState, updateUrlIfChanged],
   );
 
-  const goToPage = useCallback(
-    (nextPage: number) => {
-      updateUrlIfChanged(
-        mergeUrlState({
-          page: Math.max(0, nextPage),
-        }),
-      );
-      const scrollTarget = document.querySelector('.pagination-scroll-to');
-      scrollTarget?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    },
-    [mergeUrlState, updateUrlIfChanged],
-  );
-
   // Refinement/pagination -> URL. Same-path URL changes are blocked from
   // revalidating by route.tsx, so this write updates share/back-forward state
   // while the actual search happens client-side in InstantSearch.
@@ -369,26 +355,13 @@ export const GroupSearch = () => {
     );
   };
 
-  const isFirstPage = groupPage <= 0;
-  const isLastPage = groupNbPages <= 0 || groupPage >= groupNbPages - 1;
-
-  /**
-   * SSR/hydration: first paint uses loader HTML for the grid + skeleton for filters.
-   * `useEffect` flips true after hydration so react-instantsearch does not block the results tree.
-   * Server and first client render both use `filtersMounted === false` (no mismatch).
-   */
-  const [filtersMounted, setFiltersMounted] = useState(false);
-  useEffect(() => {
-    setFiltersMounted(true);
-  }, []);
-
   return (
     <div
       className='flex w-full min-w-0 max-w-full flex-col gap-4 pagination-scroll-to'
       id='search'
     >
       <div className='flex flex-col'>
-        {filtersMounted ? (
+        <InstantSearchSSRProvider {...serverState}>
           <InstantSearch
             indexName={groupIndexName}
             searchClient={searchClient}
@@ -415,6 +388,12 @@ export const GroupSearch = () => {
               hitsPerPageOverride={GROUP_FINDER_LOADER_HITS_PER_PAGE}
               query={urlState.query}
             />
+            {GROUP_FINDER_FACET_ATTRIBUTES.map((attribute) => (
+              <GroupFinderRefinementCollector
+                key={attribute}
+                attribute={attribute}
+              />
+            ))}
 
             <FinderStickyBar>
               <div className='mx-auto flex w-full min-w-0 max-w-screen-content flex-col gap-3 py-4 md:flex-row md:items-center md:gap-4'>
@@ -466,8 +445,6 @@ export const GroupSearch = () => {
             </FinderStickyBar>
 
             <GroupFinderInstantSearchResults
-              initialHits={groupHits}
-              initialNbHits={groupNbHits}
               fromGroupFinderUrl={fromGroupFinderUrl}
               isGeoSearch={coordinates?.lat != null && coordinates?.lng != null}
               isVirtualFilterActive={isVirtualFilterActive}
@@ -475,90 +452,31 @@ export const GroupSearch = () => {
               showGroupsLaunchNotify={showGroupsLaunchNotify}
             />
           </InstantSearch>
-        ) : (
-          <>
-            {/* Before hydration, keep the loader-rendered results visible and
-                reserve filter space with a skeleton. This avoids a blank grid
-                while the client-only Algolia widgets boot. */}
-            <FinderStickyBar>
-              <div className='mx-auto flex w-full min-w-0 max-w-screen-content flex-col gap-3 py-4 md:flex-row md:items-center md:gap-4'>
-                <GroupFinderQueryInput
-                  query={urlState.query}
-                  onQueryCommit={commitQuery}
-                />
-                <div
-                  aria-hidden
-                  className='hidden h-8 w-px shrink-0 bg-[#DEE0E3] md:block'
-                />
-                <div className='min-w-0 w-full flex-1'>
-                  <GroupFinderFiltersSkeleton />
-                </div>
-              </div>
-            </FinderStickyBar>
-
-            <GroupFinderInitialResults
-              groupHits={groupHits}
-              groupNbHits={groupNbHits}
-              groupNbPages={groupNbPages}
-              groupPage={groupPage}
-              isFirstPage={isFirstPage}
-              isLastPage={isLastPage}
-              fromGroupFinderUrl={fromGroupFinderUrl}
-              onPageChange={goToPage}
-              isGeoSearch={coordinates?.lat != null && coordinates?.lng != null}
-              isVirtualFilterActive={isVirtualFilterActive}
-              campusCityByName={campusCityByName}
-              showGroupsLaunchNotify={showGroupsLaunchNotify}
-            />
-          </>
-        )}
+        </InstantSearchSSRProvider>
       </div>
     </div>
   );
 };
 
 function GroupFinderInstantSearchResults({
-  initialHits,
-  initialNbHits,
   fromGroupFinderUrl,
   isGeoSearch,
   isVirtualFilterActive,
   campusCityByName,
   showGroupsLaunchNotify,
 }: {
-  initialHits: LoaderReturnType['groupHits'];
-  initialNbHits: number;
   fromGroupFinderUrl: string;
   isGeoSearch: boolean;
   isVirtualFilterActive: boolean;
   campusCityByName: LoaderReturnType['campusCityByName'];
   showGroupsLaunchNotify: boolean;
 }) {
-  const { items } = useHits<LoaderReturnType['groupHits'][number]>();
+  const { items } = useHits<GroupType>();
   const { nbHits } = useStats();
   const { status } = useInstantSearch();
   const { currentRefinement, nbPages, isFirstPage, isLastPage, refine } =
     usePagination();
   const isLoading = status === 'loading' || status === 'stalled';
-
-  // Show the SSR loader hits until the first client search returns results.
-  // Latch on `items.length > 0` (not merely `!isLoading`): InstantSearch reports
-  // status 'idle' on its very first render *before* issuing a search, so latching
-  // on `!isLoading` alone would drop the loader hits and blank the grid during the
-  // SSR->client handoff. Once resolved, `items` already retains the previous
-  // results while a new search is in flight, so we render those — this avoids
-  // flashing the loader groups when clearing filters from a 0-results state.
-  const hasResolvedRef = useRef(false);
-  if (!isLoading && items.length > 0) hasResolvedRef.current = true;
-  const useInitialFallback = !hasResolvedRef.current && items.length === 0;
-
-  const hits = useInitialFallback ? initialHits : items;
-  const hitCount = useInitialFallback ? initialNbHits : nbHits;
-
-  // Don't dim during the initial handoff: we're showing the loader hits, so a
-  // loading flash would just be noise. Only show the loading state for searches
-  // the user triggers after the first client results have resolved.
-  const showLoading = isLoading && hasResolvedRef.current;
 
   const goToPage = (nextPage: number) => {
     refine(Math.max(0, nextPage));
@@ -570,13 +488,13 @@ function GroupFinderInstantSearchResults({
 
   return (
     <GroupFinderResultsLayout
-      groupHits={hits}
-      groupNbHits={hitCount}
+      groupHits={items}
+      groupNbHits={nbHits}
       groupNbPages={nbPages}
       groupPage={currentRefinement}
       isFirstPage={isFirstPage}
       isLastPage={isLastPage}
-      isLoading={showLoading}
+      isLoading={isLoading}
       fromGroupFinderUrl={fromGroupFinderUrl}
       onPageChange={goToPage}
       isGeoSearch={isGeoSearch}
@@ -587,50 +505,9 @@ function GroupFinderInstantSearchResults({
   );
 }
 
-function GroupFinderInitialResults({
-  groupHits,
-  groupNbHits,
-  groupNbPages,
-  groupPage,
-  isFirstPage,
-  isLastPage,
-  fromGroupFinderUrl,
-  onPageChange,
-  isGeoSearch,
-  isVirtualFilterActive,
-  campusCityByName,
-  showGroupsLaunchNotify,
-}: {
-  groupHits: LoaderReturnType['groupHits'];
-  groupNbHits: number;
-  groupNbPages: number;
-  groupPage: number;
-  isFirstPage: boolean;
-  isLastPage: boolean;
-  fromGroupFinderUrl: string;
-  onPageChange: (nextPage: number) => void;
-  isGeoSearch: boolean;
-  isVirtualFilterActive: boolean;
-  campusCityByName: LoaderReturnType['campusCityByName'];
-  showGroupsLaunchNotify: boolean;
-}) {
-  return (
-    <GroupFinderResultsLayout
-      groupHits={groupHits}
-      groupNbHits={groupNbHits}
-      groupNbPages={groupNbPages}
-      groupPage={groupPage}
-      isFirstPage={isFirstPage}
-      isLastPage={isLastPage}
-      isLoading={false}
-      fromGroupFinderUrl={fromGroupFinderUrl}
-      onPageChange={onPageChange}
-      isGeoSearch={isGeoSearch}
-      isVirtualFilterActive={isVirtualFilterActive}
-      campusCityByName={campusCityByName}
-      showGroupsLaunchNotify={showGroupsLaunchNotify}
-    />
-  );
+function GroupFinderRefinementCollector({ attribute }: { attribute: string }) {
+  useRefinementList({ attribute, limit: 50 });
+  return null;
 }
 
 function GroupFinderResultsLayout({
@@ -648,7 +525,7 @@ function GroupFinderResultsLayout({
   campusCityByName,
   showGroupsLaunchNotify,
 }: {
-  groupHits: LoaderReturnType['groupHits'];
+  groupHits: GroupType[];
   groupNbHits: number;
   groupNbPages: number;
   groupPage: number;

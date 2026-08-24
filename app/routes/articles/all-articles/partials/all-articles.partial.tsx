@@ -1,9 +1,11 @@
 import { useLoaderData, useSearchParams } from 'react-router-dom';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useMemo, useRef } from 'react';
 import { liteClient as algoliasearch } from 'algoliasearch/lite';
 import {
   Configure,
   InstantSearch,
+  InstantSearchSSRProvider,
+  useHits,
   useInstantSearch,
   usePagination,
   useRefinementList,
@@ -14,15 +16,14 @@ import { Icon } from '~/primitives/icon/icon';
 import { cn } from '~/lib/utils';
 import { createInstantSearchUrlSync } from '~/components/finders/instant-search-url-sync/create-instant-search-url-sync';
 import { RefinementPills } from '~/components/finders/refinement-pills/refinement-pills.component';
-import { useHydratedHitsFallback } from '~/components/finders/use-hydrated-hits-fallback';
 import { ArticleCard } from '../components/article-card.component';
 import { useScrollToSearchResultsOnLoad } from '~/hooks/use-scroll-to-search-results-on-load';
-import { HubsTagsRefinementLoadingSkeleton } from '~/components/hubs-tags-refinement';
 import { useAlgoliaUrlSync } from '~/hooks/use-algolia-url-sync';
 
 import type { AllArticlesReturnType } from '../loader';
 import {
   ALL_ARTICLES_CATEGORY_FACET,
+  ALL_ARTICLES_HITS_PER_PAGE,
   ALL_ARTICLES_TYPE_FILTER,
 } from '../all-articles.constants';
 import {
@@ -32,10 +33,10 @@ import {
 } from '../all-articles-url-state';
 
 /**
- * Hybrid hub flow:
+ * SSR-hydrated hub flow:
  *
- * - The route loader fetches article hits for SSR/first paint.
- * - After hydration, InstantSearch mounts with the same URL-derived state.
+ * - The route loader gets InstantSearch server state for SSR/first paint.
+ * - InstantSearch hydrates that state without repeating the initial search.
  * - Filter and pagination changes update InstantSearch first, then `onStateChange`
  *   mirrors those changes into the existing route URL format.
  * - `shouldRevalidate` on the route prevents same-page query-string changes from
@@ -45,9 +46,7 @@ export function AllArticles() {
   const {
     ALGOLIA_APP_ID,
     ALGOLIA_SEARCH_API_KEY,
-    initialArticleHits,
-    articlesNbPages,
-    articlesPage,
+    serverState,
     algoliaIndexes,
   } = useLoaderData<AllArticlesReturnType>();
   const articlesIndexName = algoliaIndexes.contentItems;
@@ -61,8 +60,6 @@ export function AllArticles() {
 
   const AllArticlesInstantSearchSync = InstantSearchUrlSync;
   const buildAllArticlesInstantSearchUiState = buildUiState;
-
-  const ALL_ARTICLES_CLIENT_HITS_PER_PAGE = 12;
 
   const searchClient = useMemo(
     () => algoliasearch(ALGOLIA_APP_ID, ALGOLIA_SEARCH_API_KEY, {}),
@@ -97,19 +94,10 @@ export function AllArticles() {
     );
   });
 
-  const isFirstPage = articlesPage <= 0;
-  const isLastPage =
-    articlesNbPages <= 0 || articlesPage >= articlesNbPages - 1;
-
-  const [filtersMounted, setFiltersMounted] = useState(false);
-  useEffect(() => {
-    setFiltersMounted(true);
-  }, []);
-
   return (
     <section className='relative pb-28 pt-8 md:pt-16 min-h-screen bg-white content-padding pagination-scroll-to'>
       <div className='relative max-w-screen-content mx-auto'>
-        {filtersMounted ? (
+        <InstantSearchSSRProvider {...serverState}>
           <InstantSearch
             indexName={articlesIndexName}
             searchClient={searchClient}
@@ -144,40 +132,13 @@ export function AllArticles() {
             <AllArticlesInstantSearchSync />
             <Configure
               filters={ALL_ARTICLES_TYPE_FILTER}
-              hitsPerPage={ALL_ARTICLES_CLIENT_HITS_PER_PAGE}
+              hitsPerPage={ALL_ARTICLES_HITS_PER_PAGE}
               distinct
             />
             <AllArticlesFilters />
-            <AllArticlesInstantResults
-              initialArticleHits={initialArticleHits}
-            />
+            <AllArticlesInstantResults />
           </InstantSearch>
-        ) : (
-          <>
-            {/* Server-rendered fallback: real loader cards plus a filter skeleton.
-                This branch avoids hydration mismatch and keeps first paint fast. */}
-            <div className='mb-4'>
-              <HubsTagsRefinementLoadingSkeleton />
-            </div>
-            <AllArticlesResultsLayout
-              articleHits={initialArticleHits}
-              articlesNbPages={articlesNbPages}
-              articlesPage={articlesPage}
-              isFirstPage={isFirstPage}
-              isLastPage={isLastPage}
-              isLoading={false}
-              goToPage={(nextPage) => {
-                updateUrlIfChanged({ page: Math.max(0, nextPage) });
-                const scrollTarget = document.querySelector(
-                  '.pagination-scroll-to',
-                );
-                if (scrollTarget) {
-                  scrollTarget.scrollIntoView({ behavior: 'smooth' });
-                }
-              }}
-            />
-          </>
-        )}
+        </InstantSearchSSRProvider>
       </div>
     </section>
   );
@@ -231,15 +192,10 @@ function AllArticlesFilters() {
   );
 }
 
-function AllArticlesInstantResults({
-  initialArticleHits,
-}: {
-  initialArticleHits: ContentItemHit[];
-}) {
-  const { hits: articleHits, isLoading } =
-    useHydratedHitsFallback<ContentItemHit>({
-      initialHits: initialArticleHits,
-    });
+function AllArticlesInstantResults() {
+  const { items: articleHits } = useHits<ContentItemHit>();
+  const { status } = useInstantSearch();
+  const isLoading = status === 'loading' || status === 'stalled';
   const { currentRefinement, nbPages, isFirstPage, isLastPage, refine } =
     usePagination();
 

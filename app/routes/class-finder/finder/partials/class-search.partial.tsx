@@ -4,9 +4,11 @@ import { liteClient as algoliasearch } from 'algoliasearch/lite';
 import {
   Configure,
   InstantSearch,
+  InstantSearchSSRProvider,
   SearchBox,
   useHits,
   useInstantSearch,
+  useRefinementList,
 } from 'react-instantsearch';
 
 import Icon from '~/primitives/icon';
@@ -45,13 +47,15 @@ import {
   classFinderUrlStateToParams,
   parseClassFinderUrlState,
 } from '../components/class-finder-url-state';
-import { CLASS_FINDER_LOADER_HITS_PER_PAGE } from '../components/build-class-finder-algolia-search';
-import { ClassFinderFiltersSkeleton } from '../components/filters/class-finder-filters-skeleton.component';
+import {
+  CLASS_FINDER_FACET_ATTRIBUTES,
+  CLASS_FINDER_LOADER_HITS_PER_PAGE,
+} from '../components/build-class-finder-algolia-search';
 
 /**
  * Class finder data flow:
- * 1. Loader fetches initial hits so first paint has real class cards.
- * 2. After hydration, InstantSearch mounts with the real client Algolia search key.
+ * 1. Loader builds InstantSearch server state so first paint has real class cards.
+ * 2. InstantSearch hydrates those results with the client Algolia search key.
  * 3. Same-route query param changes do not re-run this loader (`route.tsx`); filters/search fetch client-side.
  * 4. Grouping + 12-per-page pagination stay client-side (same as before).
  */
@@ -94,7 +98,7 @@ export const ClassSearch = () => {
   const {
     ALGOLIA_APP_ID,
     ALGOLIA_SEARCH_API_KEY,
-    classHits,
+    serverState,
     rockCoverImagesByPath,
     algoliaIndexes,
   } = loaderData;
@@ -177,24 +181,13 @@ export const ClassSearch = () => {
     );
   }, [searchParams]);
 
-  const urlShowJourneyCard = useMemo(() => {
-    const s = parseClassFinderUrlState(searchParams);
-    return shouldShowJourneyCard(s.refinementList);
-  }, [searchParams]);
-
-  /** SSR/hydration: skeleton filters until react-instantsearch mounts (same pattern as group finder). */
-  const [filtersMounted, setFiltersMounted] = useState(false);
-  useEffect(() => {
-    setFiltersMounted(true);
-  }, []);
-
   return (
     <div
       className='flex w-full min-w-0 max-w-full flex-col gap-4 pagination-scroll-to'
       id='search'
     >
       <div className='flex flex-col bg-white pt-4'>
-        {filtersMounted ? (
+        <InstantSearchSSRProvider {...serverState}>
           <InstantSearch
             indexName={classIndexName}
             searchClient={searchClient}
@@ -216,6 +209,12 @@ export const ClassSearch = () => {
           >
             <ClassFinderInstantSearchSync />
             <Configure hitsPerPage={CLASS_FINDER_LOADER_HITS_PER_PAGE} />
+            {CLASS_FINDER_FACET_ATTRIBUTES.map((attribute) => (
+              <ClassFinderRefinementCollector
+                key={attribute}
+                attribute={attribute}
+              />
+            ))}
             <FinderStickyBar>
               <div className='mx-auto flex w-full min-w-0 max-w-screen-content flex-col gap-3 py-4 md:flex-row md:items-center md:gap-4'>
                 <div className='flex w-full shrink-0 items-center rounded-lg border border-[#DEE0E3] py-2 focus-within:border-ocean md:w-[240px] lg:w-[250px] xl:w-[266px]'>
@@ -280,7 +279,6 @@ export const ClassSearch = () => {
             <div className='flex flex-col bg-gray py-8 md:pt-12 md:pb-20 w-full content-padding'>
               <div className='max-w-screen-content mx-auto md:w-full'>
                 <ClassTypeGroupedInstantSearchResults
-                  initialHits={classHits}
                   rockCoverImagesByPath={rockCoverImagesByPath}
                   filtersActive={finderFiltersActive}
                   fromClassFinderUrl={fromClassFinderUrl}
@@ -289,53 +287,25 @@ export const ClassSearch = () => {
               </div>
             </div>
           </InstantSearch>
-        ) : (
-          <>
-            {/* SSR fallback: the loader already produced grouped class cards.
-                Hold those on screen and show filter skeletons until client-side
-                InstantSearch is ready to take over. */}
-            <FinderStickyBar>
-              <div className='mx-auto flex w-full min-w-0 max-w-screen-content flex-col gap-3 py-4 md:flex-row md:items-center md:gap-4'>
-                <div
-                  className='h-[42px] w-full shrink-0 animate-pulse rounded-lg bg-neutral-200 md:w-[240px] lg:w-[250px] xl:w-[266px]'
-                  aria-hidden
-                />
-                <div className='min-w-0 w-full flex-1'>
-                  <ClassFinderFiltersSkeleton />
-                </div>
-              </div>
-            </FinderStickyBar>
-
-            <div className='flex flex-col bg-gray py-8 md:pt-12 md:pb-20 w-full content-padding'>
-              <div className='max-w-screen-content mx-auto md:w-full'>
-                <ClassTypeGroupedResults
-                  hits={classHits}
-                  isLoading={false}
-                  rockCoverImagesByPath={rockCoverImagesByPath}
-                  filtersActive={finderFiltersActive}
-                  showJourneyCard={urlShowJourneyCard}
-                  fromClassFinderUrl={fromClassFinderUrl}
-                  onClearFilters={clearAllFiltersFromUrl}
-                />
-              </div>
-            </div>
-          </>
-        )}
+        </InstantSearchSSRProvider>
       </div>
     </div>
   );
 };
 
+function ClassFinderRefinementCollector({ attribute }: { attribute: string }) {
+  useRefinementList({ attribute, limit: 50 });
+  return null;
+}
+
 const ITEMS_PER_PAGE = 12;
 
 function ClassTypeGroupedInstantSearchResults({
-  initialHits,
   rockCoverImagesByPath,
   filtersActive,
   fromClassFinderUrl,
   onClearFilters,
 }: {
-  initialHits: ClassHitType[];
   rockCoverImagesByPath: Record<string, string>;
   filtersActive: boolean;
   fromClassFinderUrl?: string;
@@ -345,17 +315,13 @@ function ClassTypeGroupedInstantSearchResults({
   const { status, indexUiState } = useInstantSearch();
   const isLoading = status === 'loading' || status === 'stalled';
 
-  // Keep loader hits visible while the first hydrated InstantSearch request is
-  // pending. This preserves the SSR first paint and avoids a flash before
-  // client-side Algolia returns equivalent results.
-  const hits = isLoading && items.length === 0 ? initialHits : items;
   const showJourneyCard = shouldShowJourneyCard(
     indexUiState.refinementList as Record<string, string[]> | undefined,
   );
 
   return (
     <ClassTypeGroupedResults
-      hits={hits}
+      hits={items}
       isLoading={isLoading}
       rockCoverImagesByPath={rockCoverImagesByPath}
       filtersActive={filtersActive}

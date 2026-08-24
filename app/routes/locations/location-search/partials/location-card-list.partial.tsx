@@ -31,7 +31,6 @@ export type CampusHit = {
 
 export type LocationCardListProps = {
   loading: boolean;
-  initialHits?: CampusHit[];
   sortByGeo?: boolean;
 };
 
@@ -46,16 +45,18 @@ function locationSearchCardImage(hitUrl: string) {
 
 export const LocationCardList = ({
   loading,
-  initialHits = [],
   sortByGeo = false,
 }: LocationCardListProps) => {
   const { items } = useHits<CampusHit>();
   const { status } = useInstantSearch();
   const isSearchLoading = status === 'loading' || status === 'stalled';
-  const hits = isSearchLoading && items.length === 0 ? initialHits : items;
 
   return (
-    <LocationCardGrid items={hits} loading={loading} sortByGeo={sortByGeo} />
+    <LocationCardGrid
+      items={items}
+      loading={loading || (isSearchLoading && items.length === 0)}
+      sortByGeo={sortByGeo}
+    />
   );
 };
 
