@@ -6,8 +6,8 @@ import {
   radixFormLabelClassName,
   radixInputClassName,
   RadixFormErrorMessage,
-  FormFieldErrorText,
 } from '~/primitives/inputs/form-radix-field';
+import BirthdateInput from '~/primitives/inputs/date-input/birthdate-input.primitive';
 import RadioButtons from '~/primitives/inputs/radio-buttons';
 import { Button } from '~/primitives/button/button.primitive';
 
@@ -109,20 +109,12 @@ const AccountCreation: React.FC<AccountCreationProps> = ({
           </RadixFormErrorMessage>
         </Form.Field>
         {/* Birthdate */}
-        <Form.Field name='birthDate' className={radixFormFieldStackClassName}>
-          <Form.Label className={radixFormLabelClassName}>
-            Birth Date*
-          </Form.Label>
-          <Form.Control asChild>
-            <input type='date' required className={radixInputClassName} />
-          </Form.Control>
-          <RadixFormErrorMessage match='valueMissing'>
-            Please enter your birth date
-          </RadixFormErrorMessage>
-          {birthDateError && (
-            <FormFieldErrorText>{birthDateError}</FormFieldErrorText>
-          )}
-        </Form.Field>
+        <BirthdateInput
+          name='birthDate'
+          label='Birth Date*'
+          isRequired
+          error={birthDateError || null}
+        />
         {/* Email or Phone */}
         <Form.Field
           name={identityType === 'email' ? 'phone' : 'email'}
