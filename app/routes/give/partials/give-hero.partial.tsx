@@ -1,5 +1,5 @@
 import { getImageUrl } from '~/lib/utils';
-import { PushpayGiving } from '~/components/pushpay-giving';
+import { PushpayEmbed } from '~/components/pushpay-embed';
 
 export const GiveHero = () => {
   const desktopBgUrl = getImageUrl('3143878');
@@ -40,7 +40,7 @@ export const GiveHero = () => {
         </div>
 
         <div className='w-full lg:w-2/5 flex flex-1 min-w-0'>
-          <PushpayGiving />
+          <PushpayEmbed />
         </div>
       </div>
     </div>
