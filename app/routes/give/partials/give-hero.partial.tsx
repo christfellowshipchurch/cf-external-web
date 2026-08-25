@@ -1,11 +1,7 @@
-import { useLoaderData } from 'react-router';
-
 import { getImageUrl } from '~/lib/utils';
 import { PushpayGiving } from '~/components/pushpay-giving';
-import { LoaderReturnType } from '../loader';
 
 export const GiveHero = () => {
-  const data = useLoaderData<LoaderReturnType>();
   const desktopBgUrl = getImageUrl('3143878');
   const mobileBgUrl = getImageUrl('3143879');
 
@@ -43,8 +39,8 @@ export const GiveHero = () => {
           />
         </div>
 
-        <div className='w-full lg:w-2/5 flex flex-1'>
-          <PushpayGiving campusList={data?.campusList || []} />
+        <div className='w-full lg:w-2/5 flex flex-1 min-w-0'>
+          <PushpayGiving />
         </div>
       </div>
     </div>
