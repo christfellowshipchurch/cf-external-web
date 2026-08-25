@@ -1,6 +1,5 @@
 import type { LoaderFunctionArgs } from 'react-router';
 
-import { escapeAlgoliaFilterString } from '~/components/finders/finder-algolia.utils';
 import { createAuditedServerAlgoliaClient } from '~/lib/.server/algolia-request-audit.server';
 import { getServerAlgoliaIndexes } from '~/lib/.server/algolia-indexes.server';
 import { AuthenticationError } from '~/lib/.server/error-types';
@@ -9,14 +8,14 @@ import type { AlgoliaIndexMap } from '~/lib/algolia-indexes';
 import type { ContentItemHit } from '~/routes/search/types';
 
 import {
-  ALL_MESSAGES_GRID_HITS_PER_PAGE,
   CURRENT_SERIES_LOADER_HITS_PER_PAGE,
   MESSAGES_SERMON_FILTER,
 } from './all-messages.constants';
+import { parseAllMessagesUrlState } from './all-messages-url-state';
 import {
-  parseAllMessagesUrlState,
-  type AllMessagesUrlState,
-} from './all-messages-url-state';
+  getMessagesServerState,
+  type MessagesServerState,
+} from './messages-server-state.server';
 
 export type AllMessagesLoaderReturnType = {
   ALGOLIA_APP_ID: string;
@@ -24,55 +23,8 @@ export type AllMessagesLoaderReturnType = {
   algoliaIndexes: AlgoliaIndexMap;
   currentSeriesHit: ContentItemHit | null;
   currentSeriesUrl: string;
-  allMessagesHits: ContentItemHit[];
-  allMessagesNbPages: number;
-  allMessagesPage: number;
+  serverState: MessagesServerState;
 };
-
-function refinementListToFacetFilters(
-  refinementList: Record<string, string[]> | undefined,
-): string[][] | undefined {
-  if (!refinementList || Object.keys(refinementList).length === 0) {
-    return undefined;
-  }
-  const groups: string[][] = [];
-  for (const [attr, values] of Object.entries(refinementList)) {
-    if (!values?.length) {
-      continue;
-    }
-    groups.push(values.map((v) => `${attr}:"${escapeAlgoliaFilterString(v)}"`));
-  }
-  return groups.length > 0 ? groups : undefined;
-}
-
-function buildAllMessagesSearchParams(urlState: AllMessagesUrlState): {
-  filters: string;
-  hitsPerPage: number;
-  page: number;
-  query?: string;
-  facetFilters?: string[][];
-} {
-  const params: {
-    filters: string;
-    hitsPerPage: number;
-    page: number;
-    query?: string;
-    facetFilters?: string[][];
-  } = {
-    filters: MESSAGES_SERMON_FILTER,
-    hitsPerPage: ALL_MESSAGES_GRID_HITS_PER_PAGE,
-    page: urlState.page ?? 0,
-  };
-  const q = urlState.query?.trim();
-  if (q) {
-    params.query = q;
-  }
-  const facetFilters = refinementListToFacetFilters(urlState.refinementList);
-  if (facetFilters) {
-    params.facetFilters = facetFilters;
-  }
-  return params;
-}
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const appId = process.env.ALGOLIA_APP_ID;
@@ -85,12 +37,10 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
   let currentSeriesHit: ContentItemHit | null = null;
   let currentSeriesUrl = '';
-  let allMessagesHits: ContentItemHit[] = [];
-  let allMessagesNbPages = 0;
+  let serverState: MessagesServerState = { initialResults: {} };
 
   const url = new URL(request.url);
   const urlState = parseAllMessagesUrlState(url.searchParams);
-  const allMessagesPage = urlState.page ?? 0;
 
   const client = createAuditedServerAlgoliaClient(
     appId,
@@ -99,7 +49,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   );
 
   try {
-    const [seriesRes, gridRes] = await Promise.all([
+    const [seriesRes, nextServerState] = await Promise.all([
       client.searchSingleIndex({
         indexName: algoliaIndexes.contentItems,
         searchParams: {
@@ -107,11 +57,13 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
           hitsPerPage: CURRENT_SERIES_LOADER_HITS_PER_PAGE,
         },
       }),
-      client.searchSingleIndex({
+      getMessagesServerState({
+        searchClient: client,
         indexName: algoliaIndexes.contentItems,
-        searchParams: buildAllMessagesSearchParams(urlState),
+        urlState,
       }),
     ]);
+    serverState = nextServerState;
 
     const seriesHits = seriesRes.hits ?? [];
     currentSeriesHit =
@@ -129,11 +81,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       });
       currentSeriesUrl = seriesData?.attributeValues?.url?.value || '';
     }
-
-    allMessagesHits = (gridRes.hits ?? []).map(
-      (h) => h as unknown as ContentItemHit,
-    );
-    allMessagesNbPages = gridRes.nbPages ?? 0;
   } catch (error) {
     console.error('[messages/all-messages] Algolia loader fetch failed', error);
   }
@@ -144,8 +91,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     algoliaIndexes,
     currentSeriesHit,
     currentSeriesUrl,
-    allMessagesHits,
-    allMessagesNbPages,
-    allMessagesPage,
+    serverState,
   } satisfies AllMessagesLoaderReturnType);
 };

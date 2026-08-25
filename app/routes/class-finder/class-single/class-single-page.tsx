@@ -3,7 +3,7 @@ import {
   useMemo,
   type MouseEvent as ReactMouseEvent,
 } from 'react';
-import { useLoaderData, useNavigate } from 'react-router-dom';
+import { useLoaderData, useLocation, useNavigate } from 'react-router-dom';
 
 import { FinderHero, type FinderHeroCta } from '~/components/finders/hero';
 import { VideoModal } from '~/components/modals/video-modal';
@@ -13,6 +13,7 @@ import { ClassFAQ } from './components/faq.component';
 import { LoaderReturnType } from './loader';
 import { ClassSingleUpcomingSearch } from './partials/upcoming-sections.partial';
 import { ClassHitType } from '../types';
+import { getClassFinderBackUrl } from '../class-finder-back-url';
 
 function escapeHtml(text: string): string {
   return text
@@ -50,6 +51,8 @@ const ClassSingleContent = ({ hit }: { hit: ClassHitType }) => {
   const { topic } = hit;
   const classType = hit.classType?.trim() ?? '';
   const navigate = useNavigate();
+  const location = useLocation();
+  const classFinderBackUrl = getClassFinderBackUrl(location.state);
   const {
     discussionGuideUrl,
     classTrailer,
@@ -108,18 +111,18 @@ const ClassSingleContent = ({ hit }: { hit: ClassHitType }) => {
   const handleBack = useCallback(
     (e: ReactMouseEvent<Element>) => {
       e.preventDefault();
-      navigate('/class-finder');
+      navigate(classFinderBackUrl);
     },
-    [navigate],
+    [classFinderBackUrl, navigate],
   );
 
   const backLink = useMemo(
     () => ({
-      href: '/class-finder',
+      href: classFinderBackUrl,
       label: 'Back to All Classes' as const,
       onNavigate: handleBack,
     }),
-    [handleBack],
+    [classFinderBackUrl, handleBack],
   );
 
   const coverUri = heroCoverImageUri;

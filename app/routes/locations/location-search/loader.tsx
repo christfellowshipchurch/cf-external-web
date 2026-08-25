@@ -3,14 +3,16 @@ import { createAuditedServerAlgoliaClient } from '~/lib/.server/algolia-request-
 import { getServerAlgoliaIndexes } from '~/lib/.server/algolia-indexes.server';
 import type { AlgoliaIndexMap } from '~/lib/algolia-indexes';
 
-import type { CampusHit } from './partials/location-card-list.partial';
-import { LOCATION_SEARCH_INITIAL_HITS_PER_PAGE } from './location-search.constants';
+import {
+  getLocationsServerState,
+  type LocationsServerState,
+} from './locations-server-state.server';
 
 export type LocationSearchLoaderData = {
   ALGOLIA_APP_ID: string;
   ALGOLIA_SEARCH_API_KEY: string;
   algoliaIndexes: AlgoliaIndexMap;
-  initialLocationHits: CampusHit[];
+  serverState: LocationsServerState;
 };
 
 /**
@@ -27,7 +29,7 @@ export async function loader() {
     throw new AuthenticationError('Algolia credentials not found');
   }
 
-  let initialLocationHits: CampusHit[] = [];
+  let serverState: LocationsServerState = { initialResults: {} };
   const client = createAuditedServerAlgoliaClient(
     appId,
     searchApiKey,
@@ -35,19 +37,10 @@ export async function loader() {
   );
 
   try {
-    const res = await client.searchSingleIndex({
+    serverState = await getLocationsServerState({
+      searchClient: client,
       indexName: algoliaIndexes.locations,
-      searchParams: {
-        hitsPerPage: LOCATION_SEARCH_INITIAL_HITS_PER_PAGE,
-        query: '',
-        aroundLatLngViaIP: false,
-        getRankingInfo: true,
-      },
     });
-
-    initialLocationHits = (res.hits ?? []).map(
-      (h) => h as unknown as CampusHit,
-    );
   } catch (error) {
     console.error(
       '[locations/location-search] Algolia loader fetch failed',
@@ -59,6 +52,6 @@ export async function loader() {
     ALGOLIA_APP_ID: appId,
     ALGOLIA_SEARCH_API_KEY: searchApiKey,
     algoliaIndexes,
-    initialLocationHits,
+    serverState,
   } satisfies LocationSearchLoaderData);
 }
