@@ -12,6 +12,7 @@ import {
   radixSelectClassName,
   RadixFormErrorMessage,
 } from '~/primitives/inputs/form-radix-field';
+import BirthdateInput from '~/primitives/inputs/date-input/birthdate-input.primitive';
 import { pushFormEvent } from '~/lib/gtm';
 import { RockCampuses } from '~/lib/rock-config';
 
@@ -106,20 +107,7 @@ const SignupForm: React.FC<SignupFormProps> = ({
         </RadixFormErrorMessage>
       </Form.Field>
 
-      <Form.Field name='birthdate' className={radixFormFieldStackClassName}>
-        <Form.Label className={radixFormLabelClassName}>Birthdate*</Form.Label>
-        <Form.Control asChild>
-          <input
-            type='date'
-            required
-            max={new Date().toISOString().slice(0, 10)}
-            className={radixInputClassName}
-          />
-        </Form.Control>
-        <RadixFormErrorMessage match='valueMissing'>
-          Please enter your birthdate
-        </RadixFormErrorMessage>
-      </Form.Field>
+      <BirthdateInput name='birthdate' label='Birthdate*' isRequired />
 
       <Form.Field name='campus' className={radixFormFieldStackClassName}>
         <Form.Label className={radixFormLabelClassName}>Campus*</Form.Label>

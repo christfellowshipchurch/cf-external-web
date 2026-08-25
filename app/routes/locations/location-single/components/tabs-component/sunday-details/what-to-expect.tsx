@@ -3,6 +3,7 @@ import { SetAReminderModal } from '~/components';
 import { cn } from '~/lib/utils';
 import { Button } from '~/primitives/button/button.primitive';
 import { ButtonProps } from '~/primitives/button/button.primitive';
+import HTMLRenderer from '~/primitives/html-renderer';
 import { Video } from '~/primitives/video/video.primitive';
 import { useResponsive } from '~/hooks/use-responsive';
 import {
@@ -137,7 +138,9 @@ const ExpectItem = ({
   return (
     <div className='flex flex-col gap-2'>
       <h3 className='font-bold text-lg'>{title}</h3>
-      <p className='text-text-secondary'>{description}</p>
+      {/* Rendered as HTML so copy can carry links, matching the FAQ accordion.
+          Plain-text descriptions still render as a <p>. */}
+      <HTMLRenderer html={description} className='text-text-secondary' />
     </div>
   );
 };

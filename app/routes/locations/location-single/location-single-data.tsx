@@ -275,11 +275,11 @@ export const expectOnlineItems = [
   {
     title: 'Stay Engaged',
     description:
-      'Want to know what’s happening and stay in the loop? Check out the Service Guide on the Christ Fellowship mobile app. It’s your go-to spot for everything you need to follow along, participate, and get the most out of your Sunday experience.',
+      'Want to know what’s happening and stay in the loop? Check out the Service Guide on the <a href="https://apollos.com/christ-fellowship/f/f32e491b-a88b-412a-bf3b-9de0109557ae" target="_blank">Christ Fellowship mobile app</a>. It’s your go-to spot for everything you need to follow along, participate, and get the most out of your Sunday experience.',
   },
   {
     title: 'Next Steps',
     description:
-      'Ready to go beyond Sunday? Take your next step with the Journey class! Discover new ways to connect, grow, and be part of the Christ Fellowship Everywhere family. Wherever you live, there’s a place for you here!',
+      'Ready to go beyond Sunday? Take your next step with <a href="/events/journey">the Journey class</a>! Discover new ways to connect, grow, and be part of the Christ Fellowship Everywhere family. Wherever you live, there’s a place for you here!',
   },
 ];

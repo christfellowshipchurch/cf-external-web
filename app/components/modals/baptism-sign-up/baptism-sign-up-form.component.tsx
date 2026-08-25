@@ -16,6 +16,7 @@ import {
   radixSelectClassName,
   radixTextareaClassName,
 } from '~/primitives/inputs/form-radix-field';
+import BirthdateInput from '~/primitives/inputs/date-input/birthdate-input.primitive';
 import type { BaptismSignUpLoaderReturnType } from '~/routes/baptism-sign-up/types';
 
 export type BaptismSignUpSuccessDetails = {
@@ -451,10 +452,7 @@ const BaptismSignUpForm: React.FC<BaptismSignUpFormProps> = ({
     }
   }, [fetcher.state, fetcher.data, onSuccess]);
 
-  const handleBirthdateChange = (
-    event: React.ChangeEvent<HTMLInputElement>,
-  ) => {
-    const value = event.target.value;
+  const handleBirthdateChange = (value: string) => {
     setBirthdate(value);
     // Reset the High School answer whenever the age is no longer exactly 18 so
     // a stale "Yes" can't keep the guardian block open.
@@ -497,7 +495,6 @@ const BaptismSignUpForm: React.FC<BaptismSignUpFormProps> = ({
   const showHighSchoolQuestion = age === 18;
   const showGuardianBlock =
     age !== null && (age < 18 || (age === 18 && inHighSchool === 'True'));
-  const today = new Date().toISOString().split('T')[0];
   const remaining = MAX_STORY_LENGTH - story.length;
   const campusDefaultValue =
     prefillValues && campuses.length > 0 ? (campuses[0]?.guid ?? '') : '';
@@ -566,24 +563,13 @@ const BaptismSignUpForm: React.FC<BaptismSignUpFormProps> = ({
           </RadixFormErrorMessage>
         </Form.Field>
 
-        <Form.Field name='birthdate' className={radixFormFieldStackClassName}>
-          <Form.Label className={radixCompactFormLabelClassName}>
-            {copy.birthdate}
-          </Form.Label>
-          <Form.Control asChild>
-            <input
-              type='date'
-              required
-              max={today}
-              value={birthdate}
-              onChange={handleBirthdateChange}
-              className={radixInputClassName}
-            />
-          </Form.Control>
-          <RadixFormErrorMessage match='valueMissing'>
-            {copy.requiredBirthdate}
-          </RadixFormErrorMessage>
-        </Form.Field>
+        <BirthdateInput
+          name='birthdate'
+          label={copy.birthdate}
+          isRequired
+          value={birthdate}
+          setValue={handleBirthdateChange}
+        />
 
         <h3 className='col-span-2 mt-4 text-lg font-bold italic text-navy'>
           {copy.address}

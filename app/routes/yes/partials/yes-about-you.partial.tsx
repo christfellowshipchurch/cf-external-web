@@ -3,7 +3,7 @@ import { useFetcher, useNavigate } from 'react-router-dom';
 
 import { Button } from '~/primitives/button/button.primitive';
 import TextFieldInput from '~/primitives/inputs/text-field';
-import DateInput from '~/primitives/inputs/date-input/date-input.primitive';
+import BirthdateInput from '~/primitives/inputs/date-input/birthdate-input.primitive';
 import { radixSelectClassName } from '~/primitives/inputs/form-radix-field';
 import {
   formFieldStackStyles,
@@ -163,16 +163,13 @@ const YesFormPersonalInfoPartial: React.FC<Props> = ({ data, isSpanish }) => {
           placeholder={copy.phonePlaceholder}
           isRequired
         />
-        <DateInput
+        <BirthdateInput
           name='dateOfBirth'
-          className=''
           value={formData.dateOfBirth ?? ''}
-          error={null}
           setValue={(val) => handleChange('dateOfBirth', val)}
-          setError={() => {}}
           label={copy.dateOfBirthLabel}
           isRequired
-          max={new Date().toISOString().split('T')[0]}
+          showRequiredHint
         />
         <div className={cn('w-full', formFieldStackStyles)}>
           <label className={formLabelStyles}>

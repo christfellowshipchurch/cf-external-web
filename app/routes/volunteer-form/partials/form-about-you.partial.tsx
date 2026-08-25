@@ -4,7 +4,7 @@ import { CAMPUS, type VolunteerFormPersonalInfo } from '../types';
 import { Button } from '~/primitives/button/button.primitive';
 import TextFieldInput from '~/primitives/inputs/text-field';
 import SelectInput from '~/primitives/inputs/select-input/select-input.primitive';
-import DateInput from '~/primitives/inputs/date-input/date-input.primitive';
+import BirthdateInput from '~/primitives/inputs/date-input/birthdate-input.primitive';
 
 const campusOptions = CAMPUS.map((campus) => ({
   value: campus,
@@ -113,16 +113,14 @@ export const VolunteerFormPersonalInfoPartial: React.FC<Props> = ({
         placeholder='xxx-xxx-xxxx'
         isRequired
       />
-      <DateInput
+      <BirthdateInput
         name='dateOfBirth'
-        className=''
         value={formData.dateOfBirth ?? ''}
         error={errors.dateOfBirth ?? null}
         setValue={(val) => handleChange('dateOfBirth', val)}
-        setError={() => {}}
         label='Date of Birth'
         isRequired
-        max={new Date().toISOString().split('T')[0]}
+        showRequiredHint
       />
       <div className='flex justify-between mt-4'>
         <Button type='button' intent='secondary' onClick={onBack}>
