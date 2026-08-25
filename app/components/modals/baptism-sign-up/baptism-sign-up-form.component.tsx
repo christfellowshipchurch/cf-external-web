@@ -1,9 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import * as Form from '@radix-ui/react-form';
 import { useFetcher, useSearchParams } from 'react-router-dom';
 import { Button } from '~/primitives/button/button.primitive';
 import { cn } from '~/lib/utils';
 import { pushFormEvent } from '~/lib/gtm';
+import { scrollToAnchor } from '~/lib/scroll-to-anchor';
 import { formRadioGroupVerticalStyles } from '~/primitives/inputs/form-control.styles';
 import {
   RadixFormErrorMessage,
@@ -399,6 +400,13 @@ const FORM_COPY = {
   },
 };
 
+/** Scrolls to the Register section, or the form itself when that section is absent. */
+const scrollToFormSection = (formElement: HTMLElement | null) => {
+  if (scrollToAnchor('register')) return;
+
+  formElement?.scrollIntoView?.({ behavior: 'smooth', block: 'start' });
+};
+
 const BaptismSignUpForm: React.FC<BaptismSignUpFormProps> = ({
   onSuccess,
   groupGuid,
@@ -420,6 +428,7 @@ const BaptismSignUpForm: React.FC<BaptismSignUpFormProps> = ({
     useState<BaptismSignUpLoaderReturnType>({ campuses: [] });
 
   const fetcher = useFetcher({ key: 'baptism-sign-up-form' });
+  const formSectionRef = useRef<HTMLDivElement>(null);
   const selectedGroupGuid = groupGuid ?? searchParams.get('Group') ?? '';
   const language = isSpanish ? 'Spanish' : 'English';
   const copy = FORM_COPY[language];
@@ -481,6 +490,8 @@ const BaptismSignUpForm: React.FC<BaptismSignUpFormProps> = ({
       Language: language,
     });
 
+    scrollToFormSection(formSectionRef.current);
+
     try {
       fetcher.submit(formData, {
         method: 'post',
@@ -503,7 +514,7 @@ const BaptismSignUpForm: React.FC<BaptismSignUpFormProps> = ({
     prefillValues && campuses.length > 0 ? (campuses[0]?.guid ?? '') : '';
 
   return (
-    <>
+    <div ref={formSectionRef}>
       {showHeader && (
         <>
           <h2 className='mb-6 text-3xl text-navy font-bold'>{copy.title}</h2>
@@ -811,7 +822,7 @@ const BaptismSignUpForm: React.FC<BaptismSignUpFormProps> = ({
           </Button>
         </Form.Submit>
       </Form.Root>
-    </>
+    </div>
   );
 };
 

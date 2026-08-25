@@ -990,6 +990,9 @@ export const FormStep = ({
             onSuccess={(details) => {
               setBaptismSuccessDetails(details ?? null);
               setIsNativeSuccess(true);
+              requestAnimationFrame(() => {
+                scrollToAnchor('register');
+              });
             }}
           />
         </div>

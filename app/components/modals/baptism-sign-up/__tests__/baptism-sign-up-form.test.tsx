@@ -284,6 +284,25 @@ describe('BaptismSignUpForm', () => {
     });
   });
 
+  // Submit lives at the bottom of a long form; without this the user stays
+  // looking at the button while loading, errors, and confirmation render above.
+  it('scrolls to the top of the form section on submit', () => {
+    const scrollIntoView = vi.fn();
+    Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', {
+      configurable: true,
+      value: scrollIntoView,
+      writable: true,
+    });
+
+    renderForm();
+    fireEvent.submit(document.querySelector('form') as HTMLFormElement);
+
+    expect(scrollIntoView).toHaveBeenCalledWith({
+      behavior: 'smooth',
+      block: 'start',
+    });
+  });
+
   it('submits with Spanish language when isSpanish is true', () => {
     renderForm(vi.fn(), ['/baptism-sign-up'], {
       groupGuid: 'spanish-guid-123',
