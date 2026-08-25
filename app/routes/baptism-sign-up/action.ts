@@ -84,6 +84,48 @@ const findOrCreateRockLocation = async (address: AddressInput) => {
   throw new Error('Rock did not return a GUID for the created location');
 };
 
+const formatAddressForSpanishWorkflow = (address: AddressInput): string => {
+  const localityLine = [
+    address.city,
+    [address.state, address.postalCode].filter(Boolean).join(' ').trim(),
+  ]
+    .filter(Boolean)
+    .join(', ');
+
+  return [address.street1, address.street2, localityLine]
+    .filter(Boolean)
+    .join(', ');
+};
+
+/** Rock 1644 uses Spanish option text for these single-selects. */
+const SPANISH_SHARE_STORY_VALUES: Record<string, string> = {
+  Yes: 'Si',
+  No: 'No',
+  'No Preference': 'Sin preferencia',
+};
+
+const SPANISH_T_SHIRT_SIZES: Record<string, string> = {
+  'Adult Small': 'Adult S',
+};
+
+/**
+ * Spanish workflow 1644 keeps the same keys as English 1465, but two fields
+ * are reversed on the Rock type: the story memo is `ShareYourStory` and the
+ * yes/no is `MyStory`. Address is an Address field, not a Location GUID.
+ */
+const adaptPayloadForSpanishWorkflow = (
+  payload: BaptismSignUpFormType,
+  formattedAddress: string,
+): BaptismSignUpFormType => ({
+  ...payload,
+  Address: formattedAddress,
+  ShareYourStory: payload.MyStory,
+  MyStory:
+    SPANISH_SHARE_STORY_VALUES[payload.ShareYourStory] ?? payload.ShareYourStory,
+  'T-ShirtSize':
+    SPANISH_T_SHIRT_SIZES[payload['T-ShirtSize']] ?? payload['T-ShirtSize'],
+});
+
 export const action: ActionFunction = async ({ request }) => {
   try {
     const formData = Object.fromEntries(await request.formData());
@@ -129,16 +171,19 @@ export const action: ActionFunction = async ({ request }) => {
       postalCode: normalizeAddressPart(zip),
       country: 'US',
     };
-    const locationGuid = await findOrCreateRockLocation(address);
+    const isSpanish = language === 'Spanish';
+    const locationGuid = isSpanish
+      ? undefined
+      : await findOrCreateRockLocation(address);
 
-    const baptismSignUpSubmission: BaptismSignUpFormType = {
+    let baptismSignUpSubmission: BaptismSignUpFormType = {
       FirstName: firstName as string,
       LastName: lastName as string,
       PhoneNumber: phone as string,
       EmailAddress: email as string,
       Campus1: campus as string,
       Birthdate: birthdate as string,
-      Address: locationGuid,
+      Address: locationGuid ?? '',
       'T-ShirtSize': tShirtSize as string,
       ShareYourStory: shareYourStory as string,
       MyStory: myStory as string,
@@ -169,6 +214,13 @@ export const action: ActionFunction = async ({ request }) => {
     }
     if (relationship) {
       baptismSignUpSubmission.Relationship = relationship as string;
+    }
+
+    if (isSpanish) {
+      baptismSignUpSubmission = adaptPayloadForSpanishWorkflow(
+        baptismSignUpSubmission,
+        formatAddressForSpanishWorkflow(address),
+      );
     }
 
     const debugPayload = {

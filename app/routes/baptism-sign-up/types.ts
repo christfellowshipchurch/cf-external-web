@@ -5,7 +5,8 @@ export type BaptismSignUpFormType = {
   EmailAddress: string;
   Campus1: string; // campus guid
   Birthdate: string;
-  Address: string; // Rock Location GUID
+  /** English 1465: Location GUID. Spanish 1644: formatted address (Address field). */
+  Address: string;
   'T-ShirtSize': string;
   ShareYourStory: string;
   MyStory: string;

@@ -79,6 +79,8 @@ describe('baptism sign up action', () => {
         LastName: 'Person',
         Campus1: 'campus-guid-123',
         Address: 'location-guid-123',
+        MyStory: 'I am ready.',
+        ShareYourStory: 'Yes',
         'T-ShirtSize': 'Adult Medium',
       }),
     });
@@ -156,20 +158,35 @@ describe('baptism sign up action', () => {
     expect(postRockData).toHaveBeenCalledTimes(1);
   });
 
-  it('posts Spanish submissions to workflow ID 1644', async () => {
+  // 1644 labels the story memo as ShareYourStory and the yes/no as MyStory,
+  // and Address is an Address field — sending the English shape silently
+  // fails the workflow so the person never lands in the group.
+  it('adapts English form fields to the Spanish 1644 attribute types', async () => {
+    const formData = createFormData();
+    formData.set('tShirtSize', 'Adult Small');
+
     await action({
-      request: createRequest({
-        group: 'spanish-group-guid-123',
-        language: 'Spanish',
-      }),
+      request: new Request(
+        'http://localhost/baptism-sign-up?Group=spanish-group-guid-123&Language=Spanish',
+        { method: 'POST', body: formData },
+      ),
     } as ActionFunctionArgs);
 
+    expect(fetchRockData).not.toHaveBeenCalled();
+    expect(postRockData).toHaveBeenCalledTimes(1);
     expect(postRockData).toHaveBeenCalledWith({
       endpoint:
         'Workflows/LaunchWorkflow/0?workflowTypeId=1644&workflowName=Baptism%20Finder%20Sign%20Up',
       body: expect.objectContaining({
         Group: 'spanish-group-guid-123',
+        FirstName: 'Test',
+        LastName: 'Person',
+        Campus1: 'campus-guid-123',
         LaunchSource: 'app',
+        ShareYourStory: 'I am ready.',
+        MyStory: 'Si',
+        Address: '123 Main St, Apt 2, Palm Beach Gardens, FL 33418',
+        'T-ShirtSize': 'Adult S',
       }),
     });
   });
