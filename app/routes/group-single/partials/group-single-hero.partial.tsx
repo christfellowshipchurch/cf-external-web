@@ -1,6 +1,7 @@
 import { cn } from '~/lib/utils';
 import { TopicBadge } from '../components/group-single-banner.component';
 import { GroupType, splitGroupTopics } from '~/routes/group-finder/types';
+import { MAX_VISIBLE_LEADERS } from '~/routes/group-finder/components/group-hit.component';
 import { formatGroupMeetingScheduleTitle } from '~/routes/group-finder/format-group-meeting-schedule';
 import { icons } from '~/lib/icons';
 import { Icon } from '~/primitives/icon/icon';
@@ -11,6 +12,14 @@ export function GroupSingleHero({ hit }: { hit: GroupType }) {
   const imagePath = hit.coverImage?.sources?.[0]?.uri ?? '';
   const backToGroupFinderUrl = useGroupSearchBackUrl();
   const topicTags = splitGroupTopics(hit.topics);
+  // The mobile hero renders only leaders that have a photo, capped the same way
+  // the Group Finder cards are so a many-leader group doesn't crowd the row.
+  const leaderPhotos = (hit.leaders ?? []).filter(
+    (leader) => leader?.photo?.sources?.[0]?.uri,
+  );
+  const visibleLeaderPhotos = leaderPhotos.slice(0, MAX_VISIBLE_LEADERS);
+  const hiddenLeaderPhotoCount =
+    leaderPhotos.length - visibleLeaderPhotos.length;
 
   return (
     <>
@@ -54,17 +63,21 @@ export function GroupSingleHero({ hit }: { hit: GroupType }) {
             {/* Mobile Only Leaders Section */}
             <div className='md:hidden flex items-center gap-2'>
               <div className='flex items-center gap-1'>
-                {hit.leaders?.map(
-                  (leader, index) =>
-                    leader?.photo?.sources?.[0]?.uri && (
-                      <img
-                        key={index}
-                        src={leader.photo.sources[0].uri}
-                        alt='Leader'
-                        className='w-10 h-10 rounded-[8px] object-cover'
-                      />
-                    ),
-                )}
+                {visibleLeaderPhotos.map((leader, index) => (
+                  <div key={index} className='relative'>
+                    <img
+                      src={leader.photo!.sources![0].uri}
+                      alt='Leader'
+                      className='w-10 h-10 rounded-[8px] object-cover'
+                    />
+                    {index === visibleLeaderPhotos.length - 1 &&
+                      hiddenLeaderPhotoCount > 0 && (
+                        <span className='absolute -bottom-1 -right-1 rounded bg-navy px-1 text-[10px] font-semibold leading-4 text-white'>
+                          +{hiddenLeaderPhotoCount}
+                        </span>
+                      )}
+                  </div>
+                ))}
               </div>
               <div className='flex flex-col gap-1'>
                 <h2 className='text-neutral-default leading-none'>Led By:</h2>

@@ -3,8 +3,8 @@ import Icon from '~/primitives/icon';
 import { GroupType, splitGroupTopics } from '../types';
 import { Link } from 'react-router-dom';
 
-/** Group cards show at most this many leader avatars; extras become a "+N" badge. */
-const MAX_VISIBLE_LEADERS = 2;
+/** Group cards and the group detail hero show at most this many leader avatars; extras become a "+N" badge. */
+export const MAX_VISIBLE_LEADERS = 2;
 
 export const defaultLeaderPhoto =
   'https://cloudfront.christfellowship.church/GetAvatar.ashx?PhotoId=&AgeClassification=Adult&Gender=Unknown&RecordTypeId=1&Text=JC&Size=180&Style=icon&BackgroundColor=E4E4E7&ForegroundColor=A1A1AA';
