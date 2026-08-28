@@ -4,6 +4,7 @@ import { cn } from '~/lib/utils';
 import { Button } from '~/primitives/button/button.primitive';
 import { Icon } from '~/primitives/icon/icon';
 import { ImageSource, type GroupType } from '~/routes/group-finder/types';
+import { MAX_VISIBLE_LEADERS } from '~/routes/group-finder/components/group-hit.component';
 import { useStickyTopBelowNavbarClass } from '~/hooks/use-sticky-top-below-navbar';
 import { useGroupSearchBackUrl } from '../group-single-back-url';
 
@@ -24,6 +25,18 @@ export const GroupSingleBanner = ({
   const backToGroupFinderUrl = useGroupSearchBackUrl();
 
   const imageStyles = 'size-20 rounded-[10px] object-cover';
+
+  // Same cap as the Group Finder cards and the mobile hero: at most two leader
+  // photos, with the rest summarized as a "+N" badge.
+  const leaderImagesWithPhoto = leaderImages.filter(
+    (image) => image?.sources?.[0]?.uri,
+  );
+  const visibleLeaderImages = leaderImagesWithPhoto.slice(
+    0,
+    MAX_VISIBLE_LEADERS,
+  );
+  const hiddenLeaderImageCount =
+    leaderImagesWithPhoto.length - visibleLeaderImages.length;
 
   //  If language is Spanish, add "Español" to the list of Tags displayed
   const tags = language === 'Spanish' ? ['Español', ...topics] : topics;
@@ -46,13 +59,21 @@ export const GroupSingleBanner = ({
               />
             </Link>
 
-            {leaderImages[0]?.sources?.[0]?.uri && (
-              <img
-                src={leaderImages[0].sources[0].uri}
-                alt={groupName}
-                className={imageStyles}
-              />
-            )}
+            {visibleLeaderImages.map((image, index) => (
+              <div key={index} className='relative'>
+                <img
+                  src={image.sources![0].uri}
+                  alt={groupName}
+                  className={imageStyles}
+                />
+                {index === visibleLeaderImages.length - 1 &&
+                  hiddenLeaderImageCount > 0 && (
+                    <span className='absolute -bottom-1 -right-1 rounded-md bg-navy px-1.5 py-0.5 text-xs font-semibold text-white'>
+                      +{hiddenLeaderImageCount}
+                    </span>
+                  )}
+              </div>
+            ))}
           </div>
 
           <div className='flex flex-col justify-between gap-2'>
