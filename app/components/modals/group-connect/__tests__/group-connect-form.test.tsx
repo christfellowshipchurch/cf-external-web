@@ -10,6 +10,7 @@ let mockFetcherState = {
   data: undefined as unknown,
 };
 const mockSubmit = vi.fn();
+const mockLoad = vi.fn();
 
 vi.mock('react-router', async () => {
   const actual =
@@ -20,6 +21,7 @@ vi.mock('react-router', async () => {
       state: mockFetcherState.state,
       data: mockFetcherState.data,
       submit: mockSubmit,
+      load: mockLoad,
     }),
   };
 });
@@ -81,25 +83,40 @@ describe('GroupConnectForm', () => {
     expect(hiddenInput.value).toBe('test-group-42');
   });
 
-  it('does not render campus select when campus prop is undefined', () => {
+  it('loads and renders required campus options when campus prop is undefined', () => {
+    mockFetcherState = {
+      state: 'idle',
+      data: {
+        campuses: [
+          { guid: 'campus-guid-1', name: 'Palm Beach Gardens' },
+          { guid: 'campus-guid-2', name: 'Royal Palm Beach' },
+        ],
+      },
+    };
     renderForm();
-    expect(screen.queryByText('Campus')).not.toBeInTheDocument();
-    expect(
-      document.querySelector('input[name="campus"]'),
-    ).not.toBeInTheDocument();
+    expect(mockLoad).toHaveBeenCalledWith('/group-finder-notify');
+    expect(screen.getByText('Campus*')).toBeInTheDocument();
+    const campusSelect = screen.getByRole('combobox', {
+      name: 'Campus*',
+    }) as HTMLSelectElement;
+    expect(campusSelect).toBeRequired();
+    expect(campusSelect).toHaveValue('');
+    expect(screen.getByText('Palm Beach Gardens')).toBeInTheDocument();
+    expect(screen.getByText('Royal Palm Beach')).toBeInTheDocument();
   });
 
   it('renders disabled campus field and hidden value when campus prop is provided', () => {
     renderForm({ campus: 'Palm Beach Gardens' });
-    expect(screen.getByText('Campus')).toBeInTheDocument();
+    expect(screen.getByText('Campus*')).toBeInTheDocument();
     const hiddenCampus = document.querySelector(
       'input[name="campus"]',
     ) as HTMLInputElement;
     expect(hiddenCampus).toBeInTheDocument();
     expect(hiddenCampus.value).toBe('Palm Beach Gardens');
-    const campusSelect = screen.getByRole('combobox', { name: 'Campus' });
+    const campusSelect = screen.getByRole('combobox', { name: 'Campus*' });
     expect(campusSelect).toBeDisabled();
     expect(screen.getByText('Palm Beach Gardens')).toBeInTheDocument();
+    expect(mockLoad).not.toHaveBeenCalled();
   });
 
   it("shows 'Loading...' button text when form is submitting", () => {
