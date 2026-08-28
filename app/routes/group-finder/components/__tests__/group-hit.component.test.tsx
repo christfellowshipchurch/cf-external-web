@@ -92,4 +92,34 @@ describe('GroupHit', () => {
     expect(screen.queryByText(/miles away/i)).not.toBeInTheDocument();
     expect(screen.queryByText('Jupiter')).not.toBeInTheDocument();
   });
+  // Four leaders would otherwise crowd the cover image, so the card caps the
+  // avatars at two and summarizes the rest.
+  it('shows at most two leader avatars and a "+N" badge for the rest', () => {
+    renderGroupHit(
+      createGroupHit({
+        leaders: ['Ana', 'Ben', 'Cara', 'Dan'].map((firstName, i) => ({
+          id: i + 1,
+          firstName,
+          lastName: 'Leader',
+        })),
+      }),
+    );
+
+    expect(screen.getByAltText('Ana')).toBeInTheDocument();
+    expect(screen.getByAltText('Ben')).toBeInTheDocument();
+    expect(screen.queryByAltText('Cara')).not.toBeInTheDocument();
+    expect(screen.queryByAltText('Dan')).not.toBeInTheDocument();
+    expect(screen.getByText('+2')).toBeInTheDocument();
+  });
+
+  it('shows no "+N" badge when a group has two or fewer leaders', () => {
+    renderGroupHit(
+      createGroupHit({
+        leaders: [{ id: 1, firstName: 'Ana', lastName: 'Leader' }],
+      }),
+    );
+
+    expect(screen.getByAltText('Ana')).toBeInTheDocument();
+    expect(screen.queryByText(/^\+\d+$/)).not.toBeInTheDocument();
+  });
 });

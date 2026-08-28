@@ -3,6 +3,9 @@ import Icon from '~/primitives/icon';
 import { GroupType, splitGroupTopics } from '../types';
 import { Link } from 'react-router-dom';
 
+/** Group cards show at most this many leader avatars; extras become a "+N" badge. */
+const MAX_VISIBLE_LEADERS = 2;
+
 export const defaultLeaderPhoto =
   'https://cloudfront.christfellowship.church/GetAvatar.ashx?PhotoId=&AgeClassification=Adult&Gender=Unknown&RecordTypeId=1&Text=JC&Size=180&Style=icon&BackgroundColor=E4E4E7&ForegroundColor=A1A1AA';
 
@@ -125,6 +128,10 @@ export function GroupHit({
     : `/group-finder/${hit.groupGuid}`;
 
   const leaders = Array.isArray(hit.leaders) ? hit.leaders : [];
+  // Cards cap the leader avatars so a group with many leaders doesn't crowd the
+  // cover image; the rest are summarized as a "+N" badge.
+  const visibleLeaders = leaders.slice(0, MAX_VISIBLE_LEADERS);
+  const hiddenLeaderCount = leaders.length - visibleLeaders.length;
   // Algolia can return groups with blank-string `_geoloc` (no real coordinates).
   // Only show a distance when geoloc is numeric and a finite geoDistance exists;
   // otherwise the group's location "varies".
@@ -178,20 +185,27 @@ export function GroupHit({
             />
 
             <div className='flex gap-1 absolute -bottom-4 lg:-bottom-10 xl:-bottom-4 right-4'>
-              {leaders.map((leader, idx) => (
-                <img
-                  key={leader.id || idx}
-                  className='rounded-lg border-[1.534px] border-[#EBEBEF] size-[77px] object-cover'
-                  style={{
-                    boxShadow:
-                      '0px 5.114px 10.228px -2.557px rgba(0, 0, 0, 0.10), 0px 2.557px 5.114px -2.557px rgba(0, 0, 0, 0.06)',
-                  }}
-                  src={withRockGetImageSizing(
-                    leader.photo?.sources?.[0]?.uri ?? defaultLeaderPhoto,
-                    { maxwidth: 200, maxheight: 200, quality: 80 },
-                  )}
-                  alt={leader.firstName}
-                />
+              {visibleLeaders.map((leader, idx) => (
+                <div key={leader.id || idx} className='relative'>
+                  <img
+                    className='rounded-lg border-[1.534px] border-[#EBEBEF] size-[77px] object-cover'
+                    style={{
+                      boxShadow:
+                        '0px 5.114px 10.228px -2.557px rgba(0, 0, 0, 0.10), 0px 2.557px 5.114px -2.557px rgba(0, 0, 0, 0.06)',
+                    }}
+                    src={withRockGetImageSizing(
+                      leader.photo?.sources?.[0]?.uri ?? defaultLeaderPhoto,
+                      { maxwidth: 200, maxheight: 200, quality: 80 },
+                    )}
+                    alt={leader.firstName}
+                  />
+                  {idx === visibleLeaders.length - 1 &&
+                    hiddenLeaderCount > 0 && (
+                      <span className='absolute -bottom-1 -right-1 rounded-md bg-navy px-1.5 py-0.5 text-xs font-semibold text-white'>
+                        +{hiddenLeaderCount}
+                      </span>
+                    )}
+                </div>
               ))}
             </div>
           </div>
