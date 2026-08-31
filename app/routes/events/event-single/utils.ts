@@ -1,6 +1,7 @@
 import { parse, format } from 'date-fns';
 import { AttributeMatrixItem } from '~/lib/types/rock-types';
 import { fetchRockData } from '~/lib/.server/fetch-rock-data';
+import { parseRockKeyValueList } from '~/lib/utils';
 import { SessionRegistrationCardType } from './types';
 import { icons } from '~/lib/icons';
 
@@ -90,10 +91,58 @@ export const mapSessionScheduleCards = async (
           partyTime: partyTime || '',
           additionalInfo: item.attributeValues?.additionalInfo?.value || '',
           url: item.attributeValues?.ticketsUrl?.value || '',
+          ...parseSessionCta(item.attributeValues?.callToAction?.value ?? ''),
+          startDateTime: parseSessionStartDateTime(
+            item.attributeValues?.sessionDateTime?.value ?? '',
+          ),
         };
       },
     ),
   );
+};
+
+/**
+ * Rock stores the session "Call to Action" as a `label^url` pair — the same
+ * key/value shape as the event's hero CTAs, not plain text. Rendering the raw
+ * value put "Testing CTA^#add-link-here" on the button, so parse it the way
+ * every other `^` CTA in this codebase is parsed: the label drives the button
+ * text and the url drives its destination.
+ *
+ * Both halves are optional. An unset field, or one holding only a label,
+ * leaves the caller to fall back to the default label and the session's
+ * ticketsUrl.
+ */
+export const parseSessionCta = (
+  rawCta: string,
+): { ctaTitle: string; ctaUrl: string } => {
+  const [cta] = parseRockKeyValueList(rawCta);
+
+  if (!cta) {
+    // No `^` at all — treat a bare value as a label so a plain-text entry in
+    // Rock still reads sensibly on the button rather than being dropped.
+    return { ctaTitle: rawCta.trim(), ctaUrl: '' };
+  }
+
+  return { ctaTitle: cta.key, ctaUrl: cta.value };
+};
+
+/**
+ * Rock's raw session date/time carries no timezone, and neither should ours.
+ * Parsing local and formatting local round-trips the wall-clock digits whatever
+ * the server's timezone is, so the .ics — which tags the value
+ * `TZID=America/New_York` — shows the time the event actually starts rather
+ * than one shifted into the viewer's zone.
+ *
+ * Returns '' for missing or unparseable input so the card simply omits
+ * Add to Calendar instead of offering a broken file.
+ */
+export const parseSessionStartDateTime = (rawDateTime: string): string => {
+  if (!rawDateTime.trim()) return '';
+
+  const parsed = new Date(rawDateTime);
+  if (isNaN(parsed.getTime())) return '';
+
+  return format(parsed, "yyyy-MM-dd'T'HH:mm:ss");
 };
 
 export const parsePartyTime = (partyTimeValue: string) => {

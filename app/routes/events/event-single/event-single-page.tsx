@@ -82,8 +82,10 @@ export const EventSinglePage: React.FC = () => {
             ...(data.faqItems && data.faqItems.length > 0
               ? [{ id: 'faq', label: 'FAQ' }]
               : []),
+            // Label reads "Locations" (CFDP-4275) while the id stays `register`
+            // so existing /events/<slug>#register links keep resolving.
             ...(showRegistration
-              ? [{ id: 'register', label: 'Register' }]
+              ? [{ id: 'register', label: 'Locations' }]
               : []),
           ]}
         />

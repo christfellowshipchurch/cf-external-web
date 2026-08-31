@@ -3,6 +3,15 @@ import { EventSinglePageType, SessionRegistrationCardType } from '../types';
 import Icon from '~/primitives/icon';
 import { Button } from '~/primitives/button/button.primitive';
 import HtmlRenderer from '~/primitives/html-renderer';
+import { AddToCalendar } from '~/components/add-to-calendar/add-to-calendar.component';
+import { googleCalendarLink, icsLink } from '~/lib/utils';
+import { htmlToPlainText } from '~/lib/text-content';
+
+/** Used when Rock's per-session "Call to Action" is blank. */
+const DEFAULT_CTA_TITLE = 'Get Tickets';
+
+/** Sessions have a start but no end in Rock, so block out two hours. */
+const SESSION_DURATION_MS = 2 * 60 * 60 * 1000;
 
 export function SessionRegistration() {
   const { title, sessionScheduleCards } = useLoaderData<EventSinglePageType>();
@@ -29,7 +38,11 @@ export function SessionRegistration() {
         {sessionScheduleCards &&
           sessionScheduleCards.length > 0 &&
           sessionScheduleCards.map((card) => (
-            <SessionRegistrationCard key={card.title} card={card} />
+            <SessionRegistrationCard
+              key={card.title}
+              card={card}
+              eventTitle={title}
+            />
           ))}
       </div>
       <p className='text-gray-500 text-xs text-center mt-8'>
@@ -42,11 +55,26 @@ export function SessionRegistration() {
 
 const SessionRegistrationCard = ({
   card,
+  eventTitle,
 }: {
   card: SessionRegistrationCardType;
+  eventTitle: string;
 }) => {
+  const startTime = card.startDateTime ? new Date(card.startDateTime) : null;
+  const hasCalendarDate = Boolean(startTime && !isNaN(startTime.getTime()));
+
+  const calendarEvent = hasCalendarDate
+    ? {
+        title: `${eventTitle} - ${card.title}`,
+        description: htmlToPlainText(card.additionalInfo || ''),
+        address: card.description,
+        startTime: startTime as Date,
+        endTime: new Date((startTime as Date).getTime() + SESSION_DURATION_MS),
+      }
+    : null;
+
   return (
-    <div className='bg-white rounded-lg shadow-sm p-5 flex flex-col text-left w-[248px] h-[374px] relative'>
+    <div className='bg-white rounded-lg shadow-sm p-5 flex flex-col text-left w-[248px] min-h-[374px]'>
       {/* Location Section */}
       <div className='flex flex-2 gap-4 items-start'>
         <div className='bg-navy-subdued rounded-lg p-3 shrink-0'>
@@ -98,11 +126,24 @@ const SessionRegistrationCard = ({
         )}
       </div>
 
-      {/* Get Tickets Button */}
-      <div className='mt-auto absolute bottom-0 left-0 w-full px-4 pb-4'>
-        <Button intent='primary' href={card.url} size='md' className='w-full'>
-          Get Tickets
+      {/* CTA + Add to Calendar */}
+      <div className='mt-auto flex flex-col gap-2 pt-4'>
+        <Button
+          intent='primary'
+          href={card.ctaUrl || card.url}
+          size='md'
+          className='w-full'
+        >
+          {card.ctaTitle || DEFAULT_CTA_TITLE}
         </Button>
+
+        {calendarEvent && (
+          <AddToCalendar
+            googleHref={googleCalendarLink(calendarEvent)}
+            getIcsUrl={() => icsLink(calendarEvent)}
+            eventDate={calendarEvent.startTime}
+          />
+        )}
       </div>
     </div>
   );

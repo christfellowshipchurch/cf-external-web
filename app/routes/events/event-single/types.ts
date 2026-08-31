@@ -51,6 +51,22 @@ export type SessionRegistrationCardType = {
   partyTime: string;
   additionalInfo?: string;
   url: string;
+  /**
+   * Label half of Rock's `label^url` "Call to Action" pair.
+   * Empty when unset — the card falls back to a default label.
+   */
+  ctaTitle?: string;
+  /**
+   * Url half of that same pair. Empty when unset — the card falls back to
+   * `url` (the session's Rock ticketsUrl).
+   */
+  ctaUrl?: string;
+  /**
+   * Session start as a naive local ISO string (`yyyy-MM-dd'T'HH:mm:ss`), for Add to Calendar.
+   * Deliberately timezone-less: the .ics tags it `TZID=America/New_York`, so the wall-clock
+   * digits must survive the trip to the browser unshifted. Empty when Rock has no date.
+   */
+  startDateTime?: string;
 };
 
 export interface EventFinderHit {
