@@ -167,6 +167,12 @@ export const ministriesItems: SubMenuItem[] = [
     to: '/ministries/women',
   },
   {
+    id: 'missions',
+    title: 'Missions',
+    description: 'Local & Global Outreach',
+    to: '/ministries/missions',
+  },
+  {
     id: 'marriage',
     title: 'Marriage',
     description: 'Support & Resources',
