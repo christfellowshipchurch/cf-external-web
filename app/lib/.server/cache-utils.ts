@@ -83,6 +83,47 @@ export function buildCacheKey(
  */
 export const itemTagKey = (id: string | number): string => `cfitem:${id}`;
 
+/** Child content-item ids associated with a parent content item. */
+export const childItemTagKey = (id: string | number): string =>
+  `cfchildren:${id}`;
+
+export interface ContentItemRelationship {
+  parentId: string;
+  childId: string;
+}
+
+/** Extracts Rock ContentChannelItemAssociation parent-child pairs. */
+export function extractContentItemRelationships(
+  data: unknown,
+): ContentItemRelationship[] {
+  const items = Array.isArray(data) ? data : [data];
+  return items.flatMap((item) => {
+    if (
+      !item ||
+      typeof item !== 'object' ||
+      !('contentChannelItemId' in item) ||
+      !('childContentChannelItemId' in item)
+    ) {
+      return [];
+    }
+
+    const { contentChannelItemId, childContentChannelItemId } = item as {
+      contentChannelItemId: unknown;
+      childContentChannelItemId: unknown;
+    };
+    if (contentChannelItemId == null || childContentChannelItemId == null) {
+      return [];
+    }
+
+    return [
+      {
+        parentId: String(contentChannelItemId),
+        childId: String(childContentChannelItemId),
+      },
+    ];
+  });
+}
+
 /**
  * Extracts top-level Rock ContentChannelItem ids from a normalized fetchRockData
  * response (which is either a single item object or an array of items).
@@ -110,12 +151,11 @@ export function extractContentItemIds(data: unknown): string[] {
 }
 
 /**
- * Invalidates every cache entry that contains content item `id`: its own
- * single-item entry plus every list/aggregate entry that included it. Uses the
- * reverse index (`cfitem:{id}`) for exact key lookup — no KEYS/SCAN — then clears
- * the index entry itself.
+ * Invalidates every cache entry that contains content item `id` or any known
+ * descendant. Uses reverse indexes for exact key lookup — no KEYS/SCAN — then
+ * clears item and relationship indexes.
  *
- * @returns Number of cache keys deleted (0 when redis is unavailable / no index)
+ * @returns Number of cache keys Redis deleted (0 when unavailable / no index)
  */
 export async function invalidateItem(
   redis: Redis | null,
@@ -123,15 +163,35 @@ export async function invalidateItem(
 ): Promise<number> {
   if (!redis) return 0;
 
-  const tag = itemTagKey(id);
-  const keys = await redis.smembers(tag);
+  const pending = [String(id)];
+  const itemIds = new Set<string>();
+  const keys = new Set<string>();
+
+  while (pending.length > 0) {
+    const itemId = pending.shift()!;
+    if (itemIds.has(itemId)) continue;
+    itemIds.add(itemId);
+
+    const [itemKeys, childIds] = await Promise.all([
+      redis.smembers(itemTagKey(itemId)),
+      redis.smembers(childItemTagKey(itemId)),
+    ]);
+    itemKeys.forEach((key) => keys.add(key));
+    pending.push(...childIds);
+  }
 
   const pipeline = redis.pipeline();
-  if (keys.length > 0) pipeline.del(...keys);
-  pipeline.del(tag); // drop the index entry (also prunes now-dead references)
-  await pipeline.exec();
+  const deletesCacheKeys = keys.size > 0;
+  if (deletesCacheKeys) pipeline.del(...keys);
+  for (const itemId of itemIds) {
+    pipeline.del(itemTagKey(itemId));
+    pipeline.del(childItemTagKey(itemId));
+  }
+  const results = await pipeline.exec();
 
-  return keys.length;
+  if (!deletesCacheKeys) return 0;
+  const deletedKeys = results?.[0]?.[1];
+  return typeof deletedKeys === 'number' ? deletedKeys : 0;
 }
 
 /**

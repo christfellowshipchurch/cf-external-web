@@ -587,6 +587,39 @@ describe('fetchRockData TTL behavior', () => {
     expect(contentRedis.set).not.toHaveBeenCalled();
   });
 
+  it('indexes content item associations for parent cascade invalidation', async () => {
+    const pipeline = {
+      set: vi.fn(),
+      sadd: vi.fn(),
+      expire: vi.fn(),
+      exec: vi.fn().mockResolvedValue([]),
+    };
+    const contentRedis = {
+      get: vi.fn().mockResolvedValue(null),
+      set: vi.fn(),
+      pipeline: vi.fn().mockReturnValue(pipeline),
+    };
+    vi.doMock('../redis-config', () => ({ default: contentRedis }));
+    const { fetchRockData: fetchWithRedis } =
+      await import('../fetch-rock-data');
+
+    (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+      ok: true,
+      json: async () => [
+        { contentChannelItemId: 10, childContentChannelItemId: 20 },
+      ],
+    });
+
+    await fetchWithRedis({ endpoint: 'ContentChannelItemAssociations' });
+
+    expect(pipeline.sadd).toHaveBeenCalledWith(
+      'cfitem:10',
+      expect.stringMatching(/^rock:ContentChannelItemAssociations:/),
+    );
+    expect(pipeline.sadd).toHaveBeenCalledWith('cfchildren:10', '20');
+    expect(pipeline.expire).toHaveBeenCalledWith('cfchildren:10', TTL.LONG);
+  });
+
   it('uses buildCacheKey format for cache key', async () => {
     const { fetchRockData: fetchWithRedis } =
       await import('../fetch-rock-data');
