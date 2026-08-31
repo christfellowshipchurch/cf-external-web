@@ -2,8 +2,10 @@ import { describe, it, expect, vi } from 'vitest';
 import type Redis from 'ioredis';
 import {
   buildCacheKey,
+  childItemTagKey,
   deleteByPrefix,
   extractContentItemIds,
+  extractContentItemRelationships,
   invalidateItem,
   itemTagKey,
   stabilizeFilterForCacheKey,
@@ -143,6 +145,32 @@ describe('itemTagKey', () => {
   });
 });
 
+describe('childItemTagKey', () => {
+  it('namespaces child relationships separately', () => {
+    expect(childItemTagKey(12345)).toBe('cfchildren:12345');
+  });
+});
+
+describe('extractContentItemRelationships', () => {
+  it('extracts association parent-child ids', () => {
+    expect(
+      extractContentItemRelationships({
+        contentChannelItemId: 10,
+        childContentChannelItemId: 20,
+      }),
+    ).toEqual([{ parentId: '10', childId: '20' }]);
+  });
+
+  it('ignores content items and incomplete associations', () => {
+    expect(
+      extractContentItemRelationships([
+        { id: 10, contentChannelId: 43 },
+        { contentChannelItemId: 10 },
+      ]),
+    ).toEqual([]);
+  });
+});
+
 describe('extractContentItemIds', () => {
   // A content item is identified by having BOTH id and contentChannelId. This is
   // what lets us tag only content-channel entries and ignore everything else.
@@ -208,23 +236,27 @@ describe('invalidateItem', () => {
       'rock:ContentChannelItems/GetByAttributeValue:bbbbbbbbbbbb', // its own page
     ];
     const del = vi.fn();
-    const pipeline = { del, exec: vi.fn().mockResolvedValue([]) };
+    const pipeline = { del, exec: vi.fn().mockResolvedValue([[null, 2]]) };
     const redis = {
-      smembers: vi.fn().mockResolvedValue(containingKeys),
+      smembers: vi.fn((key: string) =>
+        Promise.resolve(key === 'cfitem:12345' ? containingKeys : []),
+      ),
       pipeline: vi.fn().mockReturnValue(pipeline),
     } as unknown as Redis;
 
     const deleted = await invalidateItem(redis, 12345);
 
     expect(redis.smembers).toHaveBeenCalledWith('cfitem:12345');
+    expect(redis.smembers).toHaveBeenCalledWith('cfchildren:12345');
     expect(del).toHaveBeenNthCalledWith(1, ...containingKeys);
     expect(del).toHaveBeenNthCalledWith(2, 'cfitem:12345');
+    expect(del).toHaveBeenNthCalledWith(3, 'cfchildren:12345');
     expect(deleted).toBe(2);
   });
 
   it('deletes only the index entry and returns 0 when the item has no cached keys', async () => {
     const del = vi.fn();
-    const pipeline = { del, exec: vi.fn().mockResolvedValue([]) };
+    const pipeline = { del, exec: vi.fn().mockResolvedValue([[null, 1]]) };
     const redis = {
       smembers: vi.fn().mockResolvedValue([]),
       pipeline: vi.fn().mockReturnValue(pipeline),
@@ -232,9 +264,63 @@ describe('invalidateItem', () => {
 
     const deleted = await invalidateItem(redis, 12345);
 
-    expect(del).toHaveBeenCalledTimes(1);
-    expect(del).toHaveBeenCalledWith('cfitem:12345');
+    expect(del).toHaveBeenCalledTimes(2);
+    expect(del).toHaveBeenNthCalledWith(1, 'cfitem:12345');
+    expect(del).toHaveBeenNthCalledWith(2, 'cfchildren:12345');
     expect(deleted).toBe(0);
+  });
+
+  it('cascades through descendants and counts each deleted cache key once', async () => {
+    // Intent: saving a page-builder parent must refresh child sections and
+    // nested collection items rendered by that parent.
+    const memberships: Record<string, string[]> = {
+      'cfitem:10': ['rock:ContentChannelItemAssociations:aaa'],
+      'cfchildren:10': ['20'],
+      'cfitem:20': ['rock:ContentChannelItems:bbb'],
+      'cfchildren:20': ['30'],
+      'cfitem:30': [
+        'rock:ContentChannelItems:bbb',
+        'rock:ContentChannelItems:ccc',
+      ],
+    };
+    const del = vi.fn();
+    const pipeline = { del, exec: vi.fn().mockResolvedValue([[null, 3]]) };
+    const redis = {
+      smembers: vi.fn((key: string) => Promise.resolve(memberships[key] ?? [])),
+      pipeline: vi.fn().mockReturnValue(pipeline),
+    } as unknown as Redis;
+
+    await expect(invalidateItem(redis, 10)).resolves.toBe(3);
+
+    expect(del).toHaveBeenNthCalledWith(
+      1,
+      'rock:ContentChannelItemAssociations:aaa',
+      'rock:ContentChannelItems:bbb',
+      'rock:ContentChannelItems:ccc',
+    );
+    expect(redis.smembers).toHaveBeenCalledWith('cfchildren:30');
+  });
+
+  it('reports Redis-confirmed deletion count when index contains stale keys', async () => {
+    const pipeline = {
+      del: vi.fn(),
+      exec: vi.fn().mockResolvedValue([[null, 1]]),
+    };
+    const redis = {
+      smembers: vi.fn((key: string) =>
+        Promise.resolve(
+          key === 'cfitem:10'
+            ? [
+                'rock:ContentChannelItems:live',
+                'rock:ContentChannelItems:stale',
+              ]
+            : [],
+        ),
+      ),
+      pipeline: vi.fn().mockReturnValue(pipeline),
+    } as unknown as Redis;
+
+    await expect(invalidateItem(redis, 10)).resolves.toBe(1);
   });
 });
 

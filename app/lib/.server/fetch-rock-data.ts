@@ -2,7 +2,9 @@ import { normalize } from '~/lib/utils';
 import redis from './redis-config';
 import {
   buildCacheKey,
+  childItemTagKey,
   extractContentItemIds,
+  extractContentItemRelationships,
   itemTagKey,
   TTL,
   type TTLValue,
@@ -366,7 +368,8 @@ export const fetchRockData = async ({
     if (redis && effectiveTtl > 0) {
       try {
         const itemIds = extractContentItemIds(data);
-        if (itemIds.length === 0) {
+        const relationships = extractContentItemRelationships(data);
+        if (itemIds.length === 0 && relationships.length === 0) {
           await redis.set(cacheKey, JSON.stringify(data), 'EX', effectiveTtl);
         } else {
           // Cache the entry and record it in each item's reverse index in one
@@ -379,6 +382,15 @@ export const fetchRockData = async ({
             const tag = itemTagKey(id);
             pipeline.sadd(tag, cacheKey);
             pipeline.expire(tag, TTL.LONG);
+          }
+          for (const { parentId, childId } of relationships) {
+            // Parent saves must evict association query plus every cached child.
+            const parentTag = itemTagKey(parentId);
+            const childrenTag = childItemTagKey(parentId);
+            pipeline.sadd(parentTag, cacheKey);
+            pipeline.expire(parentTag, TTL.LONG);
+            pipeline.sadd(childrenTag, childId);
+            pipeline.expire(childrenTag, TTL.LONG);
           }
           await pipeline.exec();
         }
