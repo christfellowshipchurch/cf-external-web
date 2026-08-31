@@ -11,8 +11,8 @@ import { invalidateItem } from '~/lib/.server/cache-utils';
  * `id` is read from the query string first (what a Rock webhook sends), falling
  * back to a JSON body `{ "id": <contentChannelItemId> }` for manual/curl testing.
  *
- * Invalidates every cache entry containing the given content item (its own entry
- * plus any list/aggregate entry that included it). Designed to be called both
+ * Invalidates every cache entry containing the given content item or a known
+ * descendant. Designed to be called both
  * manually by a developer and by a Rock RMS webhook on content publish/update.
  *
  * Channel id is not required — Rock ContentChannelItem ids are globally unique.
