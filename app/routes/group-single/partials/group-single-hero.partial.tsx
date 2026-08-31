@@ -1,6 +1,7 @@
 import { cn } from '~/lib/utils';
 import { TopicBadge } from '../components/group-single-banner.component';
 import { GroupType, splitGroupTopics } from '~/routes/group-finder/types';
+import { MAX_VISIBLE_LEADERS } from '~/routes/group-finder/components/group-hit.component';
 import { formatGroupMeetingScheduleTitle } from '~/routes/group-finder/format-group-meeting-schedule';
 import { icons } from '~/lib/icons';
 import { Icon } from '~/primitives/icon/icon';
@@ -11,6 +12,14 @@ export function GroupSingleHero({ hit }: { hit: GroupType }) {
   const imagePath = hit.coverImage?.sources?.[0]?.uri ?? '';
   const backToGroupFinderUrl = useGroupSearchBackUrl();
   const topicTags = splitGroupTopics(hit.topics);
+  // The mobile hero renders only leaders that have a photo, capped the same way
+  // the Group Finder cards are so a many-leader group doesn't crowd the row.
+  const leaderPhotos = (hit.leaders ?? []).filter(
+    (leader) => leader?.photo?.sources?.[0]?.uri,
+  );
+  const visibleLeaderPhotos = leaderPhotos.slice(0, MAX_VISIBLE_LEADERS);
+  const hiddenLeaderPhotoCount =
+    leaderPhotos.length - visibleLeaderPhotos.length;
 
   return (
     <>
@@ -30,12 +39,12 @@ export function GroupSingleHero({ hit }: { hit: GroupType }) {
       </div>
       <div
         className={cn(
-          'w-full bg-gray relative content-padding pt-10 pb-16 md:pt-16 lg:py-24',
+          'w-full bg-gray relative content-padding pt-8 pb-16 md:pt-16 lg:py-24',
         )}
       >
         <div className='w-full flex flex-col md:flex-col-reverse lg:flex-row gap-10 lg:gap-8 md:justify-between items-center max-w-screen-content mx-auto'>
           {/* Left Side - Desktop, Mobile - EVERYTHING  */}
-          <div className='flex flex-col gap-8'>
+          <div className='flex flex-col gap-5'>
             <div className='flex md:hidden flex-col gap-2'>
               {topicTags.length > 0 ? (
                 <div className='flex flex-wrap gap-1 w-full'>
@@ -48,25 +57,29 @@ export function GroupSingleHero({ hit }: { hit: GroupType }) {
                   ))}
                 </div>
               ) : null}
-              <h1 className='text-4xl font-bold'>{hit.title}</h1>
+              <h1 className='text-2xl lg:text-4xl font-bold'>{hit.title}</h1>
             </div>
 
             {/* Mobile Only Leaders Section */}
             <div className='md:hidden flex items-center gap-2'>
               <div className='flex items-center gap-1'>
-                {hit.leaders?.map(
-                  (leader, index) =>
-                    leader?.photo?.sources?.[0]?.uri && (
-                      <img
-                        key={index}
-                        src={leader.photo.sources[0].uri}
-                        alt='Leader'
-                        className='w-10 h-10 rounded-[8px] object-cover'
-                      />
-                    ),
-                )}
+                {visibleLeaderPhotos.map((leader, index) => (
+                  <div key={index} className='relative'>
+                    <img
+                      src={leader.photo!.sources![0].uri}
+                      alt='Leader'
+                      className='w-10 h-10 rounded-[8px] object-cover'
+                    />
+                    {index === visibleLeaderPhotos.length - 1 &&
+                      hiddenLeaderPhotoCount > 0 && (
+                        <span className='absolute -bottom-1 -right-1 rounded bg-navy px-1 text-[10px] font-semibold leading-4 text-white'>
+                          +{hiddenLeaderPhotoCount}
+                        </span>
+                      )}
+                  </div>
+                ))}
               </div>
-              <div className='flex flex-col gap-1'>
+              <div className='flex flex-col gap-1.5'>
                 <h2 className='text-neutral-default leading-none'>Led By:</h2>
                 <div className='flex flex-wrap gap-1 w-full'>
                   {hit.leaders?.map((leader, index) => (
@@ -141,7 +154,7 @@ const GroupInfo = ({ hit }: { hit: GroupType }) => {
   });
 
   return (
-    <div className='flex flex-col md:flex-row md:flex-wrap lg:flex-col gap-8'>
+    <div className='flex flex-col md:flex-row md:flex-wrap lg:flex-col gap-4 lg:gap-8 mt-2 lg:mt-0'>
       <InfoItem
         title={meetingLocation}
         description={meetingLocationLabel}
@@ -187,7 +200,7 @@ const InfoItem = ({
   isLayoutReversed?: boolean;
 }) => {
   return (
-    <div className='flex items-center gap-[10px] pt-6 lg:pt-0 lg:pb-6 border-t lg:border-b lg:border-t-0 border-[#6E6E6E]/10 w-full md:max-w-[42vw]'>
+    <div className='flex items-center gap-[10px] pt-4 lg:pt-0 lg:py-6 border-t lg:border-b lg:border-t-0 border-[#6E6E6E]/10 w-full md:max-w-[42vw]'>
       <Icon name={icon} className='text-ocean' />
 
       <div
