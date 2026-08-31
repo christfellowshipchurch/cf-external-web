@@ -62,6 +62,16 @@ const PODCAST_CONTENT_TYPES: readonly ContentType[] = [
   'MADE_FOR_MORE',
 ];
 
+/**
+ * True when a content channel maps to a podcast show/episode content type.
+ * Podcast items cannot be routed with `getPathname` — their URL needs the
+ * parent show slug from the podcast routing index.
+ */
+export const isPodcastContentType = (
+  contentType: ContentType | undefined,
+): boolean =>
+  Boolean(contentType && PODCAST_CONTENT_TYPES.includes(contentType));
+
 type CarouselCollectionType = (typeof CAROUSEL_COLLECTION_TYPES)[number];
 
 /**
