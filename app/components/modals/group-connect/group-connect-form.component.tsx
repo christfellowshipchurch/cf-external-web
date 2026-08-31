@@ -18,6 +18,11 @@ interface GroupConnectFormProps {
   onSuccess: () => void;
 }
 
+type CampusOption = {
+  guid: string;
+  name: string;
+};
+
 const GroupConnectForm: React.FC<GroupConnectFormProps> = ({
   groupId,
   campus,
@@ -26,7 +31,15 @@ const GroupConnectForm: React.FC<GroupConnectFormProps> = ({
   const [error, setError] = useState<string | null>(null);
 
   const fetcher = useFetcher();
+  const campusesFetcher = useFetcher<{ campuses: CampusOption[] }>();
   const isSubmitting = fetcher.state === 'submitting';
+  const campuses = campusesFetcher.data?.campuses ?? [];
+
+  useEffect(() => {
+    if (campus === undefined) {
+      campusesFetcher.load('/group-finder-notify');
+    }
+  }, [campus]);
 
   useEffect(() => {
     if (fetcher.state === 'idle' && fetcher.data) {
@@ -116,21 +129,36 @@ const GroupConnectForm: React.FC<GroupConnectFormProps> = ({
           </RadixFormErrorMessage>
         </Form.Field>
 
-        {/* Campus (optional — only shown when campus prop is provided) */}
-        {campus !== undefined && (
-          <Form.Field
-            name='campus'
-            className={cn('md:col-span-2', radixFormFieldStackClassName)}
-          >
-            <Form.Label className={radixFormLabelClassName}>Campus</Form.Label>
-            <input type='hidden' name='campus' value={campus} />
+        <Form.Field
+          name='campus'
+          className={cn('md:col-span-2', radixFormFieldStackClassName)}
+        >
+          <Form.Label className={radixFormLabelClassName}>Campus*</Form.Label>
+          {campus !== undefined ? (
+            <>
+              <input type='hidden' name='campus' value={campus} />
+              <Form.Control asChild>
+                <select className={radixSelectClassName} required disabled>
+                  <option>{campus}</option>
+                </select>
+              </Form.Control>
+            </>
+          ) : (
             <Form.Control asChild>
-              <select className={radixSelectClassName} required disabled>
-                <option>{campus}</option>
+              <select className={radixSelectClassName} required>
+                <option value=''>Select a Campus</option>
+                {campuses.map(({ guid, name }) => (
+                  <option key={guid} value={guid}>
+                    {name}
+                  </option>
+                ))}
               </select>
             </Form.Control>
-          </Form.Field>
-        )}
+          )}
+          <RadixFormErrorMessage match='valueMissing'>
+            Please select a campus
+          </RadixFormErrorMessage>
+        </Form.Field>
 
         {error && <p className='text-alert col-span-2 text-center'>{error}</p>}
 
