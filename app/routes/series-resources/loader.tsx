@@ -6,7 +6,13 @@ import {
   getContentType,
   getPathname,
   isGuid,
+  isPodcastContentType,
 } from '../page-builder/components/builder-utils';
+import {
+  PODCAST_SHOW_CHANNEL_ID,
+  buildPodcastRoutingIndex,
+} from '../podcasts/podcast-routing.server';
+import { getPodcastCollectionHref } from '../podcasts/utils/podcast-links';
 import type { SeriesResource, SeriesEvent } from './types';
 
 const getStringValue = (
@@ -93,12 +99,53 @@ const getSeriesResources = async (
     return bDate - aDate; // newest first
   });
 
+  // Podcast episodes live on per-show content channels; the show slug that the
+  // `/podcasts/:show/:episode` route needs only exists on the show item, so it
+  // has to be resolved through the routing index.
+  const podcastIndex = await buildPodcastRoutingIndex();
+
   const mapped: SeriesResource[] = [];
   for (const resource of resources) {
-    const contentType = getContentType(resource.contentChannelId);
+    const channelId = String(resource.contentChannelId);
+    const contentType = getContentType(channelId);
+    const attrs = resource.attributeValues ?? {};
+    const isPodcastItem =
+      channelId === PODCAST_SHOW_CHANNEL_ID ||
+      podcastIndex.byEpisodeChannelId.has(channelId) ||
+      isPodcastContentType(contentType);
+
+    if (isPodcastItem) {
+      const podcastUrl = getPodcastCollectionHref({
+        channelId,
+        showChannelId: PODCAST_SHOW_CHANNEL_ID,
+        showPath: getAttrValue(attrs, 'url') || getAttrValue(attrs, 'pathname'),
+        episodePath:
+          getAttrValue(attrs, 'pathname') || getAttrValue(attrs, 'url'),
+        episodeShowPath:
+          podcastIndex.byEpisodeChannelId.get(channelId)?.showPath,
+      });
+
+      if (!podcastUrl) {
+        console.warn(
+          `[series-resources] Skipping podcast item ${resource.id} (channel ${channelId}): could not resolve show path`,
+        );
+        continue;
+      }
+
+      mapped.push({
+        id: resource.id,
+        title: resource.title,
+        summary: getAttrValue(attrs, 'summary') || resource.content || '',
+        coverImage: createImageUrlFromGuid(getAttrValue(attrs, 'image')),
+        url: podcastUrl,
+        contentChannelId: resource.contentChannelId,
+        contentType: 'PODCASTS',
+      });
+      continue;
+    }
+
     if (!contentType) continue;
 
-    const attrs = resource.attributeValues ?? {};
     const summary = getAttrValue(attrs, 'summary') || resource.content || '';
     const imageGuid = getAttrValue(attrs, 'image');
 
