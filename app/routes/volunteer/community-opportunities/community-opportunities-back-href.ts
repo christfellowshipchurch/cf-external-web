@@ -4,6 +4,8 @@
  * a generic "Back" whose target is the page the visitor actually came from.
  */
 
+import { getPreviousNavigationHref } from '~/lib/navigation-history';
+
 export const COMMUNITY_OPPORTUNITIES_BACK_STORAGE_KEY =
   'communityOpportunitiesBack_v1';
 
@@ -43,6 +45,19 @@ export function communityOpportunitiesBackHrefFromReferrer(
 /** `location.state` shape written by in-app links into the grid. */
 export type CommunityOpportunitiesBackState = { backHref?: string };
 
+/**
+ * Applies the same rules to an in-app path as to a referrer: volunteer
+ * sub-routes are rejected so the grid and a detail page can't bounce a visitor
+ * between each other, and `/volunteer` resolves to its community section.
+ */
+function normalizeBackHref(href: string | null): string | null {
+  if (!href || !href.startsWith('/')) return null;
+  const [pathname] = href.split(/[?#]/);
+  if (pathname.startsWith('/volunteer/')) return null;
+  if (pathname === '/volunteer') return COMMUNITY_OPPORTUNITIES_BACK_FALLBACK;
+  return href;
+}
+
 function readStoredBackHref(): string | null {
   try {
     return window.sessionStorage.getItem(
@@ -73,11 +88,15 @@ function writeStoredBackHref(href: string | null): void {
 /**
  * Resolves the "Back" target for the grid page.
  *
+ * Order: an explicit `location.state` target, then the route this document
+ * navigated from, then `document.referrer`, then the volunteer page.
+ *
  * `document.referrer` describes the *document*, not the previous client-side
  * route, so it is only consulted on a document load (`POP`) — on a `Link` click
- * it still names whatever page loaded the tab. In-app links pass their own
- * target through `location.state` instead. The result is remembered for the tab
- * so returning from an opportunity detail page still offers the entry point.
+ * it still names whatever page loaded the tab. `navigation-history` covers the
+ * client-side case, including entry points that pass no state of their own
+ * (the missions ministry page). The result is remembered for the tab so
+ * returning from an opportunity detail page still offers the entry point.
  */
 export function resolveCommunityOpportunitiesBackHref(
   state: CommunityOpportunitiesBackState | null | undefined,
@@ -91,6 +110,15 @@ export function resolveCommunityOpportunitiesBackHref(
   if (typeof fromState === 'string' && fromState.startsWith('/')) {
     writeStoredBackHref(fromState);
     return fromState;
+  }
+
+  // Any in-app entry point, without the source having to cooperate.
+  const fromHistory = normalizeBackHref(
+    getPreviousNavigationHref(window.location.pathname),
+  );
+  if (fromHistory) {
+    writeStoredBackHref(fromHistory);
+    return fromHistory;
   }
 
   if (navigationType === 'POP') {

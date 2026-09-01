@@ -5,6 +5,10 @@ import {
   communityOpportunitiesBackHrefFromReferrer,
   resolveCommunityOpportunitiesBackHref,
 } from '../community-opportunities-back-href';
+import {
+  recordNavigation,
+  resetNavigationHistory,
+} from '~/lib/navigation-history';
 
 const ORIGIN = 'https://christfellowship.church';
 
@@ -67,6 +71,7 @@ describe('communityOpportunitiesBackHrefFromReferrer', () => {
 
 describe('resolveCommunityOpportunitiesBackHref', () => {
   beforeEach(() => {
+    resetNavigationHistory();
     window.sessionStorage.clear();
     Object.defineProperty(document, 'referrer', {
       configurable: true,
@@ -96,6 +101,36 @@ describe('resolveCommunityOpportunitiesBackHref', () => {
     setReferrer(`${window.location.origin}/`);
     expect(resolveCommunityOpportunitiesBackHref(null, 'PUSH')).toBe(
       COMMUNITY_OPPORTUNITIES_BACK_FALLBACK,
+    );
+  });
+
+  it('uses the tracked route for an in-app entry that passes no state', () => {
+    // The missions ministry page links here with a plain Link: no state, and
+    // document.referrer is empty because the document never reloaded.
+    recordNavigation('/ministries/missions', '/ministries/missions');
+    expect(resolveCommunityOpportunitiesBackHref(null, 'PUSH')).toBe(
+      '/ministries/missions',
+    );
+  });
+
+  it('sends a tracked /volunteer entry to the community section', () => {
+    recordNavigation('/volunteer', '/volunteer');
+    expect(resolveCommunityOpportunitiesBackHref(null, 'PUSH')).toBe(
+      COMMUNITY_OPPORTUNITIES_BACK_FALLBACK,
+    );
+  });
+
+  it('ignores a tracked opportunity detail page, which would bounce the visitor', () => {
+    recordNavigation('/ministries/missions', '/ministries/missions');
+    resolveCommunityOpportunitiesBackHref(null, 'PUSH');
+
+    // Grid -> detail -> grid: the tracked previous route is now the detail page.
+    recordNavigation(
+      '/volunteer/outreach/abc-123',
+      '/volunteer/outreach/abc-123',
+    );
+    expect(resolveCommunityOpportunitiesBackHref(null, 'PUSH')).toBe(
+      '/ministries/missions',
     );
   });
 
