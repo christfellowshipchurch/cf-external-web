@@ -16,7 +16,7 @@ export function VolunteerCommunity() {
   const [volunteerUiReady, setVolunteerUiReady] = useState(false);
 
   return (
-    <section id='community' className='w-full bg-white md:bg-gray py-28'>
+    <section id='community' className='w-full bg-gray py-28'>
       <div className='flex flex-col gap-4'>
         <div className='content-padding'>
           <div className='max-w-screen-content mx-auto flex flex-col gap-6'>
