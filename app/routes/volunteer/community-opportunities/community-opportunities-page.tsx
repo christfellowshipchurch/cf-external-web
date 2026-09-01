@@ -20,12 +20,30 @@ import {
 import type { CommunityOpportunitiesLoaderData } from './loader';
 
 /**
- * True for a click-through or a typed URL, false for back/forward — where the
- * browser and `ScrollRestoration` should keep the visitor where they were.
+ * Set once the page has mounted in this document, so a later `POP` is known to
+ * be a client-side back/forward rather than the document load itself.
+ * `PerformanceNavigationTiming.type` can't tell them apart — it describes how
+ * the document loaded and never changes afterwards.
  */
-function isFreshPageEntry(navigationType: string): boolean {
-  if (navigationType !== 'POP') return true;
+let hasEnteredInThisDocument = false;
+
+/**
+ * True for a click-through or a typed URL, false for back/forward and reloads —
+ * where the browser and `ScrollRestoration` should keep the visitor where they
+ * were. Consumes the document-entry flag, so call it once per mount.
+ */
+function consumeFreshPageEntry(navigationType: string): boolean {
   if (typeof window === 'undefined') return false;
+
+  const isFirstEntry = !hasEnteredInThisDocument;
+  hasEnteredInThisDocument = true;
+
+  // A Link click is always a new arrival, however the document got here.
+  if (navigationType !== 'POP') return true;
+  if (!isFirstEntry) return false;
+
+  // The document load itself: fresh only if it wasn't a reload or back/forward,
+  // both of which come with a scroll position worth keeping.
   const [entry] = window.performance.getEntriesByType('navigation');
   return (entry as { type?: string } | undefined)?.type === 'navigate';
 }
@@ -57,8 +75,14 @@ export function CommunityOpportunitiesPage() {
    * already started scrolling for themselves.
    */
   const hasUserScrolledRef = useRef(false);
+  // Lazily initialised so the flag is consumed once per mount, not once per render.
+  const isFreshEntryRef = useRef<boolean | null>(null);
+  if (isFreshEntryRef.current === null) {
+    isFreshEntryRef.current = consumeFreshPageEntry(navigationType);
+  }
+
   useEffect(() => {
-    if (!isFreshPageEntry(navigationType)) return;
+    if (!isFreshEntryRef.current) return;
 
     const markUserScroll = () => {
       hasUserScrolledRef.current = true;
@@ -74,14 +98,15 @@ export function CommunityOpportunitiesPage() {
       events.forEach((event) =>
         window.removeEventListener(event, markUserScroll),
       );
-  }, [navigationType]);
+    // Mount only: freshness is decided once, on arrival.
+  }, []);
 
   useEffect(() => {
     if (!volunteerUiReady) return;
     if (hasUserScrolledRef.current) return;
-    if (!isFreshPageEntry(navigationType)) return;
+    if (!isFreshEntryRef.current) return;
     window.scrollTo({ top: 0, behavior: 'auto' });
-  }, [volunteerUiReady, navigationType]);
+  }, [volunteerUiReady]);
 
   return (
     <main className='bg-white'>
