@@ -16,17 +16,19 @@ export function VolunteerCommunity() {
   const [volunteerUiReady, setVolunteerUiReady] = useState(false);
 
   return (
-    <section className='w-full bg-gray py-28'>
-      <div className='flex flex-col gap-4'>
+    <section className='w-full bg-white md:bg-gray pt-24 md:pt-28'>
+      <div className='flex flex-col'>
         {/*
           The anchor sits on the heading rather than the section: a hash jump to
           the section lands on its `py-28` padding, leaving the heading well down
           the viewport. `scroll-mt` clears the fixed navbar.
         */}
-        <div id='community' className='content-padding scroll-mt-28'>
-          <div className='max-w-screen-content mx-auto flex flex-col gap-6'>
+        <div
+          id='community'
+          className='content-padding scroll-mt-28 pb-3 md:pb-8'
+        >
+          <div className='max-w-screen-content mx-auto flex flex-col gap-4 md:gap-6'>
             <SectionTitle sectionTitle='Needs in our region' />
-            <div className='flex flex-col gap-4 md:flex-row md:items-end md:justify-between'></div>
             <h2 className='text-[40px] font-extrabold leading-tight text-text-primary md:text-[52px]'>
               Volunteer In Our Community
             </h2>
@@ -52,7 +54,7 @@ export function VolunteerCommunity() {
           {!volunteerUiReady ? <VolunteerAlgoliaSkeleton /> : null}
         </div>
 
-        <div className='content-padding'>
+        <div className='content-padding bg-gray pb-24 md:pb-28'>
           <div className='max-w-screen-content mx-auto mt-16 flex flex-col md:flex-row items-center justify-center gap-6 text-center'>
             <p className='md:text-lg font-semibold text-neutral-dark'>
               Have a skill set we should know about?

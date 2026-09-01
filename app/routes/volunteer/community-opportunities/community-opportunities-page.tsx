@@ -107,10 +107,7 @@ export function CommunityOpportunitiesPage() {
         </div>
       </div>
 
-      <div
-        className='relative bg-white'
-        aria-busy={volunteerUiReady ? undefined : true}
-      >
+      <div className='relative' aria-busy={volunteerUiReady ? undefined : true}>
         <div
           className={cn(
             !volunteerUiReady && 'pointer-events-none select-none opacity-0',
