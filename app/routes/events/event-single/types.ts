@@ -50,17 +50,20 @@ export type SessionRegistrationCardType = {
   programTime: string;
   partyTime: string;
   additionalInfo?: string;
-  url: string;
   /**
-   * Label half of Rock's `label^url` "Call to Action" pair.
+   * Button label, from Rock's `Call` attribute.
    * Empty when unset — the card falls back to a default label.
    */
   ctaTitle?: string;
   /**
-   * Url half of that same pair. Empty when unset — the card falls back to
-   * `url` (the session's Rock ticketsUrl).
+   * Button destination, from Rock's `Action` attribute. Empty when unset, in
+   * which case the card renders no button at all: Rock's `TicketsUrl` is no
+   * longer read here, so there is nothing left to fall back to and a button
+   * without an href would be inert.
    */
   ctaUrl?: string;
+  /** Rock's `ShowAddToCalendar` boolean — gates the Add to Calendar button. */
+  showAddToCalendar?: boolean;
   /**
    * Session start as a naive local ISO string (`yyyy-MM-dd'T'HH:mm:ss`), for Add to Calendar.
    * Deliberately timezone-less: the .ics tags it `TZID=America/New_York`, so the wall-clock

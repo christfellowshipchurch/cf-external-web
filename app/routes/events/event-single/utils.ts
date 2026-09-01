@@ -1,7 +1,6 @@
 import { parse, format } from 'date-fns';
 import { AttributeMatrixItem } from '~/lib/types/rock-types';
 import { fetchRockData } from '~/lib/.server/fetch-rock-data';
-import { parseRockKeyValueList } from '~/lib/utils';
 import { SessionRegistrationCardType } from './types';
 import { icons } from '~/lib/icons';
 
@@ -90,8 +89,11 @@ export const mapSessionScheduleCards = async (
           programTime: programTime || '',
           partyTime: partyTime || '',
           additionalInfo: item.attributeValues?.additionalInfo?.value || '',
-          url: item.attributeValues?.ticketsUrl?.value || '',
-          ...parseSessionCta(item.attributeValues?.callToAction?.value ?? ''),
+          ctaTitle: item.attributeValues?.call?.value?.trim() || '',
+          ctaUrl: item.attributeValues?.action?.value?.trim() || '',
+          showAddToCalendar: parseRockBoolean(
+            item.attributeValues?.showAddToCalendar?.value,
+          ),
           startDateTime: parseSessionStartDateTime(
             item.attributeValues?.sessionDateTime?.value ?? '',
           ),
@@ -102,28 +104,12 @@ export const mapSessionScheduleCards = async (
 };
 
 /**
- * Rock stores the session "Call to Action" as a `label^url` pair — the same
- * key/value shape as the event's hero CTAs, not plain text. Rendering the raw
- * value put "Testing CTA^#add-link-here" on the button, so parse it the way
- * every other `^` CTA in this codebase is parsed: the label drives the button
- * text and the url drives its destination.
- *
- * Both halves are optional. An unset field, or one holding only a label,
- * leaves the caller to fall back to the default label and the session's
- * ticketsUrl.
+ * Rock returns boolean attributes as strings — "True"/"False"/"1"/"" — so a
+ * truthiness check on the raw value treats "False" as true.
  */
-export const parseSessionCta = (
-  rawCta: string,
-): { ctaTitle: string; ctaUrl: string } => {
-  const [cta] = parseRockKeyValueList(rawCta);
-
-  if (!cta) {
-    // No `^` at all — treat a bare value as a label so a plain-text entry in
-    // Rock still reads sensibly on the button rather than being dropped.
-    return { ctaTitle: rawCta.trim(), ctaUrl: '' };
-  }
-
-  return { ctaTitle: cta.key, ctaUrl: cta.value };
+export const parseRockBoolean = (value: string | undefined | null): boolean => {
+  const normalized = (value ?? '').trim().toLowerCase();
+  return normalized === 'true' || normalized === '1';
 };
 
 /**

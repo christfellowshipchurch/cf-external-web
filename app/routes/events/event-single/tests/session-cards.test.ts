@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseSessionCta, parseSessionStartDateTime } from '../utils';
+import { parseRockBoolean, parseSessionStartDateTime } from '../utils';
 import { htmlToPlainText } from '~/lib/text-content';
 
 describe('parseSessionStartDateTime (CFDP-4275)', () => {
@@ -60,40 +60,25 @@ describe('htmlToPlainText (CFDP-4275)', () => {
   });
 });
 
-describe('parseSessionCta (CFDP-4275)', () => {
-  // Rock stores this attribute as a `label^url` pair, not plain text. Rendering
-  // the raw value shipped a button reading "Testing CTA^#add-link-here" to the
-  // Diesel event page — the label and destination must be split apart.
-  it('splits the Rock label^url pair into its two halves', () => {
-    expect(parseSessionCta('Testing CTA^#add-link-here')).toEqual({
-      ctaTitle: 'Testing CTA',
-      ctaUrl: '#add-link-here',
-    });
+describe('parseRockBoolean (CFDP-4275)', () => {
+  // Rock hands back boolean attributes as strings, so the raw value is always
+  // truthy when set — including "False". Gating Add to Calendar on the raw
+  // value would show the button on every session that had the field touched.
+  it('reads Rock\'s "False" as false, not as a truthy string', () => {
+    expect(parseRockBoolean('False')).toBe(false);
   });
 
-  it('decodes escaped characters in the label, as hero CTAs do', () => {
-    expect(
-      parseSessionCta('Reserve%20Your%20Seat^https://ex.com').ctaTitle,
-    ).toBe('Reserve Your Seat');
+  it('accepts the casings and numeric form Rock uses for true', () => {
+    expect(parseRockBoolean('True')).toBe(true);
+    expect(parseRockBoolean('true')).toBe(true);
+    expect(parseRockBoolean('1')).toBe(true);
   });
 
-  // Both halves are optional: an empty result is what lets the card fall back
-  // to "Get Tickets" and the session's own ticketsUrl.
-  it('returns empty halves when the Rock field is unset', () => {
-    expect(parseSessionCta('')).toEqual({ ctaTitle: '', ctaUrl: '' });
-  });
-
-  it('treats a value with no caret as a label so it still reaches the button', () => {
-    expect(parseSessionCta('Register Now')).toEqual({
-      ctaTitle: 'Register Now',
-      ctaUrl: '',
-    });
-  });
-
-  it('keeps the label when the url half is blank', () => {
-    expect(parseSessionCta('Register Now^')).toEqual({
-      ctaTitle: 'Register Now',
-      ctaUrl: '',
-    });
+  // An unset attribute must default to hidden, so enabling the calendar stays
+  // an explicit opt-in per session.
+  it('defaults to false when the attribute is unset', () => {
+    expect(parseRockBoolean('')).toBe(false);
+    expect(parseRockBoolean(undefined)).toBe(false);
+    expect(parseRockBoolean(null)).toBe(false);
   });
 });

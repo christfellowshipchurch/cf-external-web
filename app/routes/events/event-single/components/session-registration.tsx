@@ -73,6 +73,9 @@ const SessionRegistrationCard = ({
       }
     : null;
 
+  const showCta = Boolean(card.ctaUrl);
+  const showAddToCalendar = Boolean(card.showAddToCalendar && calendarEvent);
+
   return (
     <div className='bg-white rounded-lg shadow-sm p-5 flex flex-col text-left w-[248px] min-h-[374px]'>
       {/* Location Section */}
@@ -126,25 +129,35 @@ const SessionRegistrationCard = ({
         )}
       </div>
 
-      {/* CTA + Add to Calendar */}
-      <div className='mt-auto flex flex-col gap-2 pt-4'>
-        <Button
-          intent='primary'
-          href={card.ctaUrl || card.url}
-          size='md'
-          className='w-full'
-        >
-          {card.ctaTitle || DEFAULT_CTA_TITLE}
-        </Button>
+      {/* CTA + Add to Calendar — the wrapper carries its own gap and top
+          padding, so it must not render when neither button does or it leaves
+          dead space at the bottom of the card. */}
+      {(showCta || showAddToCalendar) && (
+        <div className='mt-auto flex flex-col gap-2 pt-4'>
+          {showCta && (
+            <Button
+              intent='primary'
+              href={card.ctaUrl}
+              size='md'
+              className='w-full'
+            >
+              {card.ctaTitle || DEFAULT_CTA_TITLE}
+            </Button>
+          )}
 
-        {calendarEvent && (
-          <AddToCalendar
-            googleHref={googleCalendarLink(calendarEvent)}
-            getIcsUrl={() => icsLink(calendarEvent)}
-            eventDate={calendarEvent.startTime}
-          />
-        )}
-      </div>
+          {showAddToCalendar && calendarEvent && (
+            <AddToCalendar
+              googleHref={googleCalendarLink(calendarEvent)}
+              getIcsUrl={() => icsLink(calendarEvent)}
+              eventDate={calendarEvent.startTime}
+              // Match the CTA above it: same size and radius, so the two read
+              // as a pair rather than the calendar button looming over it.
+              buttonSize='md'
+              buttonClassName='rounded-md'
+            />
+          )}
+        </div>
+      )}
     </div>
   );
 };
