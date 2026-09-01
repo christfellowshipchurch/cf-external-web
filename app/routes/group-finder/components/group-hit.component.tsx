@@ -144,18 +144,18 @@ export function GroupHit({
       : null;
 
   // A group whose own meeting type is virtual/online has no physical location,
-  // so its footer reads "Online" rather than a city or distance.
+  // so its footer always reads "Online" rather than the affiliated campus city
+  // or a distance, regardless of the active filters or search mode.
   const isVirtualGroup = (() => {
     const t = hit.meetingType?.trim().toLowerCase();
     return t === 'virtual' || t === 'online';
   })();
 
-  // Footer bar text + icon. Priority: the active "Virtual" filter, then a geo
-  // distance when one is available, then "Online" for virtual groups, otherwise
-  // the group/campus city. A geo search with no usable distance falls back to
-  // the same city label instead of "Location Varies".
-  const footerShowsOnline =
-    isVirtualFilterActive || (isGeoSearch && !distanceLabel && isVirtualGroup);
+  // Footer bar text + icon. Priority: the group's own virtual meeting type or
+  // the active "Virtual" filter, then a geo distance when one is available,
+  // otherwise the group/campus city. A geo search with no usable distance falls
+  // back to the same city label instead of "Location Varies".
+  const footerShowsOnline = isVirtualGroup || isVirtualFilterActive;
   const footerLabel = footerShowsOnline
     ? 'Online'
     : isGeoSearch && distanceLabel

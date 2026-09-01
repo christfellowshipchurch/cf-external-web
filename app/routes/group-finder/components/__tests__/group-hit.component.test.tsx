@@ -68,6 +68,38 @@ describe('GroupHit', () => {
     expect(screen.queryByText(/miles away/i)).not.toBeInTheDocument();
   });
 
+  // An online group has no physical location, so the footer must read "Online"
+  // even when nothing about the search hints at it: no Virtual filter, and a
+  // geo search that did compute a distance from the affiliated campus.
+  it('shows "Online" for a virtual group during a geo search that produced a distance', () => {
+    renderGroupHit(
+      createGroupHit({
+        meetingType: 'Virtual',
+        meetingLocation: 'Jupiter, FL 33458',
+      }),
+    );
+
+    expect(screen.getByText('Online')).toBeInTheDocument();
+    expect(screen.queryByText(/miles away/i)).not.toBeInTheDocument();
+    expect(screen.queryByText('Jupiter')).not.toBeInTheDocument();
+  });
+
+  it('shows "Online" for a virtual group outside a geo search with no filter active', () => {
+    render(
+      <MemoryRouter>
+        <GroupHit
+          hit={createGroupHit({
+            meetingType: 'Virtual',
+            meetingLocation: '',
+          })}
+        />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByText('Online')).toBeInTheDocument();
+    expect(screen.queryByText('Palm Beach Gardens')).not.toBeInTheDocument();
+  });
+
   it('shows distance for numeric geolocation values', () => {
     renderGroupHit(createGroupHit());
 
