@@ -40,33 +40,68 @@ export function communityOpportunitiesBackHrefFromReferrer(
   return `${url.pathname}${url.search}${url.hash}`;
 }
 
-/**
- * Reads the entry point once and remembers it for the tab, so returning from an
- * opportunity detail page still offers the original "Back" target.
- */
-export function resolveCommunityOpportunitiesBackHref(): string {
-  if (typeof window === 'undefined')
-    return COMMUNITY_OPPORTUNITIES_BACK_FALLBACK;
+/** `location.state` shape written by in-app links into the grid. */
+export type CommunityOpportunitiesBackState = { backHref?: string };
 
-  const fromReferrer = communityOpportunitiesBackHrefFromReferrer(
-    document.referrer,
-    window.location.origin,
-  );
-
+function readStoredBackHref(): string | null {
   try {
-    if (fromReferrer) {
-      window.sessionStorage.setItem(
+    return window.sessionStorage.getItem(
+      COMMUNITY_OPPORTUNITIES_BACK_STORAGE_KEY,
+    );
+  } catch {
+    return null;
+  }
+}
+
+function writeStoredBackHref(href: string | null): void {
+  try {
+    if (href === null) {
+      window.sessionStorage.removeItem(
         COMMUNITY_OPPORTUNITIES_BACK_STORAGE_KEY,
-        fromReferrer,
       );
-      return fromReferrer;
+      return;
     }
-    return (
-      window.sessionStorage.getItem(COMMUNITY_OPPORTUNITIES_BACK_STORAGE_KEY) ??
-      COMMUNITY_OPPORTUNITIES_BACK_FALLBACK
+    window.sessionStorage.setItem(
+      COMMUNITY_OPPORTUNITIES_BACK_STORAGE_KEY,
+      href,
     );
   } catch {
     /* private mode / quota */
+  }
+}
+
+/**
+ * Resolves the "Back" target for the grid page.
+ *
+ * `document.referrer` describes the *document*, not the previous client-side
+ * route, so it is only consulted on a document load (`POP`) — on a `Link` click
+ * it still names whatever page loaded the tab. In-app links pass their own
+ * target through `location.state` instead. The result is remembered for the tab
+ * so returning from an opportunity detail page still offers the entry point.
+ */
+export function resolveCommunityOpportunitiesBackHref(
+  state: CommunityOpportunitiesBackState | null | undefined,
+  navigationType: string,
+): string {
+  if (typeof window === 'undefined') {
+    return COMMUNITY_OPPORTUNITIES_BACK_FALLBACK;
+  }
+
+  const fromState = state?.backHref;
+  if (typeof fromState === 'string' && fromState.startsWith('/')) {
+    writeStoredBackHref(fromState);
+    return fromState;
+  }
+
+  if (navigationType === 'POP') {
+    const fromReferrer = communityOpportunitiesBackHrefFromReferrer(
+      document.referrer,
+      window.location.origin,
+    );
+    // A typed URL or an off-site referrer is a new entry: an older one is stale.
+    writeStoredBackHref(fromReferrer);
     return fromReferrer ?? COMMUNITY_OPPORTUNITIES_BACK_FALLBACK;
   }
+
+  return readStoredBackHref() ?? COMMUNITY_OPPORTUNITIES_BACK_FALLBACK;
 }

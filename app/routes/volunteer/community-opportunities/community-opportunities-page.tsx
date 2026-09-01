@@ -1,5 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
-import { Link, useLoaderData, useNavigationType } from 'react-router-dom';
+import {
+  Link,
+  useLoaderData,
+  useLocation,
+  useNavigationType,
+} from 'react-router-dom';
 
 import { SectionTitle } from '~/components/section-title';
 import { cn } from '~/lib/utils';
@@ -10,6 +15,7 @@ import { VolunteerAlgoliaSkeleton } from '../components/volunteer-algolia-skelet
 import {
   COMMUNITY_OPPORTUNITIES_BACK_FALLBACK,
   resolveCommunityOpportunitiesBackHref,
+  type CommunityOpportunitiesBackState,
 } from './community-opportunities-back-href';
 import type { CommunityOpportunitiesLoaderData } from './loader';
 
@@ -30,13 +36,19 @@ export function CommunityOpportunitiesPage() {
   const [volunteerUiReady, setVolunteerUiReady] = useState(false);
   const navigationType = useNavigationType();
 
-  // Resolved after hydration: the referrer isn't available while rendering on the server.
+  // Resolved after hydration: neither the referrer nor sessionStorage exists on the server.
+  const { state } = useLocation();
   const [backHref, setBackHref] = useState(
     COMMUNITY_OPPORTUNITIES_BACK_FALLBACK,
   );
   useEffect(() => {
-    setBackHref(resolveCommunityOpportunitiesBackHref());
-  }, []);
+    setBackHref(
+      resolveCommunityOpportunitiesBackHref(
+        state as CommunityOpportunitiesBackState | null,
+        navigationType,
+      ),
+    );
+  }, [state, navigationType]);
 
   /**
    * iOS lands mid-page on a fresh entry here: the finder swaps a tall skeleton

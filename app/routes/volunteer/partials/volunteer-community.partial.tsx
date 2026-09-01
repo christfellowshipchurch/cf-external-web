@@ -16,9 +16,14 @@ export function VolunteerCommunity() {
   const [volunteerUiReady, setVolunteerUiReady] = useState(false);
 
   return (
-    <section id='community' className='w-full bg-gray py-28'>
+    <section className='w-full bg-gray py-28'>
       <div className='flex flex-col gap-4'>
-        <div className='content-padding'>
+        {/*
+          The anchor sits on the heading rather than the section: a hash jump to
+          the section lands on its `py-28` padding, leaving the heading well down
+          the viewport. `scroll-mt` clears the fixed navbar.
+        */}
+        <div id='community' className='content-padding scroll-mt-28'>
           <div className='max-w-screen-content mx-auto flex flex-col gap-6'>
             <SectionTitle sectionTitle='Needs in our region' />
             <div className='flex flex-col gap-4 md:flex-row md:items-end md:justify-between'></div>

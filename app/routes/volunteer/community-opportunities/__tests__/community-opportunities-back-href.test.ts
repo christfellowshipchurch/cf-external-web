@@ -1,8 +1,9 @@
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 
 import {
   COMMUNITY_OPPORTUNITIES_BACK_FALLBACK,
   communityOpportunitiesBackHrefFromReferrer,
+  resolveCommunityOpportunitiesBackHref,
 } from '../community-opportunities-back-href';
 
 const ORIGIN = 'https://christfellowship.church';
@@ -61,5 +62,68 @@ describe('communityOpportunitiesBackHrefFromReferrer', () => {
     expect(
       communityOpportunitiesBackHrefFromReferrer('not a url', ORIGIN),
     ).toBeNull();
+  });
+});
+
+describe('resolveCommunityOpportunitiesBackHref', () => {
+  beforeEach(() => {
+    window.sessionStorage.clear();
+    Object.defineProperty(document, 'referrer', {
+      configurable: true,
+      value: '',
+    });
+  });
+
+  function setReferrer(value: string) {
+    Object.defineProperty(document, 'referrer', {
+      configurable: true,
+      value,
+    });
+  }
+
+  it('prefers the in-app link state, because a Link click leaves document.referrer stale', () => {
+    // The tab was opened at the home page, then navigated client-side.
+    setReferrer(`${window.location.origin}/`);
+    expect(
+      resolveCommunityOpportunitiesBackHref(
+        { backHref: COMMUNITY_OPPORTUNITIES_BACK_FALLBACK },
+        'PUSH',
+      ),
+    ).toBe(COMMUNITY_OPPORTUNITIES_BACK_FALLBACK);
+  });
+
+  it('ignores the referrer on a client-side navigation with no state', () => {
+    setReferrer(`${window.location.origin}/`);
+    expect(resolveCommunityOpportunitiesBackHref(null, 'PUSH')).toBe(
+      COMMUNITY_OPPORTUNITIES_BACK_FALLBACK,
+    );
+  });
+
+  it('uses the referrer on a document load, which is the missions ministry entry', () => {
+    setReferrer(`${window.location.origin}/ministries/missions`);
+    expect(resolveCommunityOpportunitiesBackHref(null, 'POP')).toBe(
+      '/ministries/missions',
+    );
+  });
+
+  it('remembers the entry point across a detail-page round trip', () => {
+    setReferrer(`${window.location.origin}/ministries/missions`);
+    resolveCommunityOpportunitiesBackHref(null, 'POP');
+
+    // Returning from an opportunity detail page: a PUSH carrying no state.
+    setReferrer('');
+    expect(resolveCommunityOpportunitiesBackHref(null, 'PUSH')).toBe(
+      '/ministries/missions',
+    );
+  });
+
+  it('drops a remembered entry point when the page is opened directly', () => {
+    setReferrer(`${window.location.origin}/ministries/missions`);
+    resolveCommunityOpportunitiesBackHref(null, 'POP');
+
+    setReferrer('');
+    expect(resolveCommunityOpportunitiesBackHref(null, 'POP')).toBe(
+      COMMUNITY_OPPORTUNITIES_BACK_FALLBACK,
+    );
   });
 });
