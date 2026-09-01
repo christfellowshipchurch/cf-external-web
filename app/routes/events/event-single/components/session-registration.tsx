@@ -77,7 +77,7 @@ const SessionRegistrationCard = ({
   const showAddToCalendar = Boolean(card.showAddToCalendar && calendarEvent);
 
   return (
-    <div className='bg-white rounded-lg shadow-sm p-5 flex flex-col text-left w-[248px] min-h-[374px]'>
+    <div className='bg-white rounded-lg shadow-sm p-5 flex flex-col text-left w-[248px] min-h-[320px]'>
       {/* Location Section */}
       <div className='flex flex-2 gap-4 items-start'>
         <div className='bg-navy-subdued rounded-lg p-3 shrink-0'>
