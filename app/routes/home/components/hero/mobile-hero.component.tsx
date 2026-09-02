@@ -17,8 +17,9 @@ export const MobileHeroSection = () => {
     return () => clearTimeout(id);
   }, []);
 
+  // z-40 keeps the location search popup above the following z-30 sections
   return (
-    <section className='h-dvh w-full bg-white pb-8 relative max-h-[700px] block lg:hidden z-30'>
+    <section className='h-dvh w-full bg-white pb-8 relative max-h-[700px] block lg:hidden z-40'>
       {/*  Background Video — poster image paints first; iframe loads after idle */}
       <div className='absolute inset-0 w-full h-full z-1'>
         {showVideo ? (
@@ -66,9 +67,9 @@ export const MobileHeroSection = () => {
 
           {/*  Description */}
           <p className='text-white max-w-[430px] pr-6 md:px-4'>
-            From meaningful messages and genuine community, Christ Fellowship is
-            a place where you and your family can grow in your faith, and live
-            the life you were created for.
+            From inspiring messages to genuine community, Christ Fellowship is a
+            place where you and your family can grow in your faith and make
+            lifelong friendships.
           </p>
 
           {/* Location Search */}

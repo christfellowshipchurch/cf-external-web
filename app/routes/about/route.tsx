@@ -4,8 +4,8 @@ import { DynamicHero } from '~/components/dynamic-hero';
 import { OurMissionSection } from './partials/mission.partial';
 import { HistorySection } from './partials/history.partial';
 import { BeliefsSection } from './partials/beliefs.partial';
-import { LeadershipSection } from './partials/leadership.partial';
 import { ImpactSection } from './partials/impact.partial';
+import { SeniorPastorsSection } from '../home/partials/senior-pastors.partial';
 
 export const meta: MetaFunction = () => {
   return createMeta({
@@ -15,8 +15,6 @@ export const meta: MetaFunction = () => {
     path: '/about',
   });
 };
-
-export { loader } from './loader';
 
 export default function AboutPage() {
   return (
@@ -39,7 +37,7 @@ export default function AboutPage() {
       <OurMissionSection />
       <HistorySection />
       <BeliefsSection background='inverted' />
-      <LeadershipSection layout='vertical' />
+      <SeniorPastorsSection />
       <ImpactSection />
     </main>
   );

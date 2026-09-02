@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react';
 import { cn } from '~/lib/utils';
 import {
   Carousel,
@@ -6,71 +7,51 @@ import {
   useCarousel,
 } from '~/primitives/shadcn-primitives/carousel';
 import { beliefsData, spanishBeliefData } from '../about.data';
-import Icon from '~/primitives/icon';
 
-const BeliefsMobilePagination = ({
-  isSpanish = false,
-}: {
-  isSpanish?: boolean;
-}) => {
-  const data = isSpanish ? spanishBeliefData : beliefsData;
+const pillClass = cn(
+  'shrink-0 cursor-pointer whitespace-nowrap rounded-full border-2 px-5 py-2.5',
+  'text-base font-bold transition-colors duration-300',
+  'border-white/10 bg-white/5 text-white/70',
+);
 
-  const {
-    currentSlide,
-    scrollNext,
-    scrollPrev,
-    api,
-    canScrollNext,
-    canScrollPrev,
-  } = useCarousel();
-  const totalSlides = data.length;
-  const visibleButtons = 5;
+const BeliefsMobilePills = ({ titles }: { titles: string[] }) => {
+  const { currentSlide, api } = useCarousel();
+  const listRef = useRef<HTMLDivElement>(null);
 
-  // Calculate the start index of the visible buttons window
-  const getStartIndex = () => {
-    if (currentSlide <= 2) return 0;
-    if (currentSlide >= totalSlides - 3) return totalSlides - visibleButtons;
-    return currentSlide - 2;
-  };
+  // Swiping the carousel can select a pill that sits outside the visible
+  // strip, so keep the active pill scrolled into view without moving the page.
+  useEffect(() => {
+    const list = listRef.current;
+    const activePill = list?.children[currentSlide] as HTMLElement | undefined;
 
-  const startIndex = getStartIndex();
-  const visibleIndices = Array.from(
-    { length: visibleButtons },
-    (_, i) => startIndex + i,
-  );
+    if (!list || !activePill) return;
+
+    list.scrollTo({
+      left:
+        activePill.offsetLeft - (list.clientWidth - activePill.clientWidth) / 2,
+      behavior: 'smooth',
+    });
+  }, [currentSlide]);
 
   return (
-    <div className='flex gap-3 px-6 items-center h-18 w-full'>
-      <button
-        onClick={() => scrollPrev()}
-        className={cn(
-          'flex items-center justify-center size-9 border-2 border-neutral-lighter text-neutral-lighter',
-          !canScrollPrev && 'opacity-50',
-        )}
-      >
-        <Icon name='chevronLeft' size={24} />
-      </button>
-      {visibleIndices.map((index) => (
+    <div
+      ref={listRef}
+      className='relative flex w-full gap-2 overflow-x-auto px-6 scrollbar-hide'
+    >
+      {titles.map((title, index) => (
         <button
+          key={title}
+          type='button'
           onClick={() => api?.scrollTo(index)}
-          key={index}
+          aria-current={currentSlide === index ? 'true' : undefined}
           className={cn(
-            'flex items-center justify-center size-9 border-2 border-neutral-lighter text-neutral-lighter',
-            currentSlide === index && 'bg-ocean border-ocean',
+            pillClass,
+            currentSlide === index && 'border-ocean bg-ocean text-white',
           )}
         >
-          {index + 1}
+          {title}
         </button>
       ))}
-      <button
-        onClick={() => scrollNext()}
-        className={cn(
-          'flex items-center justify-center size-9 border-2 border-neutral-lighter text-neutral-lighter',
-          !canScrollNext && 'opacity-50',
-        )}
-      >
-        <Icon name='chevronRight' size={24} />
-      </button>
     </div>
   );
 };
@@ -94,8 +75,11 @@ export function BeliefsCarouselMobile({
           opts={{
             align: 'start',
           }}
-          className='w-full relative mb-12'
+          className='w-full relative'
         >
+          <div className='bg-dark-navy pt-8'>
+            <BeliefsMobilePills titles={data.map((belief) => belief.title)} />
+          </div>
           <CarouselContent>
             {data.map((belief, _index) => (
               <CarouselItem
@@ -122,7 +106,6 @@ export function BeliefsCarouselMobile({
               </CarouselItem>
             ))}
           </CarouselContent>
-          <BeliefsMobilePagination isSpanish={isSpanish} />
         </Carousel>
       </div>
     </div>
