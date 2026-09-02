@@ -29,10 +29,7 @@ export function SessionRegistration() {
         <h3 className='font-bold text-black text-lg mt-10'>
           Choose your experience
         </h3>
-        <p className='text-gray-500'>
-          Select your location for {title}. Each location offers the same great
-          experience with Earl McLean and Pastor Todd Mullins.
-        </p>
+        <p className='text-gray-500'>Select your location for {title}.</p>
       </div>
       <div className='w-full max-w-screen-content gap-4 mx-auto text-center mt-8 flex justify-center flex-wrap'>
         {sessionScheduleCards &&
