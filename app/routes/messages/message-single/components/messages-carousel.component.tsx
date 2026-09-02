@@ -5,14 +5,15 @@ import {
   CarouselNext,
   CarouselPrevious,
 } from '~/primitives/shadcn-primitives/carousel';
-import { useHits } from 'react-instantsearch';
-import { ContentItemHit } from '~/routes/search/types';
 import { SeriesCard } from './this-series-card.component';
 import { cn } from '~/lib/utils';
+import type { MessageCardType } from '../../types';
 
-export function RelatedMessagesCarousel() {
-  const { items } = useHits<ContentItemHit>();
-
+export function RelatedMessagesCarousel({
+  messages,
+}: {
+  messages: MessageCardType[];
+}) {
   const arrowBaseStyles =
     'border-navy disabled:border-[#AAAAAA] hover:bg-navy/10 cursor-pointer';
 
@@ -24,19 +25,19 @@ export function RelatedMessagesCarousel() {
       className='w-full mt-6 relative mb-12'
     >
       <CarouselContent className='gap-6'>
-        {items.map((hit, index) => (
+        {messages.map((message) => (
           <CarouselItem
-            key={index}
+            key={message.id}
             className='min-w-[318px] md:min-w-[460px] max-w-[460px] w-full pt-2'
           >
             <SeriesCard
               headingClass='text-text-primary'
               pClass='text-text-primary'
               message={{
-                title: hit.title,
-                summary: hit.summary,
-                coverImage: hit.coverImage.sources[0].uri,
-                url: hit.url,
+                title: message.title,
+                summary: message.summary,
+                coverImage: message.coverImage,
+                url: message.url,
               }}
             />
           </CarouselItem>

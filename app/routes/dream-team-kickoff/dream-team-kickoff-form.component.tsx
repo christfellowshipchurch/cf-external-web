@@ -13,6 +13,7 @@ import {
   RadixFormErrorMessage,
   RadixFormSelectShell,
 } from '~/primitives/inputs/form-radix-field';
+import BirthdateInput from '~/primitives/inputs/date-input/birthdate-input.primitive';
 import type { DreamTeamKickoffLoaderReturnType } from './types';
 
 interface DreamTeamKickoffFormProps {
@@ -200,12 +201,12 @@ const DreamTeamKickoffForm: React.FC<DreamTeamKickoffFormProps> = ({
           </RadixFormErrorMessage>
         </Form.Field>
 
-        {renderInputField(
-          'Birthdate',
-          'Birthdate',
-          'date',
-          'Please enter your birthdate',
-        )}
+        <BirthdateInput
+          name='Birthdate'
+          label='Birthdate'
+          isRequired
+          className='mb-4'
+        />
         {renderSelectField(
           'CompletedJourney',
           'Have you completed the Journey?',

@@ -8,7 +8,20 @@ export type Ministry = {
   description: string;
   image: string;
   url: string;
+  /** Finder pill categories, from the Rock `ministryType` attribute. */
+  categories: string[];
 };
+
+/**
+ * Rock stores multi-select attribute values as comma-joined DefinedValue guids,
+ * with the human-readable names in `valueFormatted`. Articles read
+ * `primaryCategory` the same way; ministries read `ministryType`.
+ */
+const parseCategories = (valueFormatted?: string): string[] =>
+  (valueFormatted || '')
+    .split(',')
+    .map((category) => category.trim())
+    .filter(Boolean);
 
 /**
  * Hide Spanish / Español ministry cards from the `/ministries` index grid.
@@ -33,6 +46,9 @@ const mapMinistryChannelItems = async (
         ? createImageUrlFromGuid(ministry.attributeValues?.image?.value)
         : '',
       url: ministry.attributeValues?.pathname?.value || '',
+      categories: parseCategories(
+        ministry.attributeValues?.ministryType?.valueFormatted,
+      ),
     };
   });
 };
@@ -44,6 +60,7 @@ const hardCodedMinistries: Ministry[] = [
       'Gain hands-on ministry experience, intentional mentorship, and leadership development.',
     image: getImageUrl('3141722'),
     url: '/internships',
+    categories: ['Growth & Leadership'],
   },
   {
     title: 'CFSEU',
@@ -51,6 +68,7 @@ const hardCodedMinistries: Ministry[] = [
       'Earn your degree through Southeastern University at Christ Fellowship.',
     image: getImageUrl('3203078'),
     url: 'https://www.cfseu.com',
+    categories: ['Growth & Leadership'],
   },
 ];
 

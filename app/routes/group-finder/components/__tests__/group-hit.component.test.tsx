@@ -68,6 +68,38 @@ describe('GroupHit', () => {
     expect(screen.queryByText(/miles away/i)).not.toBeInTheDocument();
   });
 
+  // An online group has no physical location, so the footer must read "Online"
+  // even when nothing about the search hints at it: no Virtual filter, and a
+  // geo search that did compute a distance from the affiliated campus.
+  it('shows "Online" for a virtual group during a geo search that produced a distance', () => {
+    renderGroupHit(
+      createGroupHit({
+        meetingType: 'Virtual',
+        meetingLocation: 'Jupiter, FL 33458',
+      }),
+    );
+
+    expect(screen.getByText('Online')).toBeInTheDocument();
+    expect(screen.queryByText(/miles away/i)).not.toBeInTheDocument();
+    expect(screen.queryByText('Jupiter')).not.toBeInTheDocument();
+  });
+
+  it('shows "Online" for a virtual group outside a geo search with no filter active', () => {
+    render(
+      <MemoryRouter>
+        <GroupHit
+          hit={createGroupHit({
+            meetingType: 'Virtual',
+            meetingLocation: '',
+          })}
+        />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByText('Online')).toBeInTheDocument();
+    expect(screen.queryByText('Palm Beach Gardens')).not.toBeInTheDocument();
+  });
+
   it('shows distance for numeric geolocation values', () => {
     renderGroupHit(createGroupHit());
 
@@ -91,5 +123,35 @@ describe('GroupHit', () => {
     expect(screen.getByText('Online')).toBeInTheDocument();
     expect(screen.queryByText(/miles away/i)).not.toBeInTheDocument();
     expect(screen.queryByText('Jupiter')).not.toBeInTheDocument();
+  });
+  // Four leaders would otherwise crowd the cover image, so the card caps the
+  // avatars at two and summarizes the rest.
+  it('shows at most two leader avatars and a "+N" badge for the rest', () => {
+    renderGroupHit(
+      createGroupHit({
+        leaders: ['Ana', 'Ben', 'Cara', 'Dan'].map((firstName, i) => ({
+          id: i + 1,
+          firstName,
+          lastName: 'Leader',
+        })),
+      }),
+    );
+
+    expect(screen.getByAltText('Ana')).toBeInTheDocument();
+    expect(screen.getByAltText('Ben')).toBeInTheDocument();
+    expect(screen.queryByAltText('Cara')).not.toBeInTheDocument();
+    expect(screen.queryByAltText('Dan')).not.toBeInTheDocument();
+    expect(screen.getByText('+2')).toBeInTheDocument();
+  });
+
+  it('shows no "+N" badge when a group has two or fewer leaders', () => {
+    renderGroupHit(
+      createGroupHit({
+        leaders: [{ id: 1, firstName: 'Ana', lastName: 'Leader' }],
+      }),
+    );
+
+    expect(screen.getByAltText('Ana')).toBeInTheDocument();
+    expect(screen.queryByText(/^\+\d+$/)).not.toBeInTheDocument();
   });
 });

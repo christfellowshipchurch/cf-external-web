@@ -1,11 +1,13 @@
 import { algoliasearch, SearchClient } from 'algoliasearch';
-import { useEffect, useRef } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { Configure, InstantSearch, SearchBox } from 'react-instantsearch';
 import { useRouteLoaderData } from 'react-router-dom';
 import Icon from '~/primitives/icon';
 import { SearchPopup } from './search-popup.component';
 import { RootLoaderData } from '~/routes/navbar/loader';
 import { GlobalSearchLocationProvider } from '../../global-search-location-context';
+import { suppressBlankNavbarSearches } from '../../navbar-search-client';
+import { useDebouncedNavbarSearch } from '../../use-debounced-navbar-search';
 
 // Create a stable search instance ID that persists between unmounts
 const SEARCH_INSTANCE_ID = 'navbar-search';
@@ -50,10 +52,7 @@ export const SearchBar = ({
   };
   const { ALGOLIA_APP_ID, ALGOLIA_SEARCH_API_KEY } = algolia;
   const contentItemsIndexName = algolia.indexes?.contentItems ?? '';
-  const locationsIndexName = algolia.indexes?.locations ?? '';
-
-  // Create or retrieve the Algolia client
-  useEffect(() => {
+  const searchClient = useMemo(() => {
     if (ALGOLIA_APP_ID && ALGOLIA_SEARCH_API_KEY && !globalSearchClient) {
       globalSearchClient = algoliasearch(
         ALGOLIA_APP_ID,
@@ -61,13 +60,13 @@ export const SearchBar = ({
         {},
       );
     }
-  }, [ALGOLIA_APP_ID, ALGOLIA_SEARCH_API_KEY]);
-
-  const searchClient =
-    globalSearchClient ||
-    (ALGOLIA_APP_ID && ALGOLIA_SEARCH_API_KEY
-      ? algoliasearch(ALGOLIA_APP_ID, ALGOLIA_SEARCH_API_KEY, {})
-      : emptySearchClient);
+    return globalSearchClient
+      ? suppressBlankNavbarSearches(globalSearchClient, {
+          contentType: rootData?.contentTypeFacets ?? {},
+        })
+      : (emptySearchClient as unknown as SearchClient);
+  }, [ALGOLIA_APP_ID, ALGOLIA_SEARCH_API_KEY, rootData?.contentTypeFacets]);
+  const queryHook = useDebouncedNavbarSearch();
 
   const searchBarRef = useRef<HTMLDivElement>(null);
 
@@ -106,23 +105,6 @@ export const SearchBar = ({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [setIsSearchOpen, isSearchOpen]);
 
-  useEffect(() => {
-    if (isSearchOpen) {
-      // Fade in the search popup
-      const searchPopup = document.querySelector(
-        '.popup-search-container',
-      ) as HTMLDivElement;
-      if (searchPopup) {
-        searchPopup.style.maxHeight = '0';
-        searchPopup.style.paddingTop = '0';
-        setTimeout(() => {
-          searchPopup.style.maxHeight = '700px';
-          searchPopup.style.paddingTop = '16px';
-        }, 0);
-      }
-    }
-  }, [isSearchOpen]);
-
   return (
     <div className='relative size-full' ref={searchBarRef}>
       <InstantSearch
@@ -133,9 +115,6 @@ export const SearchBar = ({
         }}
         initialUiState={{
           [contentItemsIndexName]: {
-            query: '',
-          },
-          [locationsIndexName]: {
             query: '',
           },
         }}
@@ -159,6 +138,8 @@ export const SearchBar = ({
               />
             </button>
             <SearchBox
+              autoFocus
+              queryHook={queryHook}
               classNames={{
                 root: 'flex-grow',
                 form: 'flex',
@@ -173,11 +154,7 @@ export const SearchBar = ({
               }}
             />
           </div>
-          <SearchPopup
-            setIsSearchOpen={setIsSearchOpen}
-            searchClient={searchClient}
-            locationsIndexName={locationsIndexName}
-          />
+          <SearchPopup setIsSearchOpen={setIsSearchOpen} />
         </GlobalSearchLocationProvider>
       </InstantSearch>
     </div>

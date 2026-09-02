@@ -61,4 +61,15 @@ describe('location single meta', () => {
     expect(title).toContain('Christ Fellowship Español en Royal Palm Beach');
     expect(description).toContain('Únete');
   });
+
+  it('keeps Spanish copy for Rock campus names', () => {
+    const { title } = metaFor(
+      'iglesia-palm-beach-gardens',
+      'Christ Fellowship Español Palm Beach Gardens',
+    );
+
+    expect(title).toContain(
+      'Christ Fellowship Español en Palm Beach Gardens, FL',
+    );
+  });
 });

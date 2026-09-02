@@ -63,6 +63,8 @@ export interface ButtonProps
   linkClassName?: string;
   href?: string;
   target?: string;
+  /** Forwarded to the underlying `Link` when `href` is set (see react-router `LinkProps`). */
+  state?: unknown;
   onClick?: (e: React.MouseEvent<HTMLButtonElement>) => void;
   prefetch?: 'intent' | 'render' | 'none' | 'viewport';
 }
@@ -76,6 +78,7 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
       target,
       intent,
       href,
+      state,
       onClick,
       size,
       underline,
@@ -87,6 +90,7 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
       return (
         <Link
           to={href}
+          state={state}
           prefetch={prefetch}
           target={target ? target : href?.includes('http') ? '_blank' : ''}
           className={linkClassName}

@@ -1,8 +1,7 @@
 import type { RefObject } from 'react';
-import { usePagination } from 'react-instantsearch';
+import { useHits, useInstantSearch, usePagination } from 'react-instantsearch';
 
 import { cn } from '~/lib/utils';
-import { useHydratedHitsFallback } from '~/components/finders/use-hydrated-hits-fallback';
 import { Icon } from '~/primitives/icon/icon';
 import type { ContentItemHit } from '~/routes/search/types';
 
@@ -54,15 +53,13 @@ const PaginationButton = ({
 };
 
 export function AllEventsInstantResults({
-  initialEventHits,
   fromEventsUrl,
 }: {
-  initialEventHits: ContentItemHit[];
   fromEventsUrl: string;
 }) {
-  const { hits, isLoading } = useHydratedHitsFallback<ContentItemHit>({
-    initialHits: initialEventHits,
-  });
+  const { items: hits } = useHits<ContentItemHit>();
+  const { status } = useInstantSearch();
+  const isLoading = status === 'loading' || status === 'stalled';
   const { currentRefinement, nbPages, isFirstPage, isLastPage, refine } =
     usePagination();
 

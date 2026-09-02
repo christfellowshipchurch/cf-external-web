@@ -51,11 +51,15 @@ function dateYearsAgo(years: number) {
   return `${year}-${month}-${day}`;
 }
 
+// Birthdate is three numeric boxes, so the age-gated fields only appear once
+// all three compose into a real date.
 function setBirthdate(years: number) {
-  const input = document.querySelector(
-    "input[type='date']",
-  ) as HTMLInputElement;
-  fireEvent.change(input, { target: { value: dateYearsAgo(years) } });
+  const [year, month, day] = dateYearsAgo(years).split('-');
+  fireEvent.change(screen.getByLabelText('Month'), {
+    target: { value: month },
+  });
+  fireEvent.change(screen.getByLabelText('Day'), { target: { value: day } });
+  fireEvent.change(screen.getByLabelText('Year'), { target: { value: year } });
 }
 
 describe('BaptismSignUpForm', () => {
@@ -174,7 +178,9 @@ describe('BaptismSignUpForm', () => {
       'testy.mctester@example.com',
     );
     expect(screen.getByLabelText('Cell Phone')).toHaveValue('561-555-1234');
-    expect(screen.getByLabelText('Birthdate')).toHaveValue('1995-07-14');
+    expect(screen.getByLabelText('Month')).toHaveValue('07');
+    expect(screen.getByLabelText('Day')).toHaveValue('14');
+    expect(screen.getByLabelText('Year')).toHaveValue('1995');
     expect(screen.getByLabelText('Address Line 1')).toHaveValue(
       '123 Palm Tree Ln',
     );

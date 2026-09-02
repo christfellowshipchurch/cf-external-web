@@ -4,7 +4,10 @@ import Icon from '~/primitives/icon';
 
 export const VolunteerHero = () => {
   return (
-    <section aria-label='Volunteer Hero' className='bg-[#F1F4F5] w-full'>
+    <section
+      aria-label='Volunteer Hero'
+      className='bg-[#F1F4F5] w-full overflow-x-clip'
+    >
       <div
         className={cn(
           'max-w-screen-content mx-auto',
