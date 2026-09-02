@@ -18,18 +18,17 @@ export function SessionRegistration() {
   return (
     <section className='w-full py-8 md:py-16 content-padding bg-gray'>
       <div className='w-full flex flex-col gap-4 mx-auto text-center max-w-xl'>
-        <h2 className='heading-h3 text-center'>Get Tickets for {title}</h2>
+        <h2 className='heading-h3 text-center'>{title} Event Details</h2>
         <p className='text-gray-500'>
-          Choose your location and get your tickets for this {title} event
-          {sessionScheduleCards &&
-            sessionScheduleCards.length > 0 &&
-            ` on ${sessionScheduleCards[0].date}`}
-          .
+          Find dates, times, locations, and everything you need to attend{' '}
+          {title}.
         </p>
         <h3 className='font-bold text-black text-lg mt-10'>
-          Choose your experience
+          Locations &amp; Times
         </h3>
-        <p className='text-gray-500'>Select your location for {title}.</p>
+        <p className='text-gray-500'>
+          View the available locations and event details for {title}.
+        </p>
       </div>
       <div className='w-full max-w-screen-content gap-4 mx-auto text-center mt-8 flex justify-center flex-wrap'>
         {sessionScheduleCards &&
@@ -43,8 +42,8 @@ export function SessionRegistration() {
           ))}
       </div>
       <p className='text-gray-500 text-xs text-center mt-8'>
-        By clicking “Get Tickets,” you will be redirected to our secure
-        ticketing partner to complete your registration.{' '}
+        You will be redirected to our secure registration partner to complete
+        your registration.
       </p>
     </section>
   );

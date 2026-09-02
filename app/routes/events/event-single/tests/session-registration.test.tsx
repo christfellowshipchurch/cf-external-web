@@ -105,3 +105,53 @@ describe('SessionRegistrationCard — Rock Call / Action / ShowAddToCalendar', (
     expect(calendarButton()).toBeNull();
   });
 });
+
+describe('Section copy (Austin, CFDP-4275)', () => {
+  // Austin asked for event-details / locations-and-times language throughout,
+  // rather than tickets or "choosing experiences". Each string interpolates the
+  // event name, so none of it can be Diesel-specific again.
+  it('heads the section with the event name and Event Details', () => {
+    renderWith({ ctaUrl: 'https://example.com' });
+    expect(screen.getByRole('heading', { level: 2 }).textContent).toBe(
+      'Diesel Event Details',
+    );
+  });
+
+  it('subtitles it with the dates/times/locations line', () => {
+    renderWith({ ctaUrl: 'https://example.com' });
+    expect(
+      screen.getByText(
+        /Find dates, times, locations, and everything you need to attend\s+Diesel\./,
+      ),
+    ).toBeTruthy();
+  });
+
+  it('heads the cards with Locations & Times', () => {
+    renderWith({ ctaUrl: 'https://example.com' });
+    expect(screen.getByRole('heading', { level: 3 }).textContent).toBe(
+      'Locations & Times',
+    );
+  });
+
+  it('describes the cards with the available-locations line', () => {
+    renderWith({ ctaUrl: 'https://example.com' });
+    expect(
+      screen.getByText(
+        'View the available locations and event details for Diesel.',
+      ),
+    ).toBeTruthy();
+  });
+
+  // The disclaimer used to quote "Get Tickets" verbatim. That label now comes
+  // from Rock per session, so the quote could contradict the actual button.
+  it('does not quote a hardcoded CTA label in the disclaimer', () => {
+    renderWith({
+      ctaTitle: 'Reserve Your Seat',
+      ctaUrl: 'https://example.com',
+    });
+    expect(screen.queryByText(/Get Tickets/)).toBeNull();
+    expect(
+      screen.getByText(/redirected to our secure registration partner/),
+    ).toBeTruthy();
+  });
+});
