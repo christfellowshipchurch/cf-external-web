@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
-import { Button } from '~/primitives/button/button.primitive';
+import { Button, type ButtonProps } from '~/primitives/button/button.primitive';
 import Icon from '~/primitives/icon';
+import { cn } from '~/lib/utils';
 
 const isIOS = () => {
   if (typeof window === 'undefined') return false;
@@ -110,6 +111,19 @@ interface AddToCalendarProps {
   eventDate: Date;
   label?: string;
   className?: string;
+  /**
+   * Size of the trigger button. Defaults to the Button primitive's own `lg`,
+   * which is what the modal confirmations this component was built for use.
+   * Pass a smaller size where the trigger sits beside a non-`lg` CTA and the
+   * two are meant to read as a pair.
+   */
+  buttonSize?: ButtonProps['size'];
+  /**
+   * Extra classes for the trigger button itself — `className` styles the
+   * wrapper, not the button. Applied last, so it can override the default
+   * `rounded-xl` when the surrounding design uses a different radius.
+   */
+  buttonClassName?: string;
 }
 
 export const AddToCalendar = ({
@@ -118,6 +132,8 @@ export const AddToCalendar = ({
   eventDate,
   label = 'Add to Calendar',
   className,
+  buttonSize = 'lg',
+  buttonClassName,
 }: AddToCalendarProps) => {
   const [showDropdown, setShowDropdown] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -153,7 +169,8 @@ export const AddToCalendar = ({
     <div className={`relative ${className ?? ''}`} ref={dropdownRef}>
       <Button
         intent='secondary'
-        className='rounded-xl w-full'
+        size={buttonSize}
+        className={cn('rounded-xl w-full', buttonClassName)}
         onClick={handleAddToCalendar}
       >
         <Icon name='calendarPlus' size={18} className='mr-2' />

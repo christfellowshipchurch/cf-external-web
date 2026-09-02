@@ -28,3 +28,25 @@ export function collapseHtmlToVisibleText(html: string): string {
     .replace(/\s+/g, '')
     .trim();
 }
+
+/**
+ * Collapses HTML to readable plain text, preserving word spacing.
+ *
+ * Distinct from `collapseHtmlToVisibleText`, which deletes whitespace entirely
+ * because it only answers "is there anything visible here?". Use this one when
+ * the result is shown to a person — e.g. an .ics DESCRIPTION, where
+ * "Ticket Price: $199" must not arrive as "TicketPrice:$199".
+ */
+export function htmlToPlainText(html: string): string {
+  return html
+    .replace(/<script[\s\S]*?<\/script>/gi, '')
+    .replace(/<style[\s\S]*?<\/style>/gi, '')
+    .replace(/<br\s*\/?>/gi, ' ')
+    .replace(/<\/\s*(?:p|div|h[1-6]|li|tr|td|th)\s*>/gi, ' ')
+    .replace(/<[^>]+>/g, '')
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&#(?:160|x0*A0);/gi, ' ')
+    .replace(/&amp;/gi, '&')
+    .replace(/\s+/g, ' ')
+    .trim();
+}

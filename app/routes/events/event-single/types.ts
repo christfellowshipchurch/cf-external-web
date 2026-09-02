@@ -42,6 +42,19 @@ export type EventSinglePageType = {
   sessionScheduleCards?: SessionRegistrationCardType[];
 };
 
+/**
+ * Whether the registration section has anything to render — session cards, or a
+ * `groupType` for click-through registration.
+ *
+ * The section wrapper and the "Locations" tab must both hinge on this one
+ * check. Deriving them separately is what left an empty `<section id='register'>`
+ * on events with neither, and would let the tab and the section disagree.
+ */
+export const hasRegistrationContent = (
+  data: Pick<EventSinglePageType, 'sessionScheduleCards' | 'groupType'>,
+): boolean =>
+  Boolean(data.sessionScheduleCards?.length) || Boolean(data.groupType);
+
 export type SessionRegistrationCardType = {
   icon: keyof typeof icons;
   title: string;
@@ -50,7 +63,26 @@ export type SessionRegistrationCardType = {
   programTime: string;
   partyTime: string;
   additionalInfo?: string;
-  url: string;
+  /**
+   * Button label, from Rock's `Call` attribute.
+   * Empty when unset — the card falls back to a default label.
+   */
+  ctaTitle?: string;
+  /**
+   * Button destination, from Rock's `Action` attribute. Empty when unset, in
+   * which case the card renders no button at all: Rock's `TicketsUrl` is no
+   * longer read here, so there is nothing left to fall back to and a button
+   * without an href would be inert.
+   */
+  ctaUrl?: string;
+  /** Rock's `ShowAddToCalendar` boolean — gates the Add to Calendar button. */
+  showAddToCalendar?: boolean;
+  /**
+   * Session start as a naive local ISO string (`yyyy-MM-dd'T'HH:mm:ss`), for Add to Calendar.
+   * Deliberately timezone-less: the .ics tags it `TZID=America/New_York`, so the wall-clock
+   * digits must survive the trip to the browser unshifted. Empty when Rock has no date.
+   */
+  startDateTime?: string;
 };
 
 export interface EventFinderHit {
