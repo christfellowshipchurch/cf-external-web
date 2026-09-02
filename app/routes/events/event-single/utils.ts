@@ -89,11 +89,46 @@ export const mapSessionScheduleCards = async (
           programTime: programTime || '',
           partyTime: partyTime || '',
           additionalInfo: item.attributeValues?.additionalInfo?.value || '',
-          url: item.attributeValues?.ticketsUrl?.value || '',
+          ctaTitle: item.attributeValues?.call?.value?.trim() || '',
+          ctaUrl: item.attributeValues?.action?.value?.trim() || '',
+          showAddToCalendar: parseRockBoolean(
+            item.attributeValues?.showAddToCalendar?.value,
+          ),
+          startDateTime: parseSessionStartDateTime(
+            item.attributeValues?.sessionDateTime?.value ?? '',
+          ),
         };
       },
     ),
   );
+};
+
+/**
+ * Rock returns boolean attributes as strings — "True"/"False"/"1"/"" — so a
+ * truthiness check on the raw value treats "False" as true.
+ */
+export const parseRockBoolean = (value: string | undefined | null): boolean => {
+  const normalized = (value ?? '').trim().toLowerCase();
+  return normalized === 'true' || normalized === '1';
+};
+
+/**
+ * Rock's raw session date/time carries no timezone, and neither should ours.
+ * Parsing local and formatting local round-trips the wall-clock digits whatever
+ * the server's timezone is, so the .ics — which tags the value
+ * `TZID=America/New_York` — shows the time the event actually starts rather
+ * than one shifted into the viewer's zone.
+ *
+ * Returns '' for missing or unparseable input so the card simply omits
+ * Add to Calendar instead of offering a broken file.
+ */
+export const parseSessionStartDateTime = (rawDateTime: string): string => {
+  if (!rawDateTime.trim()) return '';
+
+  const parsed = new Date(rawDateTime);
+  if (isNaN(parsed.getTime())) return '';
+
+  return format(parsed, "yyyy-MM-dd'T'HH:mm:ss");
 };
 
 export const parsePartyTime = (partyTimeValue: string) => {
