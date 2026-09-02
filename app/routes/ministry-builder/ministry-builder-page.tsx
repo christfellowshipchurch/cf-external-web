@@ -1,6 +1,5 @@
 import { useLoaderData, useLocation } from 'react-router-dom';
 import { DynamicHero } from '~/components';
-import { linkTargetForHref } from '~/lib/external-link';
 import { PageBuilderLoader } from '../page-builder/types';
 import { renderSection } from '../page-builder/page-builder-page';
 import { getCarouselCollectionBackgrounds } from '../page-builder/components/builder-utils';
@@ -29,7 +28,6 @@ export function MinistryBuilderRoute() {
         ctas={callsToAction.map((cta) => ({
           href: cta.url,
           title: cta.title,
-          target: linkTargetForHref(cta.url),
         }))}
       />
 

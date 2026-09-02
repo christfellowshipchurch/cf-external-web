@@ -4,6 +4,11 @@ import Icon from '~/primitives/icon';
 
 export const VolunteerHero = () => {
   return (
+    // `overflow-x-clip` contains the glow in the image column, which is
+    // deliberately positioned outside the photo frame and would otherwise widen
+    // the document by 20px and let the whole page scroll sideways on mobile.
+    // `clip` rather than `hidden` creates no scroll container, and leaves
+    // `overflow-y: visible` so the glow still bleeds above the frame.
     <section
       aria-label='Volunteer Hero'
       className='bg-[#F1F4F5] w-full overflow-x-clip'
