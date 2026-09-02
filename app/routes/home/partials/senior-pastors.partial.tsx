@@ -2,7 +2,10 @@ import { SectionTitle } from '~/components/section-title';
 
 export function SeniorPastorsSection() {
   return (
-    <section className='relative z-30 bg-gray py-16 md:py-24 lg:py-30 content-padding'>
+    <section
+      id='leadership'
+      className='relative z-30 scroll-mt-18 bg-gray py-16 md:py-24 lg:py-30 content-padding'
+    >
       <div className='max-w-screen-content mx-auto flex flex-col gap-10 lg:gap-12'>
         <SectionTitle sectionTitle='our leaders' />
         <div className='grid gap-10 lg:grid-cols-2 lg:gap-12 lg:items-center xl:grid-cols-[minmax(0,620px)_1fr] xl:gap-20'>

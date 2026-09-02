@@ -75,7 +75,7 @@ export function BeliefsCarouselMobile({
           opts={{
             align: 'start',
           }}
-          className='w-full relative mb-12'
+          className='w-full relative'
         >
           <div className='bg-dark-navy pt-8'>
             <BeliefsMobilePills titles={data.map((belief) => belief.title)} />
