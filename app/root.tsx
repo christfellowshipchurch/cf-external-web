@@ -20,6 +20,7 @@ import { loader as navbarLoader } from './routes/navbar/loader';
 import { NavbarVisibilityProvider } from './providers/navbar-visibility-context';
 import { setupDevWebVitalsLogging } from '~/lib/dev-web-vitals';
 import { isPreviewMode } from '~/lib/.server/fetch-rock-data';
+import { NavigationHistoryTracker } from '~/lib/navigation-history';
 
 export { ErrorBoundary } from './error';
 
@@ -134,6 +135,8 @@ export default function App() {
     <AuthProvider>
       <CookieConsentProvider>
         <NavbarVisibilityProvider>
+          {/* Records the previous route for back links. Safe to delete: see app/lib/navigation-history. */}
+          <NavigationHistoryTracker />
           <div className='min-h-screen flex flex-col text-pretty'>
             <Navbar />
             <main>
