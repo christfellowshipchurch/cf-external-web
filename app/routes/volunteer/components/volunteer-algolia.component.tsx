@@ -38,6 +38,7 @@ import {
   createVolunteerAlgoliaStateMapping,
 } from './finder/volunteer-algolia-instantsearch-router';
 import { getVolunteerAlgoliaMobileFilters } from './finder/volunteer-algolia-filters.data';
+import { COMMUNITY_OPPORTUNITIES_BACK_FALLBACK } from '../community-opportunities/community-opportunities-back-href';
 
 /** Algolia facet attribute names — align with volunteer index settings. */
 const FACET_CATEGORY = 'category';
@@ -161,6 +162,7 @@ function VolunteerHitsCarousel() {
           <Button
             intent='secondary'
             href={`/volunteer/community-opportunities${filterSearch}`}
+            state={{ backHref: COMMUNITY_OPPORTUNITIES_BACK_FALLBACK }}
             size='md'
             className='shrink-0 rounded-full px-6 text-base md:px-8'
           >
