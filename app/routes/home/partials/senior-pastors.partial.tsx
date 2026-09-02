@@ -28,42 +28,32 @@ export function SeniorPastorsSection() {
               <h2 className='text-[32px] md:text-[40px] lg:text-5xl font-extrabold leading-tight'>
                 Meet Our Senior Pastors
               </h2>
-              <p className='mt-4 text-lg text-text-secondary'>
-                Leading Christ Fellowship with a passion to help you love God,
-                love people, and lead others.
-              </p>
             </div>
             <div className='flex flex-col gap-5 text-base md:text-lg leading-normal'>
               <p>
-                Since becoming Senior Pastors in 2011, Todd and Julie Mullins
-                have led Christ Fellowship Church with a profound heart for
-                people and a clear, unwavering vision: to see lives transformed
-                by the love of Jesus. Together, they have nurtured Christ
-                Fellowship from a regional community into a thriving family of
-                multiple locations across Florida and online, reaching tens of
-                thousands of people every week.
+                Since becoming Senior Pastors in 2011, the Mullins have led
+                Christ Fellowship with a heart for people and a clear vision to
+                see lives transformed by the hope and love of Jesus. Under their
+                leadership, Christ Fellowship has continued its growth as a
+                multi-site congregation that gathers thousands in South Florida
+                each week and digitally reaches thousands beyond the region
+                through Christ Fellowship Everywhere.
               </p>
               <p>
-                Their leadership extends far beyond Sunday services. Pastor Todd
-                is a champion of global leadership development, serving on the
-                boards of several international ministries and organizations.
-                Julie is deeply passionate about empowering women and leading
-                initiatives that bring hope and support to local communities,
-                foster care systems, and families in need. They believe that the
-                local church is the hope of the world when we work together to
-                serve and lift up others.
+                Their leadership expands beyond the walls of Christ Fellowship
+                as they serve the South Florida region and beyond. They are the
+                founders of Church United, a partnership of local churches
+                across various denominations who join together to transform
+                South Florida. Todd and Julie also serve on the lead team of the
+                Association of Related Churches (ARC), as well as on the board
+                of directors for Place of Hope Children's Home in South Florida.
+                They are both frequently invited to churches and conferences
+                around the globe to share the love and message of Jesus Christ.
+                Todd recently authored his debut book, Don't Let Doubt Take You
+                Out. Their son Jefferson and his wife Cassie also serve together
+                in ministry at Christ Fellowship.
               </p>
             </div>
-            <blockquote className='border-l-4 border-ocean py-2 pl-6 text-dark-navy'>
-              <p className='text-base md:text-lg font-semibold'>
-                “Our greatest joy is walking alongside families just like yours,
-                helping everyone take their next step in faith, and building a
-                community where nobody has to do life alone.”
-              </p>
-              <footer className='mt-1 text-sm font-bold text-text-secondary'>
-                — Pastors Todd &amp; Julie Mullins
-              </footer>
-            </blockquote>
           </div>
         </div>
       </div>
