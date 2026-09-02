@@ -219,6 +219,7 @@ export const DynamicHero = ({
                                 : 'primary'
                             }
                             href={cta.href}
+                            target={cta.target}
                             className={cn(
                               'w-full md:w-auto min-w-[280px]',
                               i == 0 &&
