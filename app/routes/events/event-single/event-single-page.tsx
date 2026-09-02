@@ -3,7 +3,7 @@ import { useLoaderData, useLocation } from 'react-router-dom';
 
 import { scrollToAnchor } from '~/lib/scroll-to-anchor';
 
-import { EventSinglePageType } from './types';
+import { EventSinglePageType, hasRegistrationContent } from './types';
 import { useEventSectionScrollOffset } from './hooks/use-event-section-scroll-offset';
 import { EventsSingleHero } from './partials/hero.partial';
 import { EventSingleFAQ } from './partials/event-faq.partial';
@@ -38,14 +38,9 @@ export const EventSinglePage: React.FC = () => {
     scrollToAnchor(hash, { behavior: 'auto', offset: getScrollOffset() });
   }, [location.hash, getScrollOffset]);
 
-  // Check if sessionScheduleCards exist
-  const hasSessionRegistration =
-    data.sessionScheduleCards && data.sessionScheduleCards.length > 0;
-
-  const hasClickThroughRegistration = Boolean(data.groupType);
-
-  const showRegistration =
-    hasSessionRegistration || hasClickThroughRegistration;
+  // Same predicate the section itself uses, so the tab can never advertise a
+  // section that renders nothing.
+  const showRegistration = hasRegistrationContent(data);
 
   const aboutInformationExists =
     (data.aboutTitle && data.aboutTitle !== '') ||

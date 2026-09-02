@@ -42,6 +42,19 @@ export type EventSinglePageType = {
   sessionScheduleCards?: SessionRegistrationCardType[];
 };
 
+/**
+ * Whether the registration section has anything to render — session cards, or a
+ * `groupType` for click-through registration.
+ *
+ * The section wrapper and the "Locations" tab must both hinge on this one
+ * check. Deriving them separately is what left an empty `<section id='register'>`
+ * on events with neither, and would let the tab and the section disagree.
+ */
+export const hasRegistrationContent = (
+  data: Pick<EventSinglePageType, 'sessionScheduleCards' | 'groupType'>,
+): boolean =>
+  Boolean(data.sessionScheduleCards?.length) || Boolean(data.groupType);
+
 export type SessionRegistrationCardType = {
   icon: keyof typeof icons;
   title: string;
