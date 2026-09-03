@@ -23,6 +23,7 @@ const attr = (value: string, valueFormatted = value) => ({
 const physicalCampus: RockCampus = {
   id: 2,
   guid: 'campus-guid',
+  leaderPersonAliasId: 731185,
   name: 'Palm Beach Gardens',
   url: 'palm-beach-gardens',
   phoneNumber: '(561) 799-7600',
@@ -42,7 +43,7 @@ const physicalCampus: RockCampus = {
     backgroundVideoMobile: attr('mobile-guid'),
     campusImage: attr('a4d38520-a73d-48be-aaf2-9ed63c6ff2f3'),
     campusInstagram: attr('https://instagram.example/campus'),
-    campusPastor: attr('pastor-alias-guid'),
+    campusPastor: attr('legacy-pastor-alias-guid'),
     campusPastorEmail: attr('pastor@example.com'),
     digitalTourVideo: attr('tour-guid'),
     map: attr('https://maps.example/embed'),
@@ -104,7 +105,7 @@ describe('mapRockCampusToLocationViewModel', () => {
       campusPastor: {
         firstName: 'Cole',
         lastName: 'Robinson',
-        email: 'pastor@example.com',
+        email: 'rock@example.com',
         photo: 'https://cdn.example/GetImage.ashx?id=42',
       },
       digitalTourVideo: 'tour-guid-source',
@@ -124,6 +125,15 @@ describe('mapRockCampusToLocationViewModel', () => {
         },
       ],
     });
+
+    expect(fetchRockData).toHaveBeenCalledWith({
+      endpoint: 'PersonAlias',
+      queryParams: {
+        $filter: 'Id eq 731185',
+        $expand: 'Person',
+        $top: '1',
+      },
+    });
   });
 
   it('keeps sparse online campuses valid without address or ministry lookups', async () => {
@@ -131,6 +141,7 @@ describe('mapRockCampusToLocationViewModel', () => {
       ...physicalCampus,
       name: 'Online (CF Everywhere)',
       url: 'cf-everywhere',
+      leaderPersonAliasId: null,
       location: null,
       attributeValues: {
         additionalInfo: attr('Live services'),
