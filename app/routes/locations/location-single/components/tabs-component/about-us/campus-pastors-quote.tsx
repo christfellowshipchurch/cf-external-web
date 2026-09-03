@@ -1,7 +1,9 @@
 import { sanitizeCmsHtml } from '~/lib/sanitize';
+import { campusPastorRoleLabel } from '../../../util';
 
 export const CampusPastorsQuote = ({
   campusPastor,
+  campusUrl,
   isSpanish = false,
   quote,
   title,
@@ -12,6 +14,7 @@ export const CampusPastorsQuote = ({
     lastName: string;
     photo: string;
   };
+  campusUrl?: string;
   isSpanish?: boolean;
   quote: string;
   title: string;
@@ -39,7 +42,7 @@ export const CampusPastorsQuote = ({
           />
           <div className='flex flex-col justify-center items-center md:items-start'>
             <h4 className='text-lg text-text-secondary'>
-              {isSpanish ? 'Pastores del Campus' : 'Campus Pastor'}
+              {campusPastorRoleLabel(campusUrl, isSpanish)}
             </h4>
             <h3 className='font-semibold text-[22px]'>
               {campusPastor.firstName} {campusPastor.lastName}
