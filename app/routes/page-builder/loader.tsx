@@ -401,6 +401,9 @@ export const mapPageBuilderChildItems = async (
               // Generate the start date for the item.
               // Page Builder, Redirect Card, Article, and Ministry Page items have
               // no meaningful start date in a collection context, so skip it.
+              // Events use First Date of Event (`eventStartDate`) — when the
+              // event happens — not CMS `startDateTime` (go-live). Fall back to
+              // startDateTime only when the attribute is empty.
               let startDate = '';
               if (
                 contentType !== 'REDIRECT_CARD' &&
@@ -408,7 +411,14 @@ export const mapPageBuilderChildItems = async (
                 contentType !== 'ARTICLES' &&
                 contentType !== 'MINISTRY_PAGE'
               ) {
-                const startDateTime = item.startDateTime || '';
+                const startDateTime =
+                  contentType === 'EVENTS'
+                    ? getStringValue(
+                        itemAttributeValues?.eventStartDate || '',
+                      ) ||
+                      item.startDateTime ||
+                      ''
+                    : item.startDateTime || '';
                 if (startDateTime) {
                   startDate = format(
                     parseISO(startDateTime),
