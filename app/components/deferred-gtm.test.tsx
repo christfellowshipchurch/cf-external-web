@@ -9,6 +9,7 @@ describe('DeferredGtm', () => {
     document
       .querySelectorAll('script[src*="googletagmanager.com/gtm.js"]')
       .forEach((el) => el.remove());
+    window.dataLayer = [];
     vi.useFakeTimers();
   });
 
@@ -28,6 +29,29 @@ describe('DeferredGtm', () => {
       `script[src="https://www.googletagmanager.com/gtm.js?id=${gtmId}"]`,
     );
     expect(scripts).toHaveLength(1);
+  });
+
+  it('queues the GTM bootstrap before injecting the script so tags can send', () => {
+    const pushSpy = vi.spyOn(window.dataLayer, 'push');
+    const appendSpy = vi.spyOn(document.head, 'appendChild');
+
+    render(<DeferredGtm gtmId={gtmId} />);
+    vi.runAllTimers();
+
+    expect(pushSpy).toHaveBeenCalledWith({
+      'gtm.start': expect.any(Number),
+      event: 'gtm.js',
+    });
+
+    const scriptAppendIndex = appendSpy.mock.calls.findIndex(
+      ([node]) =>
+        node instanceof window.HTMLScriptElement &&
+        node.src === `https://www.googletagmanager.com/gtm.js?id=${gtmId}`,
+    );
+    expect(scriptAppendIndex).toBeGreaterThanOrEqual(0);
+    expect(pushSpy.mock.invocationCallOrder[0]).toBeLessThan(
+      appendSpy.mock.invocationCallOrder[scriptAppendIndex],
+    );
   });
 
   it('does not inject a duplicate script when mounted repeatedly for the same id', () => {
