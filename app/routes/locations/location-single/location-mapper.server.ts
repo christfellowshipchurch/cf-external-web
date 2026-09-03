@@ -13,6 +13,7 @@ type RockAttribute = {
 export type RockCampus = {
   id: number;
   guid: string;
+  leaderPersonAliasId?: number | null;
   name: string;
   url: string;
   phoneNumber?: string | null;
@@ -44,16 +45,16 @@ async function resolveMediaGuid(guid: string): Promise<string> {
   }
 }
 
-async function mapCampusPastor(campus: RockCampus) {
-  const aliasGuid = value(campus, 'campusPastor');
+async function mapCampusLeader(campus: RockCampus) {
+  const leaderPersonAliasId = campus.leaderPersonAliasId;
   const emptyPastor = { email: '', firstName: '', lastName: '', photo: '' };
-  if (!aliasGuid) return emptyPastor;
+  if (leaderPersonAliasId == null) return emptyPastor;
 
   try {
     const result = await fetchRockData({
       endpoint: 'PersonAlias',
       queryParams: {
-        $filter: `Guid eq guid'${aliasGuid}'`,
+        $filter: `Id eq ${leaderPersonAliasId}`,
         $expand: 'Person',
         $top: '1',
       },
@@ -64,7 +65,7 @@ async function mapCampusPastor(campus: RockCampus) {
 
     const photoId = person.photoId;
     return {
-      email: value(campus, 'campusPastorEmail') || person.email || '',
+      email: person.email || '',
       firstName: person.nickName || person.firstName || '',
       lastName: person.lastName || '',
       photo: photoId
@@ -72,7 +73,7 @@ async function mapCampusPastor(campus: RockCampus) {
         : '',
     };
   } catch (error) {
-    console.warn(`Failed to load pastor for Rock campus ${campus.url}:`, error);
+    console.warn(`Failed to load leader for Rock campus ${campus.url}:`, error);
     return emptyPastor;
   }
 }
@@ -118,7 +119,7 @@ export async function mapRockCampusToLocationViewModel(
     resolveMediaGuid(value(campus, 'backgroundVideoMobile')),
     resolveMediaGuid(value(campus, 'digitalTourVideo')),
     resolveMediaGuid(value(campus, 'setAReminderVideo')),
-    mapCampusPastor(campus),
+    mapCampusLeader(campus),
     mapWeeklyMinistries(campus),
   ]);
 
