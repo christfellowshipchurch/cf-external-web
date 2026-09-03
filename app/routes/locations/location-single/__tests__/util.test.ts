@@ -1,8 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  campusPastorRoleLabel,
-  usesSingularCampusPastorLabel,
-} from '../util';
+import { campusPastorRoleLabel, usesSingularCampusPastorLabel } from '../util';
 
 describe('campus pastor role label', () => {
   it('uses the singular label only for Trinity and Online, which are led by one pastor', () => {

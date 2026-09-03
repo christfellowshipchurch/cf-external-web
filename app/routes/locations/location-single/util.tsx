@@ -1,9 +1,8 @@
 /** Trinity and Online are led by a single pastor; every other campus is a couple. */
 const SINGULAR_CAMPUS_PASTOR_URLS = new Set(['trinity', 'cf-everywhere']);
 
-export const usesSingularCampusPastorLabel = (
-  campusUrl: string | undefined,
-) => campusUrl != null && SINGULAR_CAMPUS_PASTOR_URLS.has(campusUrl);
+export const usesSingularCampusPastorLabel = (campusUrl: string | undefined) =>
+  campusUrl != null && SINGULAR_CAMPUS_PASTOR_URLS.has(campusUrl);
 
 export const campusPastorRoleLabel = (
   campusUrl: string | undefined,
