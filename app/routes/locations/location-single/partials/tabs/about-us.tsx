@@ -6,6 +6,7 @@ import { ConnectWithUs } from '../../components/tabs-component/about-us/connect-
 
 export const AboutUs = ({
   campusPastor,
+  campusUrl,
   isSpanish,
   campusName,
   campusInstagram,
@@ -16,6 +17,7 @@ export const AboutUs = ({
     lastName: string;
     photo: string;
   };
+  campusUrl?: string;
   isSpanish?: boolean;
   campusName: string;
   campusInstagram: string;
@@ -40,6 +42,7 @@ export const AboutUs = ({
     <div className='flex flex-col w-full'>
       <CampusPastorsQuote
         campusPastor={campusPastor}
+        campusUrl={campusUrl}
         isSpanish={isSpanish}
         quote={pastorQuote}
         title={pastorTitle}
