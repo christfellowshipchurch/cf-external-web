@@ -160,7 +160,30 @@ describe('mapPageBuilderChildItems – collection startDate', () => {
     expect(sections[0].collection![0].startDate).toBe('');
   });
 
-  it('includes startDate for event collection items', async () => {
+  it('uses First Date of Event for event collection cards, not CMS startDateTime', async () => {
+    const section = makeSection('event-section');
+    const eventItem = makeCollectionItem(
+      'event-1',
+      '186',
+      {
+        url: '/events/test-event',
+        eventStartDate: '2025-09-20T00:00:00',
+      },
+      '2025-06-15T10:00:00',
+    );
+
+    mockBuildPodcastRoutingIndex.mockResolvedValueOnce(emptyIndex());
+    mockFetchRockData
+      .mockResolvedValueOnce([{ childContentChannelItemId: 'event-1' }])
+      .mockResolvedValueOnce(eventItem);
+
+    const sections = await mapPageBuilderChildItems([section]);
+
+    expect(sections[0].collection![0].contentType).toBe('EVENTS');
+    expect(sections[0].collection![0].startDate).toBe('Sat 20 Sep 2025');
+  });
+
+  it('falls back to startDateTime when First Date of Event is missing', async () => {
     const section = makeSection('event-section');
     const eventItem = makeCollectionItem(
       'event-1',
@@ -176,7 +199,6 @@ describe('mapPageBuilderChildItems – collection startDate', () => {
 
     const sections = await mapPageBuilderChildItems([section]);
 
-    expect(sections[0].collection![0].contentType).toBe('EVENTS');
     expect(sections[0].collection![0].startDate).toBe('Sun 15 Jun 2025');
   });
 });
