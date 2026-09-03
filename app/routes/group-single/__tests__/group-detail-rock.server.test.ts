@@ -120,6 +120,7 @@ function mockRock(options?: {
         options?.members ?? [
           {
             groupMemberStatus: 1,
+            groupRoleId: 50,
             groupRole: { isLeader: true, order: 0, name: 'Group Leader' },
             person: {
               id: 32071,
@@ -127,10 +128,12 @@ function mockRock(options?: {
               firstName: 'Merian',
               lastName: 'Toribio',
               photoId: 2654178,
+              photo: { guid: '44d71393-718d-44d7-bb93-ca78080952f1' },
             },
           },
           {
             groupMemberStatus: 1,
+            groupRoleId: 44,
             groupRole: { isLeader: false, order: 3, name: 'Group Member' },
             person: {
               id: 1,
@@ -187,11 +190,25 @@ describe('fetchGroupDetailFromRock', () => {
         lastName: 'Toribio',
         photo: {
           sources: [
-            { uri: 'https://cdn.example.com/GetImage.ashx?id=2654178' },
+            {
+              uri: 'https://cdn.example.com/GetImage.ashx?guid=44d71393-718d-44d7-bb93-ca78080952f1&format=jpg',
+            },
           ],
         },
       }),
     ]);
+    const membersCall = mockFetchRockData.mock.calls.find(
+      ([args]) => args.endpoint === 'GroupMembers',
+    )?.[0];
+    expect(membersCall?.queryParams?.$expand).toBe('Person/Photo,GroupRole');
+    expect(membersCall?.queryParams?.$filter).toContain(
+      "GroupMemberStatus eq 'Active'",
+    );
+    expect(membersCall?.queryParams?.$filter).toContain('GroupRoleId eq 50');
+    expect(membersCall?.queryParams?.$filter).toContain('GroupRoleId eq 47');
+    expect(membersCall?.queryParams?.$filter).not.toMatch(
+      /GroupMemberStatus eq 1\b/,
+    );
   });
 
   it('does not require IsPublic, so a Private group still loads by guid', async () => {
@@ -286,16 +303,19 @@ describe('fetchGroupDetailFromRock', () => {
       members: [
         {
           groupMemberStatus: 1,
+          groupRoleId: 47,
           groupRole: { isLeader: true, order: 1, name: 'Group Co-Leader' },
           person: { id: 2, nickName: 'Yaidelisse', lastName: 'Mesa' },
         },
         {
           groupMemberStatus: 1,
+          groupRoleId: 50,
           groupRole: { isLeader: true, order: 0, name: 'Group Leader' },
           person: { id: 1, nickName: 'Merian', lastName: 'Toribio' },
         },
         {
           groupMemberStatus: 0,
+          groupRoleId: 50,
           groupRole: { isLeader: true, order: 0, name: 'Group Leader' },
           person: { id: 3, nickName: 'Inactive', lastName: 'Leader' },
         },
@@ -307,6 +327,86 @@ describe('fetchGroupDetailFromRock', () => {
     expect(detail?.group.leaders?.map((leader) => leader.firstName)).toEqual([
       'Merian',
       'Yaidelisse',
+    ]);
+  });
+
+  it('still emits leader photo URLs when CLOUDFRONT is unset, so the desktop bar can render avatars', async () => {
+    delete process.env.CLOUDFRONT;
+    mockRock({
+      members: [
+        {
+          groupMemberStatus: 1,
+          groupRoleId: 50,
+          groupRole: { isLeader: true, order: 0, name: 'Group Leader' },
+          person: {
+            id: 1,
+            nickName: 'Merian',
+            lastName: 'Toribio',
+            photoId: 2654178,
+          },
+        },
+      ],
+    });
+
+    const detail = await fetchGroupDetailFromRock(GROUP_GUID);
+
+    expect(detail?.group.leaders?.[0]?.photo?.sources?.[0]?.uri).toBe(
+      'https://cloudfront.christfellowship.church/GetImage.ashx?id=2654178',
+    );
+  });
+
+  it('does not double GetImage.ashx when CLOUDFRONT already includes the handler', async () => {
+    process.env.CLOUDFRONT =
+      'https://cloudfront.christfellowship.church/GetImage.ashx';
+    mockRock();
+
+    const detail = await fetchGroupDetailFromRock(GROUP_GUID);
+    const leaderUri =
+      detail?.group.leaders?.[0]?.photo?.sources?.[0]?.uri ?? '';
+    const coverUri = detail?.group.coverImage.sources[0].uri ?? '';
+
+    expect(leaderUri).toBe(
+      'https://cloudfront.christfellowship.church/GetImage.ashx?guid=44d71393-718d-44d7-bb93-ca78080952f1&format=jpg',
+    );
+    expect(coverUri).toBe(
+      'https://cloudfront.christfellowship.church/GetImage.ashx?guid=da38bb01-d7c6-4cce-b47e-2514ed3a4e8c',
+    );
+    expect(leaderUri).not.toContain('/GetImage.ashx/GetImage.ashx');
+    expect(coverUri).not.toContain('/GetImage.ashx/GetImage.ashx');
+  });
+
+  it('hides Campus Hub Leader and Group Coach, even if Rock marks them as leaders', async () => {
+    mockRock({
+      members: [
+        {
+          groupMemberStatus: 1,
+          groupRoleId: 48,
+          groupRole: {
+            isLeader: true,
+            order: 4,
+            name: 'Campus Hub Leader',
+          },
+          person: { id: 10, nickName: 'Staff', lastName: 'Manager' },
+        },
+        {
+          groupMemberStatus: 1,
+          groupRoleId: 49,
+          groupRole: { isLeader: true, order: 3, name: 'Group Coach' },
+          person: { id: 11, nickName: 'Campus', lastName: 'Coach' },
+        },
+        {
+          groupMemberStatus: 1,
+          groupRoleId: 50,
+          groupRole: { isLeader: true, order: 0, name: 'Group Leader' },
+          person: { id: 1, nickName: 'Merian', lastName: 'Toribio' },
+        },
+      ],
+    });
+
+    const detail = await fetchGroupDetailFromRock(GROUP_GUID);
+
+    expect(detail?.group.leaders?.map((leader) => leader.firstName)).toEqual([
+      'Merian',
     ]);
   });
 });

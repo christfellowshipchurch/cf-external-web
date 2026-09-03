@@ -2,7 +2,6 @@ import camelCase from 'lodash/camelCase';
 
 import { fetchRockData, TTL } from '~/lib/.server/fetch-rock-data';
 import { escapeOData } from '~/lib/.server/rock-utils';
-import { createImageUrlFromGuid } from '~/lib/utils';
 import type {
   GroupLeaderHit,
   GroupMeetingDay,
@@ -18,6 +17,18 @@ import type {
  * someone has a GUID.
  */
 export const GROUP_FINDER_GROUP_TYPE_ID = 31;
+
+/**
+ * Public-facing leader roles for Group Finder (type 31): Group Leader (50) and
+ * Group Co-Leader (47). GraphQL `people(role: LEADER)` is `IsLeader` minus
+ * Group Coach (`GroupRoleId ne 49`). Campus Hub Leader (48) and Group Coach
+ * (49) are staff who create/manage the group in Rock — not shown here.
+ */
+export const GROUP_FINDER_LEADER_ROLE_IDS = [50, 47] as const;
+
+const GROUP_FINDER_STAFF_ROLE_IDS = new Set([48, 49]);
+
+const PUBLIC_LEADER_ROLE_NAMES = new Set(['group leader', 'group co-leader']);
 
 const ROCK_GUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -59,7 +70,7 @@ type RockSchedule = {
 };
 
 type RockGroupRole = {
-  isLeader?: boolean;
+  isLeader?: boolean | string | number;
   order?: number;
   name?: string;
 };
@@ -69,12 +80,14 @@ type RockPerson = {
   nickName?: string;
   firstName?: string;
   lastName?: string;
-  photoId?: number | null;
+  photoId?: number | string | null;
+  photo?: { guid?: string } | null;
 };
 
 type RockGroupMember = {
   groupMemberStatus?: number | string;
   isArchived?: boolean;
+  groupRoleId?: number | string;
   groupRole?: RockGroupRole;
   person?: RockPerson;
 };
@@ -231,23 +244,48 @@ function isApprovedForPublicDetail(attrs: AttrBag | undefined): boolean {
 }
 
 function coverImageFromGuid(guid: string | undefined): GroupType['coverImage'] {
-  const uri = guid ? createImageUrlFromGuid(guid) : '';
+  const uri =
+    guid && ROCK_GUID_RE.test(guid)
+      ? `${cloudFrontOrigin()}/GetImage.ashx?guid=${guid}`
+      : '';
   return { sources: [{ uri: uri || '' }] };
 }
 
-function leaderPhoto(
-  photoId: number | null | undefined,
-): GroupLeaderHit['photo'] {
-  if (photoId == null || !Number.isFinite(photoId) || photoId <= 0) {
-    return undefined;
+const ROCK_IMAGE_ORIGIN = 'https://cloudfront.christfellowship.church';
+
+/**
+ * CLOUDFRONT is sometimes the host and sometimes already `.../GetImage.ashx`.
+ * Strip the handler so callers can append it once.
+ */
+function cloudFrontOrigin(): string {
+  return (process.env.CLOUDFRONT?.trim() || ROCK_IMAGE_ORIGIN)
+    .replace(/\/$/, '')
+    .replace(/\/GetImage\.ashx$/i, '');
+}
+
+function rockGetImageUrl(opts: { guid: string } | { id: number }): string {
+  const origin = cloudFrontOrigin();
+  if ('guid' in opts) {
+    // Algolia group-finder photos include format=jpg (legacy Images.js).
+    return `${origin}/GetImage.ashx?guid=${opts.guid}&format=jpg`;
   }
-  const origin = process.env.CLOUDFRONT?.trim() ?? '';
-  if (!origin) return undefined;
-  return {
-    sources: [
-      { uri: `${origin.replace(/\/$/, '')}/GetImage.ashx?id=${photoId}` },
-    ],
-  };
+  return `${origin}/GetImage.ashx?id=${opts.id}`;
+}
+
+/**
+ * The desktop group bar only renders avatars when `photo.sources[0].uri` is
+ * set. Prefer the BinaryFile guid (Algolia shape); fall back to PhotoId.
+ */
+function leaderPhoto(person: RockPerson): GroupLeaderHit['photo'] {
+  const guid = person.photo?.guid?.trim();
+  if (guid && ROCK_GUID_RE.test(guid)) {
+    return { sources: [{ uri: rockGetImageUrl({ guid }) }] };
+  }
+  const photoId = toFiniteNumber(person.photoId ?? undefined);
+  if (photoId != null && photoId > 0) {
+    return { sources: [{ uri: rockGetImageUrl({ id: photoId }) }] };
+  }
+  return undefined;
 }
 
 async function fetchSchedule(
@@ -301,40 +339,85 @@ async function fetchMeetingLocation(locationGuid: string | undefined): Promise<{
   }
 }
 
+function groupMembersFilter(groupId: number, leaderRolesOnly: boolean): string {
+  // GroupMemberStatus is an Edm.String enum. `eq 1` 400s and drops leaders.
+  const active = `GroupId eq ${groupId} and GroupMemberStatus eq 'Active'`;
+  if (!leaderRolesOnly) return active;
+  const roles = GROUP_FINDER_LEADER_ROLE_IDS.map(
+    (id) => `GroupRoleId eq ${id}`,
+  ).join(' or ');
+  return `${active} and (${roles})`;
+}
+
+async function fetchGroupMembers(
+  groupId: number,
+  expandPhoto: boolean,
+  leaderRolesOnly: boolean,
+): Promise<RockGroupMember[]> {
+  const raw = await fetchRockData({
+    endpoint: 'GroupMembers',
+    queryParams: {
+      $filter: groupMembersFilter(groupId, leaderRolesOnly),
+      $expand: expandPhoto ? 'Person/Photo,GroupRole' : 'Person,GroupRole',
+    },
+    ttl: TTL.NONE,
+  });
+  return asList<RockGroupMember>(raw);
+}
+
+/**
+ * Public Group Detail avatars are Group Leader / Co-Leader only. `IsLeader` is
+ * too broad: Coach and Campus Hub Leader manage the group in Rock.
+ */
+function isPublicFacingLeader(member: RockGroupMember): boolean {
+  const roleId = toFiniteNumber(member.groupRoleId);
+  if (roleId != null && GROUP_FINDER_STAFF_ROLE_IDS.has(roleId)) return false;
+  if (
+    roleId != null &&
+    (GROUP_FINDER_LEADER_ROLE_IDS as readonly number[]).includes(roleId)
+  ) {
+    return true;
+  }
+  const name = (member.groupRole?.name ?? '').trim().toLowerCase();
+  return PUBLIC_LEADER_ROLE_NAMES.has(name);
+}
+
 async function fetchLeaders(groupId: number): Promise<GroupLeaderHit[]> {
   try {
-    const raw = await fetchRockData({
-      endpoint: 'GroupMembers',
-      queryParams: {
-        $filter: `GroupId eq ${groupId} and GroupMemberStatus eq 1`,
-        $expand: 'Person,GroupRole',
-      },
-      ttl: TTL.NONE,
-    });
-    const members = asList<RockGroupMember>(raw)
+    let members: RockGroupMember[];
+    try {
+      members = await fetchGroupMembers(groupId, true, true);
+    } catch {
+      try {
+        members = await fetchGroupMembers(groupId, false, true);
+      } catch {
+        members = await fetchGroupMembers(groupId, true, false);
+      }
+    }
+    const leaders = members
       .filter(
         (member) =>
-          member.groupRole?.isLeader === true &&
+          isPublicFacingLeader(member) &&
           member.isArchived !== true &&
           isActiveMemberStatus(member.groupMemberStatus),
       )
       .sort((a, b) => (a.groupRole?.order ?? 99) - (b.groupRole?.order ?? 99));
 
-    const leaders: GroupLeaderHit[] = [];
-    for (const member of members) {
+    const result: GroupLeaderHit[] = [];
+    for (const member of leaders) {
       const person = member.person;
       if (!person) continue;
       const firstName = (person.nickName || person.firstName || '').trim();
       const lastName = (person.lastName || '').trim();
       if (!firstName && !lastName) continue;
-      leaders.push({
+      result.push({
         id: person.id ?? firstName,
         firstName,
         lastName,
-        photo: leaderPhoto(person.photoId),
+        photo: leaderPhoto(person),
       });
     }
-    return leaders;
+    return result;
   } catch {
     return [];
   }
