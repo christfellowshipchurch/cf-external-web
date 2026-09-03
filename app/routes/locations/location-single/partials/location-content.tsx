@@ -351,6 +351,7 @@ const CampusTabsWrapper = ({
       return (
         <AboutUs
           campusPastor={campusPastor}
+          campusUrl={campusUrl}
           isSpanish={isSpanish}
           campusName={campusName}
           campusInstagram={campusInstagram}
@@ -358,7 +359,7 @@ const CampusTabsWrapper = ({
       );
     }
     return AboutTabPanel;
-  }, [campusPastor, isSpanish, campusName, campusInstagram]);
+  }, [campusPastor, campusUrl, isSpanish, campusName, campusInstagram]);
 
   const FamiliesTabPanel = useMemo(() => {
     function FamiliesTabPanel() {
