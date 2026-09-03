@@ -524,7 +524,11 @@ export async function fetchGroupDetailFromRock(
   const row = unwrapOne<RockGroup>(raw);
   if (!row || typeof row !== 'object') return null;
   if (row.isActive === false || row.isArchived === true) return null;
-  if (!isApprovedForPublicDetail(row.attributeValues)) return null;
+  // Public finder drafts must stay unlisted. Private groups are shared by GUID
+  // and often stay ApprovalStatus=Unreviewed because they never enter the
+  // public approval workflow.
+  const isPublic = row.isPublic !== false;
+  if (isPublic && !isApprovedForPublicDetail(row.attributeValues)) return null;
 
   const locationGuid = readAttr(row.attributeValues, ['GroupMeetingLocation']);
   const [schedule, location, leaders] = await Promise.all([
@@ -542,6 +546,6 @@ export async function fetchGroupDetailFromRock(
       geoloc: location.geoloc,
       leaders,
     }),
-    isPublic: row.isPublic !== false,
+    isPublic,
   };
 }

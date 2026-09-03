@@ -232,7 +232,31 @@ describe('fetchGroupDetailFromRock', () => {
     expect(groupCall?.ttl).toBe(0);
   });
 
-  it('returns null for an unapproved group so drafts are not shareable', async () => {
+  it('loads a Private Unreviewed group by guid (leaders share these before public approval)', async () => {
+    mockRock({
+      group: groupRow({
+        isPublic: false,
+        name: "Daniel Wood's Test Group",
+        attributeValues: {
+          ...groupRow().attributeValues,
+          approvalStatus: {
+            value: '27337f98-e534-4b65-890f-048d32f02dce',
+            valueFormatted: 'Unreviewed',
+          },
+        },
+      }),
+    });
+
+    const detail = await fetchGroupDetailFromRock(
+      '0bf3d4e7-c0b7-4bcc-8e11-1ef5fd63f6f1',
+    );
+
+    expect(detail).not.toBeNull();
+    expect(detail?.isPublic).toBe(false);
+    expect(detail?.group.title).toBe("Daniel Wood's Test Group");
+  });
+
+  it('returns null for an unapproved Public group so drafts are not shareable', async () => {
     mockRock({
       group: groupRow({
         attributeValues: {
