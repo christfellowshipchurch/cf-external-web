@@ -224,8 +224,13 @@ describe('extractContentItemIds', () => {
 });
 
 describe('invalidateItem', () => {
-  it('returns 0 and does nothing when redis is null', async () => {
-    expect(await invalidateItem(null, 12345)).toBe(0);
+  it('returns empty diagnostics and does nothing when redis is null', async () => {
+    expect(await invalidateItem(null, 12345)).toEqual({
+      deletedKeys: 0,
+      visitedItemIds: [],
+      cachedRelationships: 0,
+      liveRelationships: 0,
+    });
   });
 
   it('deletes every cache key that contained the item, then the index entry', async () => {
@@ -251,7 +256,12 @@ describe('invalidateItem', () => {
     expect(del).toHaveBeenNthCalledWith(1, ...containingKeys);
     expect(del).toHaveBeenNthCalledWith(2, 'cfitem:12345');
     expect(del).toHaveBeenNthCalledWith(3, 'cfchildren:12345');
-    expect(deleted).toBe(2);
+    expect(deleted).toEqual({
+      deletedKeys: 2,
+      visitedItemIds: ['12345'],
+      cachedRelationships: 0,
+      liveRelationships: 0,
+    });
   });
 
   it('deletes only the index entry and returns 0 when the item has no cached keys', async () => {
@@ -267,7 +277,7 @@ describe('invalidateItem', () => {
     expect(del).toHaveBeenCalledTimes(2);
     expect(del).toHaveBeenNthCalledWith(1, 'cfitem:12345');
     expect(del).toHaveBeenNthCalledWith(2, 'cfchildren:12345');
-    expect(deleted).toBe(0);
+    expect(deleted.deletedKeys).toBe(0);
   });
 
   it('cascades through descendants and counts each deleted cache key once', async () => {
@@ -290,7 +300,12 @@ describe('invalidateItem', () => {
       pipeline: vi.fn().mockReturnValue(pipeline),
     } as unknown as Redis;
 
-    await expect(invalidateItem(redis, 10)).resolves.toBe(3);
+    await expect(invalidateItem(redis, 10)).resolves.toEqual({
+      deletedKeys: 3,
+      visitedItemIds: ['10', '20', '30'],
+      cachedRelationships: 2,
+      liveRelationships: 0,
+    });
 
     expect(del).toHaveBeenNthCalledWith(
       1,
@@ -320,7 +335,96 @@ describe('invalidateItem', () => {
       pipeline: vi.fn().mockReturnValue(pipeline),
     } as unknown as Redis;
 
-    await expect(invalidateItem(redis, 10)).resolves.toBe(1);
+    await expect(invalidateItem(redis, 10)).resolves.toMatchObject({
+      deletedKeys: 1,
+    });
+  });
+
+  it('discovers live children when cached relationships are missing or stale', async () => {
+    // Intent: a parent save happens before the new association has populated
+    // cfchildren, so Rock must supply both the first child and nested child.
+    const memberships: Record<string, string[]> = {
+      'cfitem:10': ['rock:ContentChannelItems:parent'],
+      'cfitem:20': ['rock:ContentChannelItems:cached-child'],
+      'cfitem:30': ['rock:ContentChannelItems:new-child'],
+      'cfitem:40': ['rock:ContentChannelItems:nested-child'],
+      'cfchildren:10': ['20'],
+    };
+    const liveChildren: Record<string, string[]> = {
+      '10': ['20', '30'],
+      '30': ['40'],
+    };
+    const del = vi.fn();
+    const pipeline = { del, exec: vi.fn().mockResolvedValue([[null, 4]]) };
+    const redis = {
+      smembers: vi.fn((key: string) => Promise.resolve(memberships[key] ?? [])),
+      pipeline: vi.fn().mockReturnValue(pipeline),
+    } as unknown as Redis;
+    const resolveChildItemIds = vi.fn((parentId: string) =>
+      Promise.resolve(liveChildren[parentId] ?? []),
+    );
+
+    await expect(
+      invalidateItem(redis, 10, { resolveChildItemIds }),
+    ).resolves.toEqual({
+      deletedKeys: 4,
+      visitedItemIds: ['10', '20', '30', '40'],
+      cachedRelationships: 1,
+      liveRelationships: 3,
+    });
+    expect(resolveChildItemIds).toHaveBeenCalledTimes(4);
+    expect(del).toHaveBeenNthCalledWith(
+      1,
+      'rock:ContentChannelItems:parent',
+      'rock:ContentChannelItems:cached-child',
+      'rock:ContentChannelItems:new-child',
+      'rock:ContentChannelItems:nested-child',
+    );
+  });
+
+  it('keeps cached-only removed children and terminates relationship cycles', async () => {
+    // Intent: removed associations still need eviction, while conflicting old
+    // and live graphs must never make traversal loop.
+    const memberships: Record<string, string[]> = {
+      'cfchildren:10': ['20'],
+      'cfitem:20': ['rock:ContentChannelItems:removed-child'],
+    };
+    const del = vi.fn();
+    const pipeline = { del, exec: vi.fn().mockResolvedValue([[null, 1]]) };
+    const redis = {
+      smembers: vi.fn((key: string) => Promise.resolve(memberships[key] ?? [])),
+      pipeline: vi.fn().mockReturnValue(pipeline),
+    } as unknown as Redis;
+    const resolveChildItemIds = vi.fn((parentId: string) =>
+      Promise.resolve(parentId === '20' ? ['10', '10'] : []),
+    );
+
+    const result = await invalidateItem(redis, 10, { resolveChildItemIds });
+
+    expect(result).toEqual({
+      deletedKeys: 1,
+      visitedItemIds: ['10', '20'],
+      cachedRelationships: 1,
+      liveRelationships: 1,
+    });
+    expect(resolveChildItemIds).toHaveBeenCalledTimes(2);
+  });
+
+  it('does not delete anything when live relationship discovery fails', async () => {
+    // Intent: partial invalidation must not return success to Rock workflow.
+    const pipeline = vi.fn();
+    const redis = {
+      smembers: vi.fn().mockResolvedValue([]),
+      pipeline,
+    } as unknown as Redis;
+    const failure = new Error('Rock unavailable');
+
+    await expect(
+      invalidateItem(redis, 10, {
+        resolveChildItemIds: vi.fn().mockRejectedValue(failure),
+      }),
+    ).rejects.toBe(failure);
+    expect(pipeline).not.toHaveBeenCalled();
   });
 });
 

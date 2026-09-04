@@ -151,33 +151,63 @@ export function extractContentItemIds(data: unknown): string[] {
 }
 
 /**
- * Invalidates every cache entry that contains content item `id` or any known
- * descendant. Uses reverse indexes for exact key lookup — no KEYS/SCAN — then
- * clears item and relationship indexes.
- *
- * @returns Number of cache keys Redis deleted (0 when unavailable / no index)
+ * Invalidates every cache entry that contains content item `id` or any cached
+ * or live descendant. Uses reverse indexes for exact key lookup — no KEYS/SCAN
+ * — then clears item and relationship indexes.
  */
+export type ResolveChildItemIds = (
+  parentId: string,
+) => Promise<readonly string[]>;
+
+export interface InvalidateItemOptions {
+  resolveChildItemIds?: ResolveChildItemIds;
+}
+
+export interface InvalidationResult {
+  deletedKeys: number;
+  visitedItemIds: string[];
+  cachedRelationships: number;
+  liveRelationships: number;
+}
+
 export async function invalidateItem(
   redis: Redis | null,
   id: string | number,
-): Promise<number> {
-  if (!redis) return 0;
+  { resolveChildItemIds }: InvalidateItemOptions = {},
+): Promise<InvalidationResult> {
+  if (!redis) {
+    return {
+      deletedKeys: 0,
+      visitedItemIds: [],
+      cachedRelationships: 0,
+      liveRelationships: 0,
+    };
+  }
 
   const pending = [String(id)];
   const itemIds = new Set<string>();
   const keys = new Set<string>();
+  const cachedRelationships = new Set<string>();
+  const liveRelationships = new Set<string>();
 
   while (pending.length > 0) {
     const itemId = pending.shift()!;
     if (itemIds.has(itemId)) continue;
     itemIds.add(itemId);
 
-    const [itemKeys, childIds] = await Promise.all([
+    const [itemKeys, cachedChildIds, liveChildIds] = await Promise.all([
       redis.smembers(itemTagKey(itemId)),
       redis.smembers(childItemTagKey(itemId)),
+      resolveChildItemIds?.(itemId) ?? Promise.resolve([]),
     ]);
     itemKeys.forEach((key) => keys.add(key));
-    pending.push(...childIds);
+    cachedChildIds.forEach((childId) =>
+      cachedRelationships.add(`${itemId}:${childId}`),
+    );
+    liveChildIds.forEach((childId) =>
+      liveRelationships.add(`${itemId}:${childId}`),
+    );
+    pending.push(...new Set([...cachedChildIds, ...liveChildIds]));
   }
 
   const pipeline = redis.pipeline();
@@ -189,9 +219,13 @@ export async function invalidateItem(
   }
   const results = await pipeline.exec();
 
-  if (!deletesCacheKeys) return 0;
-  const deletedKeys = results?.[0]?.[1];
-  return typeof deletedKeys === 'number' ? deletedKeys : 0;
+  const deletedKeys = deletesCacheKeys ? results?.[0]?.[1] : 0;
+  return {
+    deletedKeys: typeof deletedKeys === 'number' ? deletedKeys : 0,
+    visitedItemIds: [...itemIds],
+    cachedRelationships: cachedRelationships.size,
+    liveRelationships: liveRelationships.size,
+  };
 }
 
 /**
