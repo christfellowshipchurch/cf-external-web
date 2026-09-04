@@ -23,5 +23,7 @@ export const meta: MetaFunction<typeof loader> = ({
   return createMeta({
     title: groupName,
     description,
+    // Private groups are unlisted: loadable by shared GUID, not by search/crawlers.
+    noIndex: data.isPublic === false,
   });
 };
