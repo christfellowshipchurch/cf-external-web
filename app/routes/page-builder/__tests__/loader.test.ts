@@ -167,9 +167,9 @@ describe('mapPageBuilderChildItems – collection startDate', () => {
       '186',
       {
         url: '/events/test-event',
-        eventStartDate: '2025-09-20T00:00:00',
+        firstDateofEvent: '2026-10-03T08:00:00.0000000',
       },
-      '2025-06-15T10:00:00',
+      '2026-09-02T16:53:00',
     );
 
     mockBuildPodcastRoutingIndex.mockResolvedValueOnce(emptyIndex());
@@ -180,7 +180,7 @@ describe('mapPageBuilderChildItems – collection startDate', () => {
     const sections = await mapPageBuilderChildItems([section]);
 
     expect(sections[0].collection![0].contentType).toBe('EVENTS');
-    expect(sections[0].collection![0].startDate).toBe('Sat 20 Sep 2025');
+    expect(sections[0].collection![0].startDate).toBe('Sat 03 Oct 2026');
   });
 
   it('falls back to startDateTime when First Date of Event is missing', async () => {
