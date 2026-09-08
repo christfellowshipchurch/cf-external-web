@@ -51,10 +51,10 @@ export const action: ActionFunction = async ({ request }) => {
   }
 
   id = id.trim();
-  if (!/^\d+$/.test(id)) {
+  const numericId = Number(id);
+  if (!Number.isSafeInteger(numericId) || numericId <= 0) {
     return data({ error: 'Invalid id' }, { status: 400 });
   }
-  const numericId = Number(id);
 
   if (!redis) {
     return data(

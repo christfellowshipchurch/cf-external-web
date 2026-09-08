@@ -587,6 +587,43 @@ describe('fetchRockData TTL behavior', () => {
     expect(contentRedis.set).not.toHaveBeenCalled();
   });
 
+  it('indexes an empty by-id content-item response for later approval', async () => {
+    // Pending items return an empty approved-only response. Tag the requested
+    // id so approving the item can invalidate that cached negative result.
+    const pipeline = {
+      set: vi.fn(),
+      sadd: vi.fn(),
+      expire: vi.fn(),
+      exec: vi.fn().mockResolvedValue([]),
+    };
+    const contentRedis = {
+      get: vi.fn().mockResolvedValue(null),
+      set: vi.fn(),
+      pipeline: vi.fn().mockReturnValue(pipeline),
+    };
+    vi.doMock('../redis-config', () => ({ default: contentRedis }));
+    const { fetchRockData: fetchWithRedis } =
+      await import('../fetch-rock-data');
+
+    (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+      ok: true,
+      json: async () => [],
+    });
+
+    await fetchWithRedis({
+      endpoint: 'ContentChannelItems',
+      queryParams: { $filter: 'Id eq 19001' },
+      filterByStatusApproved: true,
+    });
+
+    expect(pipeline.sadd).toHaveBeenCalledWith(
+      'cfitem:19001',
+      expect.stringMatching(/^rock:ContentChannelItems:/),
+    );
+    expect(pipeline.expire).toHaveBeenCalledWith('cfitem:19001', TTL.LONG);
+    expect(contentRedis.set).not.toHaveBeenCalled();
+  });
+
   it('indexes content item associations for parent cascade invalidation', async () => {
     const pipeline = {
       set: vi.fn(),

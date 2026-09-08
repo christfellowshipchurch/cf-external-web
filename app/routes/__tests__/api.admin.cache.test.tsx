@@ -99,7 +99,7 @@ describe('admin content cache invalidation', () => {
     expect(mocks.invalidateItem).not.toHaveBeenCalled();
   });
 
-  it('accepts surrounding whitespace from Rock merge fields', async () => {
+  it('accepts integer-equivalent numeric formatting from Rock merge fields', async () => {
     mocks.invalidateItem.mockResolvedValue({
       deletedKeys: 1,
       visitedItemIds: ['19001'],
@@ -107,7 +107,7 @@ describe('admin content cache invalidation', () => {
       liveRelationships: 0,
     });
 
-    const response = await action(createArgs('%0D%0A19001%20'));
+    const response = await action(createArgs('%0D%0A19001.0000%20'));
 
     expect(mocks.invalidateItem).toHaveBeenCalledWith(
       expect.anything(),
