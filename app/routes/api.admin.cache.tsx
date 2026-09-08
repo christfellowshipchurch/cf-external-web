@@ -50,6 +50,7 @@ export const action: ActionFunction = async ({ request }) => {
     return data({ error: 'Missing required field: id' }, { status: 400 });
   }
 
+  id = id.trim();
   if (!/^\d+$/.test(id)) {
     return data({ error: 'Invalid id' }, { status: 400 });
   }

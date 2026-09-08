@@ -98,4 +98,25 @@ describe('admin content cache invalidation', () => {
     expect(readStatus(response)).toBe(400);
     expect(mocks.invalidateItem).not.toHaveBeenCalled();
   });
+
+  it('accepts surrounding whitespace from Rock merge fields', async () => {
+    mocks.invalidateItem.mockResolvedValue({
+      deletedKeys: 1,
+      visitedItemIds: ['19001'],
+      cachedRelationships: 0,
+      liveRelationships: 0,
+    });
+
+    const response = await action(createArgs('%0D%0A19001%20'));
+
+    expect(mocks.invalidateItem).toHaveBeenCalledWith(
+      expect.anything(),
+      19001,
+      expect.anything(),
+    );
+    expect(readData(response)).toMatchObject({
+      success: true,
+      id: '19001',
+    });
+  });
 });
