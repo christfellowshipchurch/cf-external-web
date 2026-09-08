@@ -167,6 +167,23 @@ const isSingleItemAttributeValueFetch = (endpoint: string): boolean =>
   'ContentChannelItems/GetByAttributeValue';
 
 /**
+ * Returns the requested item id for a ContentChannelItems by-id filter.
+ *
+ * Empty responses still need this reverse index. Otherwise a Pending item is
+ * cached as `[]`, and approving that item cannot find the stale cache key.
+ */
+const getRequestedContentItemId = (
+  endpoint: string,
+  filter: string | undefined,
+): string | undefined => {
+  if (endpoint.replace(/^\/+|\/+$/g, '') !== 'ContentChannelItems' || !filter) {
+    return undefined;
+  }
+
+  return filter.match(/(?:^|[ (])Id\s+eq\s+(\d+)(?=$|[ )])/i)?.[1];
+};
+
+/**
  * Removes a literal Status eq 'Approved' clause from a caller-built $filter
  * string. Several loaders embed this clause directly rather than going
  * through `filterByStatusApproved`, so preview mode strips it here instead
@@ -367,7 +384,16 @@ export const fetchRockData = async ({
     // Cache the response if Redis is available and TTL > 0
     if (redis && effectiveTtl > 0) {
       try {
-        const itemIds = extractContentItemIds(data);
+        const requestedItemId = getRequestedContentItemId(
+          endpoint,
+          mergedQueryParams.$filter,
+        );
+        const itemIds = [
+          ...new Set([
+            ...extractContentItemIds(data),
+            ...(requestedItemId ? [requestedItemId] : []),
+          ]),
+        ];
         const relationships = extractContentItemRelationships(data);
         if (itemIds.length === 0 && relationships.length === 0) {
           await redis.set(cacheKey, JSON.stringify(data), 'EX', effectiveTtl);

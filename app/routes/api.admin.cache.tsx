@@ -50,6 +50,13 @@ export const action: ActionFunction = async ({ request }) => {
     return data({ error: 'Invalid id' }, { status: 400 });
   }
 
+  if (!redis) {
+    return data(
+      { success: false, error: 'cache_unavailable' },
+      { status: 503 },
+    );
+  }
+
   const deletedKeys = await invalidateItem(redis, numericId);
   return data({ success: true, id: String(numericId), deletedKeys });
 };

@@ -31,12 +31,17 @@ expire after `TTL.LONG`; response keys retain requested TTL.
 keys, then deletes visited `cfitem` and `cfchildren` indexes. Cycles cannot loop
 because visited ids are deduplicated.
 
-Response field `deletedKeys` is Redis-confirmed number of unique `rock:*` response
-keys deleted. Index keys and stale index references are excluded. Zero means Redis
-unavailable or no live indexed cache entry; it does not indicate request failure.
+Response field `deletedKeys` is Redis-confirmed number of unique `rock:*`
+response keys deleted. Index keys and stale index references are excluded. Zero
+means no live indexed cache entry; Redis unavailable returns
+`503 cache_unavailable` so Rock cannot report a no-op as successful.
 
 Prefix scanning remains reserved for operational endpoint-wide flushes. Parent
 saves use relationship indexes to avoid evicting unrelated Rock content.
+
+An empty by-ID `ContentChannelItems` response is indexed under its requested
+item id. This lets a later save invalidate a cached negative result when a
+pending or unavailable item becomes visible.
 
 After first deployment, pre-existing association cache entries have no
 `cfchildren` index. Flush `ContentChannelItemAssociations` once or wait for its
