@@ -1,4 +1,9 @@
-import { fetchRockData, postRockData, TTL } from './fetch-rock-data';
+import {
+  fetchRockData,
+  patchRockData,
+  postRockData,
+  TTL,
+} from './fetch-rock-data';
 import {
   createUserProfile,
   fetchUserLogin,
@@ -147,6 +152,30 @@ export const findOrCreateRockPersonForSignup = async (
     });
   }
   return newPersonIdString;
+};
+
+export const updateRockPersonCampusForSignup = async (
+  personId: string,
+  campusGuid: string,
+): Promise<void> => {
+  const campusResult = await fetchRockData({
+    endpoint: 'Campuses',
+    queryParams: {
+      $filter: `Guid eq guid'${escapeOData(campusGuid)}'`,
+      $select: 'Id',
+    },
+    ttl: TTL.NONE,
+  });
+  const campus = Array.isArray(campusResult) ? campusResult[0] : campusResult;
+
+  if (!campus?.id) {
+    throw new Error('Campus not found in Rock');
+  }
+
+  await patchRockData({
+    endpoint: `People/${personId}`,
+    body: { PrimaryCampusId: campus.id },
+  });
 };
 
 export const launchGroupClassSignupWorkflow = async (

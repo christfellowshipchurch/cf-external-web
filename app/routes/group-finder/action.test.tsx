@@ -3,12 +3,14 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   findOrCreateRockPersonForSignup,
   launchGroupClassSignupWorkflow,
+  updateRockPersonCampusForSignup,
 } from '~/lib/.server/rock-signup';
 import { action } from './action';
 
 vi.mock('~/lib/.server/rock-signup', () => ({
   findOrCreateRockPersonForSignup: vi.fn(),
   launchGroupClassSignupWorkflow: vi.fn(),
+  updateRockPersonCampusForSignup: vi.fn(),
 }));
 
 const mockFindOrCreateRockPersonForSignup = vi.mocked(
@@ -16,6 +18,9 @@ const mockFindOrCreateRockPersonForSignup = vi.mocked(
 );
 const mockLaunchGroupClassSignupWorkflow = vi.mocked(
   launchGroupClassSignupWorkflow,
+);
+const mockUpdateRockPersonCampusForSignup = vi.mocked(
+  updateRockPersonCampusForSignup,
 );
 
 const createRequest = (campus = 'campus-guid-1') => {
@@ -37,6 +42,7 @@ describe('group finder action', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockFindOrCreateRockPersonForSignup.mockResolvedValue('person-1');
+    mockUpdateRockPersonCampusForSignup.mockResolvedValue(undefined);
     mockLaunchGroupClassSignupWorkflow.mockResolvedValue(undefined);
   });
 
@@ -59,9 +65,29 @@ describe('group finder action', () => {
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({ success: true });
     expect(mockFindOrCreateRockPersonForSignup).toHaveBeenCalledOnce();
+    expect(mockUpdateRockPersonCampusForSignup).toHaveBeenCalledWith(
+      'person-1',
+      'campus-guid-1',
+    );
     expect(mockLaunchGroupClassSignupWorkflow).toHaveBeenCalledWith(
       'group-1',
       'person-1',
     );
+  });
+
+  it('does not launch the workflow when the campus update fails', async () => {
+    mockUpdateRockPersonCampusForSignup.mockRejectedValue(
+      new Error('Campus not found in Rock'),
+    );
+
+    const response = (await action({
+      request: createRequest(),
+    } as ActionFunctionArgs)) as Response;
+
+    expect(response.status).toBe(400);
+    expect(await response.json()).toEqual({
+      error: 'Campus not found in Rock',
+    });
+    expect(mockLaunchGroupClassSignupWorkflow).not.toHaveBeenCalled();
   });
 });

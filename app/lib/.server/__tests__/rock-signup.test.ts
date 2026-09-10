@@ -3,10 +3,12 @@ import {
   findOrCreateRockPersonForSignup,
   launchCommunityServingSignupWorkflow,
   launchGroupClassSignupWorkflow,
+  updateRockPersonCampusForSignup,
 } from '../rock-signup';
 
 vi.mock('../fetch-rock-data', () => ({
   fetchRockData: vi.fn(),
+  patchRockData: vi.fn(),
   postRockData: vi.fn(),
   TTL: { NONE: 0 },
 }));
@@ -29,7 +31,7 @@ vi.mock('../authentication/sms-authentication', () => ({
 }));
 vi.mock('../redis-config', () => ({ default: null }));
 
-import { fetchRockData, postRockData } from '../fetch-rock-data';
+import { fetchRockData, patchRockData, postRockData } from '../fetch-rock-data';
 import { updatePerson } from '../rock-person';
 import {
   fetchUserLogin,
@@ -38,6 +40,7 @@ import {
 import { createPhoneNumberInRock } from '../authentication/sms-authentication';
 
 const mockFetchRockData = fetchRockData as ReturnType<typeof vi.fn>;
+const mockPatchRockData = patchRockData as ReturnType<typeof vi.fn>;
 const mockPostRockData = postRockData as ReturnType<typeof vi.fn>;
 const mockUpdatePerson = updatePerson as ReturnType<typeof vi.fn>;
 const mockFetchUserLogin = fetchUserLogin as ReturnType<typeof vi.fn>;
@@ -237,6 +240,37 @@ describe('launchGroupClassSignupWorkflow', () => {
     ];
     expect(call.endpoint).toContain('workflowTypeId=654');
     expect(call.body).toEqual({ GroupId: 'group-1', PersonId: 'person-2' });
+  });
+});
+
+describe('updateRockPersonCampusForSignup', () => {
+  it('resolves the campus Guid and sets the person primary campus', async () => {
+    mockFetchRockData.mockResolvedValue([{ id: 12 }]);
+    mockPatchRockData.mockResolvedValue({});
+
+    await updateRockPersonCampusForSignup('person-2', 'campus-guid');
+
+    expect(mockFetchRockData).toHaveBeenCalledWith({
+      endpoint: 'Campuses',
+      queryParams: {
+        $filter: "Guid eq guid'campus-guid'",
+        $select: 'Id',
+      },
+      ttl: 0,
+    });
+    expect(mockPatchRockData).toHaveBeenCalledWith({
+      endpoint: 'People/person-2',
+      body: { PrimaryCampusId: 12 },
+    });
+  });
+
+  it('fails before launching a workflow when the campus Guid is unknown', async () => {
+    mockFetchRockData.mockResolvedValue([]);
+
+    await expect(
+      updateRockPersonCampusForSignup('person-2', 'missing-campus-guid'),
+    ).rejects.toThrow('Campus not found in Rock');
+    expect(mockPatchRockData).not.toHaveBeenCalled();
   });
 });
 
