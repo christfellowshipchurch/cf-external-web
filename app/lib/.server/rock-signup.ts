@@ -158,23 +158,37 @@ export const updateRockPersonCampusForSignup = async (
   personId: string,
   campusGuid: string,
 ): Promise<void> => {
-  const campusResult = await fetchRockData({
-    endpoint: 'Campuses',
-    queryParams: {
-      $filter: `Guid eq guid'${escapeOData(campusGuid)}'`,
-      $select: 'Id',
-    },
-    ttl: TTL.NONE,
-  });
+  const [campusResult, personResult] = await Promise.all([
+    fetchRockData({
+      endpoint: 'Campuses',
+      queryParams: {
+        $filter: `Guid eq guid'${escapeOData(campusGuid)}'`,
+        $select: 'Id',
+      },
+      ttl: TTL.NONE,
+    }),
+    fetchRockData({
+      endpoint: 'People',
+      queryParams: {
+        $filter: `Id eq ${personId}`,
+        $select: 'PrimaryFamilyId',
+      },
+      ttl: TTL.NONE,
+    }),
+  ]);
   const campus = Array.isArray(campusResult) ? campusResult[0] : campusResult;
+  const person = Array.isArray(personResult) ? personResult[0] : personResult;
 
   if (!campus?.id) {
     throw new Error('Campus not found in Rock');
   }
+  if (!person?.primaryFamilyId) {
+    throw new Error('Primary family not found in Rock');
+  }
 
   await patchRockData({
-    endpoint: `People/${personId}`,
-    body: { PrimaryCampusId: campus.id },
+    endpoint: `Groups/${person.primaryFamilyId}`,
+    body: { CampusId: campus.id },
   });
 };
 

@@ -244,13 +244,15 @@ describe('launchGroupClassSignupWorkflow', () => {
 });
 
 describe('updateRockPersonCampusForSignup', () => {
-  it('resolves the campus Guid and sets the person primary campus', async () => {
-    mockFetchRockData.mockResolvedValue([{ id: 12 }]);
+  it('sets campus on the primary family that defines the person campus', async () => {
+    mockFetchRockData
+      .mockResolvedValueOnce([{ id: 12 }])
+      .mockResolvedValueOnce({ primaryFamilyId: 34 });
     mockPatchRockData.mockResolvedValue({});
 
     await updateRockPersonCampusForSignup('person-2', 'campus-guid');
 
-    expect(mockFetchRockData).toHaveBeenCalledWith({
+    expect(mockFetchRockData).toHaveBeenNthCalledWith(1, {
       endpoint: 'Campuses',
       queryParams: {
         $filter: "Guid eq guid'campus-guid'",
@@ -258,18 +260,39 @@ describe('updateRockPersonCampusForSignup', () => {
       },
       ttl: 0,
     });
+    expect(mockFetchRockData).toHaveBeenNthCalledWith(2, {
+      endpoint: 'People',
+      queryParams: {
+        $filter: 'Id eq person-2',
+        $select: 'PrimaryFamilyId',
+      },
+      ttl: 0,
+    });
     expect(mockPatchRockData).toHaveBeenCalledWith({
-      endpoint: 'People/person-2',
-      body: { PrimaryCampusId: 12 },
+      endpoint: 'Groups/34',
+      body: { CampusId: 12 },
     });
   });
 
   it('fails before launching a workflow when the campus Guid is unknown', async () => {
-    mockFetchRockData.mockResolvedValue([]);
+    mockFetchRockData
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce({ primaryFamilyId: 34 });
 
     await expect(
       updateRockPersonCampusForSignup('person-2', 'missing-campus-guid'),
     ).rejects.toThrow('Campus not found in Rock');
+    expect(mockPatchRockData).not.toHaveBeenCalled();
+  });
+
+  it('fails when the person has no primary family to update', async () => {
+    mockFetchRockData
+      .mockResolvedValueOnce({ id: 12 })
+      .mockResolvedValueOnce([]);
+
+    await expect(
+      updateRockPersonCampusForSignup('person-2', 'campus-guid'),
+    ).rejects.toThrow('Primary family not found in Rock');
     expect(mockPatchRockData).not.toHaveBeenCalled();
   });
 });
