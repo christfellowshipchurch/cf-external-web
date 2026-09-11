@@ -38,14 +38,8 @@ export function SetAReminderModal({
     }
   };
 
-  // Online campuses keep "Set a Reminder" wording (there is no visit to plan).
-  const isOnline = campusUrl?.includes('everywhere');
   const isSpanish = campusUrl?.includes('iglesia');
-  const buttonLabel = isSpanish
-    ? 'Visítanos'
-    : isOnline
-      ? 'Set a Reminder'
-      : 'Plan a Visit';
+  const buttonLabel = isSpanish ? 'Visítanos' : 'Set a Reminder';
 
   return (
     <Modal open={openModal} onOpenChange={handleOpenChange}>

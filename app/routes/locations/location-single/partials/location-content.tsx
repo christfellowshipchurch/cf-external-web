@@ -150,7 +150,7 @@ export function LocationSingle({ location }: { location: LocationViewModel }) {
   const heading2 = isSpanish ? 'lugar para ti' : 'welcome here';
   const ctas = [
     {
-      title: isSpanish ? 'Visítanos' : 'Plan a Visit',
+      title: isSpanish ? 'Visítanos' : 'Set a Reminder',
       href: '#',
       isSetAReminder: true,
     },

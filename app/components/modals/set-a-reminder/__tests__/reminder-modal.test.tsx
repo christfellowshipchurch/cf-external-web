@@ -30,9 +30,9 @@ function renderModal(props = {}) {
 }
 
 describe('SetAReminderModal', () => {
-  it("renders 'Plan a Visit' for an in-person English campus (visit is plannable)", () => {
+  it("renders 'Set a Reminder' for an in-person English campus", () => {
     renderModal();
-    expect(screen.getByText('Plan a Visit')).toBeInTheDocument();
+    expect(screen.getByText('Set a Reminder')).toBeInTheDocument();
   });
 
   it("renders 'Visítanos' button text when campusUrl includes 'iglesia'", () => {
@@ -64,7 +64,7 @@ describe('SetAReminderModal', () => {
   it('opens modal and shows flow content when button is clicked', async () => {
     const user = userEvent.setup();
     renderModal();
-    await user.click(screen.getByText('Plan a Visit'));
+    await user.click(screen.getByText('Set a Reminder'));
     expect(screen.getByText('ReminderFlowContent')).toBeInTheDocument();
   });
 });
