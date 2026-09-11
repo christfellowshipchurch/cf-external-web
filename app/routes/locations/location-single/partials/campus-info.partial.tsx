@@ -237,7 +237,7 @@ const OnlineCampusInfo = ({
           <div className='flex flex-col gap-16'>
             {/* Desktop CTAs */}
             <div className='hidden max-w-[450px] flex-col gap-8 lg:flex'>
-              <CTAs isOnline />
+              <CTAs />
             </div>
           </div>
         </div>
@@ -251,7 +251,7 @@ const OnlineCampusInfo = ({
 
         {/* Mobile CTAs */}
         <div className='flex flex-col gap-16 md:items-center lg:hidden'>
-          <CTAs isOnline />
+          <CTAs />
         </div>
       </div>
     </div>

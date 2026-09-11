@@ -31,19 +31,8 @@ const CTAButtonContent = ({
 const ctaSlotClassName =
   'flex min-h-0 min-w-0 flex-col items-stretch [&>*]:flex [&>*]:min-h-0 [&>*]:w-full [&>*]:flex-1 [&>*]:flex-col [&>*]:items-center [&>*]:justify-stretch';
 
-export const CTAs = ({
-  isSpanish,
-  isOnline,
-}: {
-  isSpanish?: boolean;
-  isOnline?: boolean;
-}) => {
-  // Online campuses keep "Set a Reminder" wording (there is no visit to plan).
-  const reminderTitle = isSpanish
-    ? 'Visítanos'
-    : isOnline
-      ? 'Set a Reminder'
-      : 'Plan a Visit';
+export const CTAs = ({ isSpanish }: { isSpanish?: boolean }) => {
+  const reminderTitle = isSpanish ? 'Visítanos' : 'Set a Reminder';
   return (
     <div className='w-full md:mx-auto md:max-w-md lg:mx-0 lg:max-w-full'>
       <div className='grid w-full grid-cols-3 items-stretch gap-4 lg:gap-6'>
