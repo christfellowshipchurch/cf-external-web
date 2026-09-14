@@ -1,8 +1,10 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   findOrCreateRockPersonForSignup,
+  launchClassSignupWorkflow,
   launchCommunityServingSignupWorkflow,
-  launchGroupClassSignupWorkflow,
+  launchGroupSignupWorkflow,
+  resolveGroupClassSignupTarget,
   updateRockPersonCampusForSignup,
 } from '../rock-signup';
 
@@ -60,6 +62,10 @@ beforeEach(() => {
   vi.clearAllMocks();
   mockUpdatePerson.mockResolvedValue(undefined);
   mockCreatePhoneNumberInRock.mockResolvedValue(undefined);
+});
+
+afterEach(() => {
+  vi.unstubAllEnvs();
 });
 
 describe('findOrCreateRockPersonForSignup', () => {
@@ -228,11 +234,81 @@ describe('findOrCreateRockPersonForSignup', () => {
   });
 });
 
-describe('launchGroupClassSignupWorkflow', () => {
+describe('resolveGroupClassSignupTarget', () => {
+  it.each([
+    [31, 'group'],
+    [101, 'class'],
+    [135, 'class'],
+    [136, 'class'],
+  ] as const)(
+    'routes active group type %i to %s signup',
+    async (groupTypeId, target) => {
+      mockFetchRockData.mockResolvedValueOnce({
+        id: 123,
+        groupTypeId,
+        isActive: true,
+        isArchived: false,
+        isSecurityRole: false,
+      });
+
+      await expect(resolveGroupClassSignupTarget('123')).resolves.toBe(target);
+      expect(mockFetchRockData).toHaveBeenCalledWith({
+        endpoint: 'Groups',
+        queryParams: {
+          $filter: 'Id eq 123',
+          $select: 'Id,GroupTypeId,IsActive,IsArchived,IsSecurityRole',
+        },
+        ttl: 0,
+      });
+    },
+  );
+
+  it.each([
+    ['missing group', []],
+    ['inactive group', { id: 123, groupTypeId: 31, isActive: false }],
+    [
+      'archived group',
+      { id: 123, groupTypeId: 31, isActive: true, isArchived: true },
+    ],
+    [
+      'security group',
+      { id: 123, groupTypeId: 31, isActive: true, isSecurityRole: true },
+    ],
+    [
+      'unsupported group type',
+      {
+        id: 123,
+        groupTypeId: 999,
+        isActive: true,
+        isArchived: false,
+        isSecurityRole: false,
+      },
+    ],
+    ['incomplete group metadata', { id: 123, groupTypeId: 31, isActive: true }],
+  ])('rejects %s', async (_label, result) => {
+    mockFetchRockData.mockResolvedValueOnce(result);
+
+    await expect(resolveGroupClassSignupTarget('123')).rejects.toThrow(
+      'Invalid signup group',
+    );
+  });
+
+  it.each(['', 'abc', '12.5', '-1', '0'])(
+    'rejects malformed group id %j without querying Rock',
+    async (groupId) => {
+      await expect(resolveGroupClassSignupTarget(groupId)).rejects.toThrow(
+        'Invalid signup group',
+      );
+      expect(mockFetchRockData).not.toHaveBeenCalled();
+    },
+  );
+});
+
+describe('launchClassSignupWorkflow', () => {
   it('calls postRockData with endpoint containing workflowTypeId=654 and correct body casing', async () => {
     mockPostRockData.mockResolvedValue({});
 
-    await launchGroupClassSignupWorkflow('group-1', 'person-2');
+    await launchClassSignupWorkflow('group-1', 'person-2');
 
     expect(mockPostRockData).toHaveBeenCalledOnce();
     const [call] = mockPostRockData.mock.calls[0] as [
@@ -240,6 +316,30 @@ describe('launchGroupClassSignupWorkflow', () => {
     ];
     expect(call.endpoint).toContain('workflowTypeId=654');
     expect(call.body).toEqual({ GroupId: 'group-1', PersonId: 'person-2' });
+  });
+});
+
+describe('launchGroupSignupWorkflow', () => {
+  it('launches the configured Adult Group workflow', async () => {
+    vi.stubEnv('ROCK_GROUP_SIGNUP_WORKFLOW_ID', '987');
+    mockPostRockData.mockResolvedValue({});
+
+    await launchGroupSignupWorkflow('group-1', 'person-2');
+
+    expect(mockPostRockData).toHaveBeenCalledWith({
+      endpoint:
+        'Workflows/LaunchWorkflow/0?workflowTypeId=987&workflowName=Website%20Adult%20Group%20Signup',
+      body: { GroupId: 'group-1', PersonId: 'person-2' },
+    });
+  });
+
+  it('fails loud while the new workflow id is not configured', async () => {
+    vi.stubEnv('ROCK_GROUP_SIGNUP_WORKFLOW_ID', '');
+
+    await expect(
+      launchGroupSignupWorkflow('group-1', 'person-2'),
+    ).rejects.toThrow('ROCK_GROUP_SIGNUP_WORKFLOW_ID is not configured');
+    expect(mockPostRockData).not.toHaveBeenCalled();
   });
 });
 

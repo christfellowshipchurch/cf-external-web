@@ -1,7 +1,9 @@
 import type { ActionFunctionArgs } from 'react-router';
 import {
   findOrCreateRockPersonForSignup,
-  launchGroupClassSignupWorkflow,
+  launchClassSignupWorkflow,
+  launchGroupSignupWorkflow,
+  resolveGroupClassSignupTarget,
   updateRockPersonCampusForSignup,
 } from '~/lib/.server/rock-signup';
 
@@ -30,6 +32,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       );
     }
 
+    const signupTarget = await resolveGroupClassSignupTarget(groupId);
     const personId = await findOrCreateRockPersonForSignup({
       firstName,
       lastName,
@@ -38,7 +41,11 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     });
 
     await updateRockPersonCampusForSignup(personId, campus);
-    await launchGroupClassSignupWorkflow(groupId, personId);
+    if (signupTarget === 'group') {
+      await launchGroupSignupWorkflow(groupId, personId);
+    } else {
+      await launchClassSignupWorkflow(groupId, personId);
+    }
 
     return Response.json({ success: true });
   } catch (error) {
