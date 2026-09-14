@@ -5,7 +5,7 @@ import { Button } from '~/primitives/button/button.primitive';
  * mobile-menu.data.tsx — the indicator points at the stream, not the campus page.
  */
 export const WATCH_LIVE_URL =
-  'https://www.youtube.com/@ChristFellowship.Church/streams';
+  'https://www.youtube.com/@ChristFellowship.Church/live';
 
 /** Pulsing dot that reads as "on air". Held still for reduced-motion users. */
 const LiveDot = () => (

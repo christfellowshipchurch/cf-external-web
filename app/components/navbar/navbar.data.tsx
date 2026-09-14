@@ -112,7 +112,7 @@ export const watchReadListenData: MenuLink = {
           { title: 'Messages', url: '/messages' },
           {
             title: 'Live Broadcast',
-            url: 'https://www.youtube.com/@ChristFellowship.Church/streams',
+            url: 'https://www.youtube.com/@ChristFellowship.Church/live',
           },
         ],
       },
