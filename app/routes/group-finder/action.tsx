@@ -1,7 +1,10 @@
 import type { ActionFunctionArgs } from 'react-router';
 import {
   findOrCreateRockPersonForSignup,
-  launchGroupClassSignupWorkflow,
+  launchClassSignupWorkflow,
+  launchGroupSignupWorkflow,
+  resolveGroupClassSignupTarget,
+  updateRockPersonCampusForSignup,
 } from '~/lib/.server/rock-signup';
 
 export const action = async ({ request }: ActionFunctionArgs) => {
@@ -13,7 +16,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     const phoneNumber = formData.phoneNumber?.toString() ?? '';
     const email = formData.email?.toString() ?? '';
     const groupId = formData.groupId?.toString() ?? '';
-    // TODO: write campus to Rock person (PrimaryCampusId) once campus ID lookup is available
     const campus = formData.campus?.toString() ?? '';
 
     if (
@@ -30,6 +32,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       );
     }
 
+    const signupTarget = await resolveGroupClassSignupTarget(groupId);
     const personId = await findOrCreateRockPersonForSignup({
       firstName,
       lastName,
@@ -37,7 +40,12 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       phoneNumber,
     });
 
-    await launchGroupClassSignupWorkflow(groupId, personId);
+    await updateRockPersonCampusForSignup(personId, campus);
+    if (signupTarget === 'group') {
+      await launchGroupSignupWorkflow(groupId, personId);
+    } else {
+      await launchClassSignupWorkflow(groupId, personId);
+    }
 
     return Response.json({ success: true });
   } catch (error) {

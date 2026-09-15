@@ -1,4 +1,9 @@
-import { fetchRockData, postRockData, TTL } from './fetch-rock-data';
+import {
+  fetchRockData,
+  patchRockData,
+  postRockData,
+  TTL,
+} from './fetch-rock-data';
 import {
   createUserProfile,
   fetchUserLogin,
@@ -16,6 +21,19 @@ export interface SignupPersonInput {
   email: string;
   phoneNumber: string;
 }
+
+export type GroupClassSignupTarget = 'group' | 'class';
+
+const ADULT_GROUP_TYPE_ID = 31;
+const CLASS_GROUP_TYPE_IDS = new Set([101, 135, 136]);
+
+type SignupGroup = {
+  id?: number;
+  groupTypeId?: number;
+  isActive?: boolean;
+  isArchived?: boolean;
+  isSecurityRole?: boolean;
+};
 
 const normalizeName = (name: string | undefined) =>
   name?.trim().toLowerCase() ?? '';
@@ -149,12 +167,104 @@ export const findOrCreateRockPersonForSignup = async (
   return newPersonIdString;
 };
 
-export const launchGroupClassSignupWorkflow = async (
+export const updateRockPersonCampusForSignup = async (
+  personId: string,
+  campusGuid: string,
+): Promise<void> => {
+  const [campusResult, personResult] = await Promise.all([
+    fetchRockData({
+      endpoint: 'Campuses',
+      queryParams: {
+        $filter: `Guid eq guid'${escapeOData(campusGuid)}'`,
+        $select: 'Id',
+      },
+      ttl: TTL.NONE,
+    }),
+    fetchRockData({
+      endpoint: 'People',
+      queryParams: {
+        $filter: `Id eq ${personId}`,
+        $select: 'PrimaryFamilyId',
+      },
+      ttl: TTL.NONE,
+    }),
+  ]);
+  const campus = Array.isArray(campusResult) ? campusResult[0] : campusResult;
+  const person = Array.isArray(personResult) ? personResult[0] : personResult;
+
+  if (!campus?.id) {
+    throw new Error('Campus not found in Rock');
+  }
+  if (!person?.primaryFamilyId) {
+    throw new Error('Primary family not found in Rock');
+  }
+
+  await patchRockData({
+    endpoint: `Groups/${person.primaryFamilyId}`,
+    body: { CampusId: campus.id },
+  });
+};
+
+export const resolveGroupClassSignupTarget = async (
+  groupId: string,
+): Promise<GroupClassSignupTarget> => {
+  if (!/^\d+$/.test(groupId) || Number(groupId) <= 0) {
+    throw new Error('Invalid signup group');
+  }
+
+  const result = await fetchRockData({
+    endpoint: 'Groups',
+    queryParams: {
+      $filter: `Id eq ${groupId}`,
+      $select: 'Id,GroupTypeId,IsActive,IsArchived,IsSecurityRole',
+    },
+    ttl: TTL.NONE,
+  });
+  const group: SignupGroup | undefined = Array.isArray(result)
+    ? result[0]
+    : result;
+
+  if (
+    group?.id !== Number(groupId) ||
+    group.isActive !== true ||
+    group.isArchived !== false ||
+    group.isSecurityRole !== false
+  ) {
+    throw new Error('Invalid signup group');
+  }
+
+  if (group.groupTypeId === ADULT_GROUP_TYPE_ID) return 'group';
+  if (
+    group.groupTypeId != null &&
+    CLASS_GROUP_TYPE_IDS.has(group.groupTypeId)
+  ) {
+    return 'class';
+  }
+
+  throw new Error('Invalid signup group');
+};
+
+export const launchClassSignupWorkflow = async (
   groupId: string,
   personId: string,
 ): Promise<void> => {
   await postRockData({
     endpoint: `Workflows/LaunchWorkflow/0?workflowTypeId=654&workflowName=Add%20To%20Group/Class`,
+    body: { GroupId: groupId, PersonId: personId },
+  });
+};
+
+export const launchGroupSignupWorkflow = async (
+  groupId: string,
+  personId: string,
+): Promise<void> => {
+  const workflowTypeId = process.env.ROCK_GROUP_SIGNUP_WORKFLOW_ID?.trim();
+  if (!workflowTypeId || !/^\d+$/.test(workflowTypeId)) {
+    throw new Error('ROCK_GROUP_SIGNUP_WORKFLOW_ID is not configured');
+  }
+
+  await postRockData({
+    endpoint: `Workflows/LaunchWorkflow/0?workflowTypeId=${workflowTypeId}&workflowName=Website%20Adult%20Group%20Signup`,
     body: { GroupId: groupId, PersonId: personId },
   });
 };
