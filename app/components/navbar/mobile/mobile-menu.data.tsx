@@ -34,7 +34,7 @@ export const welcomeMenuItems: MenuItem[] = [
     title: 'Live Broadcast',
     description: 'Join us from anywhere',
     icon: 'youtube',
-    to: 'https://www.youtube.com/@ChristFellowship.Church/streams',
+    to: 'https://www.youtube.com/@ChristFellowship.Church/live',
   },
 ];
 
