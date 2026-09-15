@@ -34,27 +34,33 @@ export function SeniorPastorsSection() {
             </div>
             <div className='flex flex-col gap-5 text-base md:text-lg leading-normal'>
               <p>
-                Since becoming Senior Pastors in 2011, the Mullins have led
-                Christ Fellowship with a heart for people and a clear vision to
-                see lives transformed by the hope and love of Jesus. Under their
-                leadership, Christ Fellowship has continued its growth as a
-                multi-site congregation that gathers thousands in South Florida
-                each week and digitally reaches thousands beyond the region
-                through Christ Fellowship Everywhere.
+                Todd and Julie Mullins are the Senior Pastors of Christ
+                Fellowship Church and have been part of the Christ Fellowship
+                family since the very beginning. Over the years, they’ve served
+                in just about every area of church life, and they still love
+                nothing more than seeing people grow in their faith, discover
+                their purpose, and become all God created them to be.
               </p>
               <p>
-                Their leadership expands beyond the walls of Christ Fellowship
-                as they serve the South Florida region and beyond. They are the
-                founders of Church United, a partnership of local churches
-                across various denominations who join together to transform
-                South Florida. Todd and Julie also serve on the lead team of the
-                Association of Related Churches (ARC), as well as on the board
-                of directors for Place of Hope Children's Home in South Florida.
-                They are both frequently invited to churches and conferences
-                around the globe to share the love and message of Jesus Christ.
-                Todd recently authored his debut book, Don't Let Doubt Take You
-                Out. Their son Jefferson and his wife Cassie also serve together
-                in ministry at Christ Fellowship.
+                Todd is passionate about helping people build a strong faith,
+                understand God’s Word, and grow closer to Jesus. He is also the
+                author of Don’t Let Doubt Take You Out, written to help people
+                move through seasons of doubt and live with greater faith and
+                confidence in God.
+              </p>
+              <p>
+                Julie loves developing people and helping the next generation
+                step into leadership and use the gifts God has placed inside
+                them. Along with leading and investing in the Christ Fellowship
+                staff, she leads Sisterhood, a movement for every girl from
+                every generation to know God, find community, and make a
+                difference.
+              </p>
+              <p>
+                Todd and Julie have one son, Jefferson, who is married to
+                Cassie. Jefferson and Cassie both serve on the Christ Fellowship
+                team and recently welcomed their daughter, Adeline Grace, making
+                Todd and Julie very happy grandparents!
               </p>
             </div>
           </div>
