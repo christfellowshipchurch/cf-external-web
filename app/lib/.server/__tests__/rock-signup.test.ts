@@ -320,8 +320,27 @@ describe('launchClassSignupWorkflow', () => {
 });
 
 describe('launchGroupSignupWorkflow', () => {
+  it('preserves an existing membership instead of resetting a leader', async () => {
+    // Adult Group workflow changes existing leaders to pending members. Any
+    // current membership must therefore block workflow launch.
+    mockFetchRockData.mockResolvedValueOnce({ id: 456 });
+
+    await launchGroupSignupWorkflow('10', '20');
+
+    expect(mockFetchRockData).toHaveBeenCalledWith({
+      endpoint: 'GroupMembers',
+      queryParams: {
+        $filter: 'GroupId eq 10 and PersonId eq 20 and IsArchived eq false',
+        $select: 'Id',
+      },
+      ttl: 0,
+    });
+    expect(mockPostRockData).not.toHaveBeenCalled();
+  });
+
   it('launches the configured Adult Group workflow', async () => {
     vi.stubEnv('ROCK_GROUP_SIGNUP_WORKFLOW_ID', '987');
+    mockFetchRockData.mockResolvedValueOnce([]);
     mockPostRockData.mockResolvedValue({});
 
     await launchGroupSignupWorkflow('group-1', 'person-2');
@@ -335,6 +354,7 @@ describe('launchGroupSignupWorkflow', () => {
 
   it('fails loud while the new workflow id is not configured', async () => {
     vi.stubEnv('ROCK_GROUP_SIGNUP_WORKFLOW_ID', '');
+    mockFetchRockData.mockResolvedValueOnce([]);
 
     await expect(
       launchGroupSignupWorkflow('group-1', 'person-2'),

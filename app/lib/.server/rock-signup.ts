@@ -258,6 +258,20 @@ export const launchGroupSignupWorkflow = async (
   groupId: string,
   personId: string,
 ): Promise<void> => {
+  const existingMembership = await fetchRockData({
+    endpoint: 'GroupMembers',
+    queryParams: {
+      $filter: `GroupId eq ${groupId} and PersonId eq ${personId} and IsArchived eq false`,
+      $select: 'Id',
+    },
+    ttl: TTL.NONE,
+  });
+
+  const membership = Array.isArray(existingMembership)
+    ? existingMembership[0]
+    : existingMembership;
+  if (membership?.id) return;
+
   const workflowTypeId = process.env.ROCK_GROUP_SIGNUP_WORKFLOW_ID?.trim();
   if (!workflowTypeId || !/^\d+$/.test(workflowTypeId)) {
     throw new Error('ROCK_GROUP_SIGNUP_WORKFLOW_ID is not configured');
