@@ -3,6 +3,7 @@ import type Redis from 'ioredis';
 import {
   buildCacheKey,
   childItemTagKey,
+  collectItemCacheFootprint,
   deleteByPrefix,
   extractContentItemIds,
   extractContentItemRelationships,
@@ -223,6 +224,101 @@ describe('extractContentItemIds', () => {
   });
 });
 
+describe('collectItemCacheFootprint', () => {
+  it('returns an empty footprint and never touches redis when redis is null', async () => {
+    expect(await collectItemCacheFootprint(null, 10)).toEqual({
+      itemIds: [],
+      descendantIds: [],
+      cacheKeys: [],
+      indexKeys: [],
+    });
+  });
+
+  it('reports index keys with no cache keys when the item has no indexed responses', async () => {
+    const redis = {
+      smembers: vi.fn().mockResolvedValue([]),
+    } as unknown as Redis;
+
+    expect(await collectItemCacheFootprint(redis, 10)).toEqual({
+      itemIds: ['10'],
+      descendantIds: [],
+      cacheKeys: [],
+      indexKeys: ['cfitem:10', 'cfchildren:10'],
+    });
+  });
+
+  it('unions cfitem members across a two-level cfchildren walk', async () => {
+    const memberships: Record<string, string[]> = {
+      'cfitem:10': ['rock:ContentChannelItems:aaa'],
+      'cfchildren:10': ['20'],
+      'cfitem:20': ['rock:ContentChannelItems:bbb'],
+      'cfchildren:20': ['30'],
+      'cfitem:30': ['rock:ContentChannelItems:ccc'],
+    };
+    const redis = {
+      smembers: vi.fn((key: string) => Promise.resolve(memberships[key] ?? [])),
+    } as unknown as Redis;
+
+    const footprint = await collectItemCacheFootprint(redis, 10);
+
+    expect(footprint.itemIds).toEqual(['10', '20', '30']);
+    expect(footprint.descendantIds).toEqual(['20', '30']);
+    expect(footprint.cacheKeys).toEqual([
+      'rock:ContentChannelItems:aaa',
+      'rock:ContentChannelItems:bbb',
+      'rock:ContentChannelItems:ccc',
+    ]);
+  });
+
+  it('dedupes a rock:* key shared by two items sets', async () => {
+    const memberships: Record<string, string[]> = {
+      'cfitem:10': ['rock:ContentChannelItems:shared'],
+      'cfchildren:10': ['20'],
+      'cfitem:20': ['rock:ContentChannelItems:shared'],
+    };
+    const redis = {
+      smembers: vi.fn((key: string) => Promise.resolve(memberships[key] ?? [])),
+    } as unknown as Redis;
+
+    const footprint = await collectItemCacheFootprint(redis, 10);
+
+    expect(footprint.cacheKeys).toEqual(['rock:ContentChannelItems:shared']);
+  });
+
+  it('terminates and visits each id once on a cycle', async () => {
+    const memberships: Record<string, string[]> = {
+      'cfitem:10': [],
+      'cfchildren:10': ['20'],
+      'cfitem:20': [],
+      'cfchildren:20': ['10'],
+    };
+    const smembers = vi.fn((key: string) =>
+      Promise.resolve(memberships[key] ?? []),
+    );
+    const redis = { smembers } as unknown as Redis;
+
+    const footprint = await collectItemCacheFootprint(redis, 10);
+
+    expect(footprint.itemIds).toEqual(['10', '20']);
+    expect(smembers).toHaveBeenCalledTimes(4);
+  });
+
+  it('never calls del or pipeline — the collector is read-only', async () => {
+    const del = vi.fn();
+    const pipeline = vi.fn();
+    const redis = {
+      smembers: vi.fn().mockResolvedValue([]),
+      del,
+      pipeline,
+    } as unknown as Redis;
+
+    await collectItemCacheFootprint(redis, 10);
+
+    expect(del).not.toHaveBeenCalled();
+    expect(pipeline).not.toHaveBeenCalled();
+  });
+});
+
 describe('invalidateItem', () => {
   it('returns 0 and does nothing when redis is null', async () => {
     expect(await invalidateItem(null, 12345)).toBe(0);
@@ -321,6 +417,37 @@ describe('invalidateItem', () => {
     } as unknown as Redis;
 
     await expect(invalidateItem(redis, 10)).resolves.toBe(1);
+  });
+
+  it('issues the response-key DEL first and returns pipeline results[0][1] (post-refactor regression)', async () => {
+    const del = vi.fn();
+    const pipeline = { del, exec: vi.fn().mockResolvedValue([[null, 2]]) };
+    const redis = {
+      smembers: vi.fn((key: string) =>
+        Promise.resolve(
+          key === 'cfitem:12345' ? ['rock:ContentChannelItems:aaa'] : [],
+        ),
+      ),
+      pipeline: vi.fn().mockReturnValue(pipeline),
+    } as unknown as Redis;
+
+    const deleted = await invalidateItem(redis, 12345);
+
+    expect(del).toHaveBeenNthCalledWith(1, 'rock:ContentChannelItems:aaa');
+    expect(deleted).toBe(2);
+  });
+
+  it('still returns 0 via results[0][1] semantics when there are no cache keys to delete', async () => {
+    const del = vi.fn();
+    const pipeline = { del, exec: vi.fn().mockResolvedValue([[null, 1]]) };
+    const redis = {
+      smembers: vi.fn().mockResolvedValue([]),
+      pipeline: vi.fn().mockReturnValue(pipeline),
+    } as unknown as Redis;
+
+    const deleted = await invalidateItem(redis, 12345);
+
+    expect(deleted).toBe(0);
   });
 });
 

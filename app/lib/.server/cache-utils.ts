@@ -150,18 +150,29 @@ export function extractContentItemIds(data: unknown): string[] {
   return ids;
 }
 
+export interface ItemCacheFootprint {
+  /** BFS visit order, root first */
+  itemIds: string[];
+  /** itemIds minus the root */
+  descendantIds: string[];
+  /** Unique rock:* keys an invalidation would DEL, in discovery order */
+  cacheKeys: string[];
+  /** cfitem: and cfchildren: index keys an invalidation would also DEL */
+  indexKeys: string[];
+}
+
 /**
- * Invalidates every cache entry that contains content item `id` or any known
- * descendant. Uses reverse indexes for exact key lookup — no KEYS/SCAN — then
- * clears item and relationship indexes.
- *
- * @returns Number of cache keys Redis deleted (0 when unavailable / no index)
+ * Walks the reverse index for content item `id` and its known descendants,
+ * without mutating anything in Redis. Shared by `invalidateItem` (which acts
+ * on the result) and the read-only cache-preview endpoint.
  */
-export async function invalidateItem(
+export async function collectItemCacheFootprint(
   redis: Redis | null,
   id: string | number,
-): Promise<number> {
-  if (!redis) return 0;
+): Promise<ItemCacheFootprint> {
+  if (!redis) {
+    return { itemIds: [], descendantIds: [], cacheKeys: [], indexKeys: [] };
+  }
 
   const pending = [String(id)];
   const itemIds = new Set<string>();
@@ -179,6 +190,36 @@ export async function invalidateItem(
     itemKeys.forEach((key) => keys.add(key));
     pending.push(...childIds);
   }
+
+  const itemIdList = [...itemIds];
+  const indexKeys = itemIdList.flatMap((itemId) => [
+    itemTagKey(itemId),
+    childItemTagKey(itemId),
+  ]);
+
+  return {
+    itemIds: itemIdList,
+    descendantIds: itemIdList.slice(1),
+    cacheKeys: [...keys],
+    indexKeys,
+  };
+}
+
+/**
+ * Invalidates every cache entry that contains content item `id` or any known
+ * descendant. Uses reverse indexes for exact key lookup — no KEYS/SCAN — then
+ * clears item and relationship indexes.
+ *
+ * @returns Number of cache keys Redis deleted (0 when unavailable / no index)
+ */
+export async function invalidateItem(
+  redis: Redis | null,
+  id: string | number,
+): Promise<number> {
+  if (!redis) return 0;
+
+  const { itemIds, cacheKeys } = await collectItemCacheFootprint(redis, id);
+  const keys = new Set(cacheKeys);
 
   const pipeline = redis.pipeline();
   const deletesCacheKeys = keys.size > 0;
