@@ -320,21 +320,68 @@ describe('launchClassSignupWorkflow', () => {
 });
 
 describe('launchGroupSignupWorkflow', () => {
-  it('preserves an existing membership instead of resetting a leader', async () => {
-    // Adult Group workflow changes existing leaders to pending members. Any
-    // current membership must therefore block workflow launch.
-    mockFetchRockData.mockResolvedValueOnce({ id: 456 });
+  it.each([1, 2, 'Active', 'Pending'])(
+    'preserves an existing %s membership without launching the workflow',
+    async (groupMemberStatus) => {
+      mockFetchRockData.mockResolvedValueOnce({
+        id: 456,
+        groupMemberStatus,
+      });
+
+      await launchGroupSignupWorkflow('10', '20');
+
+      expect(mockFetchRockData).toHaveBeenCalledWith({
+        endpoint: 'GroupMembers',
+        queryParams: {
+          $filter: 'GroupId eq 10 and PersonId eq 20 and IsArchived eq false',
+          $select: 'Id,GroupMemberStatus',
+        },
+        ttl: 0,
+      });
+      expect(mockPostRockData).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each([0, 'Inactive'])(
+    'launches the workflow to move an existing %s membership to Pending',
+    async (groupMemberStatus) => {
+      vi.stubEnv('ROCK_GROUP_SIGNUP_WORKFLOW_ID', '987');
+      mockFetchRockData.mockResolvedValueOnce({
+        id: 456,
+        groupMemberStatus,
+      });
+      mockPostRockData.mockResolvedValue({});
+
+      await launchGroupSignupWorkflow('10', '20');
+
+      expect(mockPostRockData).toHaveBeenCalledWith({
+        endpoint:
+          'Workflows/LaunchWorkflow/0?workflowTypeId=987&workflowName=Website%20Adult%20Group%20Signup',
+        body: { GroupId: '10', PersonId: '20' },
+      });
+    },
+  );
+
+  it('uses Active/Pending precedence when multiple memberships exist', async () => {
+    mockFetchRockData.mockResolvedValueOnce([
+      { id: 456, groupMemberStatus: 'Inactive' },
+      { id: 789, groupMemberStatus: 'Active' },
+    ]);
 
     await launchGroupSignupWorkflow('10', '20');
 
-    expect(mockFetchRockData).toHaveBeenCalledWith({
-      endpoint: 'GroupMembers',
-      queryParams: {
-        $filter: 'GroupId eq 10 and PersonId eq 20 and IsArchived eq false',
-        $select: 'Id',
-      },
-      ttl: 0,
+    expect(mockPostRockData).not.toHaveBeenCalled();
+  });
+
+  it('fails closed when Rock returns an unknown membership status', async () => {
+    mockFetchRockData.mockResolvedValueOnce({
+      id: 456,
+      groupMemberStatus: 'Unknown',
     });
+
+    await expect(launchGroupSignupWorkflow('10', '20')).rejects.toThrow(
+      'Unknown existing group membership status',
+    );
     expect(mockPostRockData).not.toHaveBeenCalled();
   });
 

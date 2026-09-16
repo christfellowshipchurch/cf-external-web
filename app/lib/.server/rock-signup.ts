@@ -262,15 +262,35 @@ export const launchGroupSignupWorkflow = async (
     endpoint: 'GroupMembers',
     queryParams: {
       $filter: `GroupId eq ${groupId} and PersonId eq ${personId} and IsArchived eq false`,
-      $select: 'Id',
+      $select: 'Id,GroupMemberStatus',
     },
     ttl: TTL.NONE,
   });
 
-  const membership = Array.isArray(existingMembership)
-    ? existingMembership[0]
-    : existingMembership;
-  if (membership?.id) return;
+  const memberships = Array.isArray(existingMembership)
+    ? existingMembership
+    : existingMembership
+      ? [existingMembership]
+      : [];
+  const statuses = memberships.map(
+    (membership) => membership.groupMemberStatus,
+  );
+
+  if (
+    statuses.some(
+      (status) =>
+        status === 1 ||
+        status === 2 ||
+        status === 'Active' ||
+        status === 'Pending',
+    )
+  ) {
+    return;
+  }
+
+  if (statuses.some((status) => status !== 0 && status !== 'Inactive')) {
+    throw new Error('Unknown existing group membership status');
+  }
 
   const workflowTypeId = process.env.ROCK_GROUP_SIGNUP_WORKFLOW_ID?.trim();
   if (!workflowTypeId || !/^\d+$/.test(workflowTypeId)) {
