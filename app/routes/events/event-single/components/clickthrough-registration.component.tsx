@@ -33,6 +33,7 @@ import {
   parseSerializedEventFinderDates,
   serializeEventFinderDates,
 } from '../event-finder-dates';
+import { compareEventFinderTimes } from '../event-finder-times';
 import DreamTeamKickoffForm, {
   DreamTeamKickoffSuccessDetails,
 } from '~/routes/dream-team-kickoff/dream-team-kickoff-form.component';
@@ -816,7 +817,9 @@ const TimeStep = ({
       }
     });
 
-    return Array.from(timeMap.values());
+    return Array.from(timeMap.values()).sort((a, b) =>
+      compareEventFinderTimes(a.time, b.time),
+    );
   }, [hits, selectedCampus, selectedSubGroupType, selectedDate, hasSubGroups]);
 
   if (uniqueTimes.length === 0) {

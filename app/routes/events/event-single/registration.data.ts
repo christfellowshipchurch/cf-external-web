@@ -67,8 +67,9 @@ export const getSubGroupTypeDescription = (
   return descriptions[subGroupType]?.description || '';
 };
 
-// New helper to determine if groupType has subGroupTypes
-export const GROUP_TYPES_WITH_SUB_GROUP_TYPES = ['Journey', 'Baptism'];
+// Journey has multiple event types (Two Days, Three Days, …). Baptism currently
+// only has "At Campus", so including it here adds a click-through step.
+export const GROUP_TYPES_WITH_SUB_GROUP_TYPES = ['Journey'];
 
 export const hasSubGroupTypes = (groupType: string): boolean => {
   const normalized = groupType
