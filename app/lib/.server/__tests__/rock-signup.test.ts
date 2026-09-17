@@ -411,18 +411,20 @@ describe('launchGroupSignupWorkflow', () => {
 });
 
 describe('updateRockPersonCampusForSignup', () => {
+  const CAMPUS_GUID = 'a1b2c3d4-e5f6-4789-abcd-ef1234567890';
+
   it('sets campus on the primary family that defines the person campus', async () => {
     mockFetchRockData
       .mockResolvedValueOnce([{ id: 12 }])
       .mockResolvedValueOnce({ primaryFamilyId: 34 });
     mockPatchRockData.mockResolvedValue({});
 
-    await updateRockPersonCampusForSignup('person-2', 'campus-guid');
+    await updateRockPersonCampusForSignup('person-2', CAMPUS_GUID);
 
     expect(mockFetchRockData).toHaveBeenNthCalledWith(1, {
       endpoint: 'Campuses',
       queryParams: {
-        $filter: "Guid eq guid'campus-guid'",
+        $filter: `Guid eq guid'${CAMPUS_GUID}'`,
         $select: 'Id',
       },
       ttl: 0,
@@ -432,6 +434,28 @@ describe('updateRockPersonCampusForSignup', () => {
       queryParams: {
         $filter: 'Id eq person-2',
         $select: 'PrimaryFamilyId',
+      },
+      ttl: 0,
+    });
+    expect(mockPatchRockData).toHaveBeenCalledWith({
+      endpoint: 'Groups/34',
+      body: { CampusId: 12 },
+    });
+  });
+
+  it('resolves a prefilled class campus name without using an invalid Guid literal', async () => {
+    mockFetchRockData
+      .mockResolvedValueOnce([{ id: 12 }])
+      .mockResolvedValueOnce({ primaryFamilyId: 34 });
+    mockPatchRockData.mockResolvedValue({});
+
+    await updateRockPersonCampusForSignup('person-2', 'Palm Beach Gardens');
+
+    expect(mockFetchRockData).toHaveBeenNthCalledWith(1, {
+      endpoint: 'Campuses',
+      queryParams: {
+        $filter: "Name eq 'Palm Beach Gardens'",
+        $select: 'Id',
       },
       ttl: 0,
     });
@@ -458,7 +482,7 @@ describe('updateRockPersonCampusForSignup', () => {
       .mockResolvedValueOnce([]);
 
     await expect(
-      updateRockPersonCampusForSignup('person-2', 'campus-guid'),
+      updateRockPersonCampusForSignup('person-2', CAMPUS_GUID),
     ).rejects.toThrow('Primary family not found in Rock');
     expect(mockPatchRockData).not.toHaveBeenCalled();
   });

@@ -26,6 +26,8 @@ export type GroupClassSignupTarget = 'group' | 'class';
 
 const ADULT_GROUP_TYPE_ID = 31;
 const CLASS_GROUP_TYPE_IDS = new Set([101, 135, 136]);
+const ROCK_GUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 type SignupGroup = {
   id?: number;
@@ -169,13 +171,17 @@ export const findOrCreateRockPersonForSignup = async (
 
 export const updateRockPersonCampusForSignup = async (
   personId: string,
-  campusGuid: string,
+  campusIdentifier: string,
 ): Promise<void> => {
+  const campusFilter = ROCK_GUID_RE.test(campusIdentifier)
+    ? `Guid eq guid'${escapeOData(campusIdentifier)}'`
+    : `Name eq '${escapeOData(campusIdentifier)}'`;
+
   const [campusResult, personResult] = await Promise.all([
     fetchRockData({
       endpoint: 'Campuses',
       queryParams: {
-        $filter: `Guid eq guid'${escapeOData(campusGuid)}'`,
+        $filter: campusFilter,
         $select: 'Id',
       },
       ttl: TTL.NONE,
