@@ -77,7 +77,7 @@ Response:
   the number a subsequent `POST` should report as `deletedKeys`.
 - `indexedCacheKeyCount` can exceed `liveCacheKeyCount`: a `cfitem:` set lives
   for `TTL.LONG` (24h) and keeps referencing `rock:*` response keys whose own,
-  shorter TTL has already expired. The index can also *undercount* — responses
+  shorter TTL has already expired. The index can also _undercount_ — responses
   cached before indexing shipped have no reverse-index entry at all.
 - `cacheKeys` is capped at 100 entries (`cacheKeysTruncated: true` beyond
   that); `indexedCacheKeyCount` still reports the true total.
