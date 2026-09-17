@@ -1,5 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { getSubGroupTypeDescription } from '../registration.data';
+import {
+  getSubGroupTypeDescription,
+  hasSubGroupTypes,
+} from '../registration.data';
 
 describe('getSubGroupTypeDescription', () => {
   it('returns the English description by default', () => {
@@ -42,3 +45,15 @@ describe('getSubGroupTypeDescription', () => {
     );
   });
 });
+
+describe('hasSubGroupTypes', () => {
+  it('keeps Journey on the event-type step because campuses offer multiple class formats', () => {
+    expect(hasSubGroupTypes('Journey')).toBe(true);
+  });
+
+  it('skips the event-type step for Baptism because campuses only have At Campus', () => {
+    // Prod's extra click is this step: one "Baptism At Campus" card after campus.
+    expect(hasSubGroupTypes('Baptism')).toBe(false);
+  });
+});
+
