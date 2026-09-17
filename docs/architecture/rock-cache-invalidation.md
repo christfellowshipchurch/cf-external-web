@@ -47,6 +47,43 @@ After first deployment, pre-existing association cache entries have no
 `cfchildren` index. Flush `ContentChannelItemAssociations` once or wait for its
 cache TTL before preview verification.
 
+## Read-only preview
+
+`GET /api/admin/cache?id={contentChannelItemId}` authenticates the same way as
+`POST` (`x-cache-secret`) but only walks the reverse index — it never deletes
+anything. It shares `collectItemCacheFootprint` with `invalidateItem`, so the
+footprint it reports is exactly what a subsequent `POST` would act on.
+
+Response:
+
+```json
+{
+  "success": true,
+  "id": "1234",
+  "itemIds": ["1234", "5678", "9101"],
+  "descendantIds": ["5678", "9101"],
+  "indexedCacheKeyCount": 12,
+  "liveCacheKeyCount": 9,
+  "indexKeyCount": 6,
+  "cacheKeys": ["rock:ContentChannelItems:0a1b2c3d4e5f"],
+  "cacheKeysTruncated": false
+}
+```
+
+- `indexedCacheKeyCount` is what the reverse index claims (`cacheKeys.length`).
+  A deployment without this change has no `loader`, so probing for this field
+  doubles as a capability check.
+- `liveCacheKeyCount` is a read-only `EXISTS` pipeline over those same keys —
+  the number a subsequent `POST` should report as `deletedKeys`.
+- `indexedCacheKeyCount` can exceed `liveCacheKeyCount`: a `cfitem:` set lives
+  for `TTL.LONG` (24h) and keeps referencing `rock:*` response keys whose own,
+  shorter TTL has already expired. The index can also *undercount* — responses
+  cached before indexing shipped have no reverse-index entry at all.
+- `cacheKeys` is capped at 100 entries (`cacheKeysTruncated: true` beyond
+  that); `indexedCacheKeyCount` still reports the true total.
+- Response carries `Cache-Control: no-store` and `Vary: x-cache-secret` since
+  it's a cacheable method with an authorization-dependent body behind a CDN.
+
 ## Preview/staging verification
 
 1. Load page containing child section and nested collection so keys/indexes exist.
