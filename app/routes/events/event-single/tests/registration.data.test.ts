@@ -56,4 +56,3 @@ describe('hasSubGroupTypes', () => {
     expect(hasSubGroupTypes('Baptism')).toBe(false);
   });
 });
-
