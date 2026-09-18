@@ -100,6 +100,48 @@ describe('ResourceCard', () => {
       expect(screen.getByRole('link')).toBeInTheDocument();
     });
   });
+
+  describe('PODCASTS season/episode description', () => {
+    it('replaces the summary with "Season # | Episode #" so podcast cards advertise their place in the show', () => {
+      renderCard({
+        contentType: 'PODCASTS',
+        summary: 'A test summary',
+        season: '2',
+        episodeNumber: '7',
+      });
+      expect(screen.getByText('Season 2 | Episode 7')).toBeInTheDocument();
+      expect(screen.queryByText('A test summary')).not.toBeInTheDocument();
+    });
+
+    it.each([
+      ['season', { season: '', episodeNumber: '7' }],
+      ['episode number', { season: '2', episodeNumber: '' }],
+      ['both', { season: '', episodeNumber: '' }],
+    ])(
+      'keeps the summary when %s is missing, so legacy shows that store "Season 1 | Episode 2" in the summary still read correctly',
+      (_label, overrides) => {
+        renderCard({
+          contentType: 'PODCASTS',
+          summary: 'Season 1 | Episode 2',
+          ...overrides,
+        });
+        expect(screen.getByText('Season 1 | Episode 2')).toBeInTheDocument();
+      },
+    );
+
+    it('leaves non-podcast cards on their summary even when season/episode are set', () => {
+      renderCard({
+        contentType: 'ARTICLES',
+        summary: 'A test summary',
+        season: '2',
+        episodeNumber: '7',
+      });
+      expect(screen.getByText('A test summary')).toBeInTheDocument();
+      expect(
+        screen.queryByText('Season 2 | Episode 7'),
+      ).not.toBeInTheDocument();
+    });
+  });
 });
 
 describe('MinistryCard', () => {

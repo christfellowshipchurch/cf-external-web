@@ -98,6 +98,10 @@ export type CollectionItem = {
   cardSubtitle?: string;
   /** Redirect Card only (Rock `disableCard`). When true, carousel renders static content without link/card chrome. */
   disableCard?: boolean;
+  /** Podcast episodes only. Rock `seasonNumber` attribute; drives the "Season # | Episode #" card description. */
+  season?: string;
+  /** Podcast episodes only. Rock `episodeNumber` attribute; drives the "Season # | Episode #" card description. */
+  episodeNumber?: string;
 };
 
 /**
