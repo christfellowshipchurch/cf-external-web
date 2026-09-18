@@ -27,10 +27,17 @@ export const ResourceCard = ({
     pathname,
     contentType,
     disableCard,
+    season,
+    episodeNumber,
   } = resource;
 
   const isEvent = contentType === 'EVENTS';
   const isDisabledRedirectCard = contentType === 'REDIRECT_CARD' && disableCard;
+
+  const podcastLabel =
+    contentType === 'PODCASTS' && season && episodeNumber
+      ? `Season ${season} | Episode ${episodeNumber}`
+      : undefined;
 
   const innerContent = (
     <>
@@ -70,11 +77,17 @@ export const ResourceCard = ({
             {name}
           </h4>
 
-          <HtmlRenderer
-            html={(isEvent && cardSubtitle) || summary || ''}
-            className={cn('line-clamp-3', summaryClassName)}
-            stripFormattingTags={isEvent}
-          />
+          {podcastLabel ? (
+            <p className={cn('line-clamp-3', summaryClassName)}>
+              {podcastLabel}
+            </p>
+          ) : (
+            <HtmlRenderer
+              html={(isEvent && cardSubtitle) || summary || ''}
+              className={cn('line-clamp-3', summaryClassName)}
+              stripFormattingTags={isEvent}
+            />
+          )}
         </div>
       </div>
     </>
