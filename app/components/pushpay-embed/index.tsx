@@ -2,7 +2,7 @@ declare global {
   interface Window {
     pushpayEmbeddedConfig?: {
       handle: string;
-      wgc: string;
+      wgc?: string;
     };
     pushpayEmbeddedFallbackDone?: boolean;
   }
@@ -12,11 +12,22 @@ import { useEffect } from 'react';
 
 const PUSHPAY_SCRIPT_SRC = 'https://embedded.pushpay.com?version=1.0.0';
 
-export const PushpayEmbed = () => {
+interface PushpayEmbedProps {
+  handle?: string;
+  wgc?: string;
+}
+
+const CHRIST_FELLOWSHIP_WGC =
+  'eyJyYnUiOiJodHRwczovL3d3dy5jaHJpc3RmZWxsb3dzaGlwLmNodXJjaC8iLCJyYnQiOiJDaHJpc3QgRmVsbG93c2hpcCIsImFza2dwIjp0cnVlfTp0NWtuMzVaV0NNbXZfMzNMWEFzb0V6RnJ3aEk';
+
+export const PushpayEmbed = ({
+  handle = 'christfellowship',
+  wgc = CHRIST_FELLOWSHIP_WGC,
+}: PushpayEmbedProps = {}) => {
   useEffect(() => {
     window.pushpayEmbeddedConfig = {
-      handle: 'christfellowship',
-      wgc: 'eyJyYnUiOiJodHRwczovL3d3dy5jaHJpc3RmZWxsb3dzaGlwLmNodXJjaC8iLCJyYnQiOiJDaHJpc3QgRmVsbG93c2hpcCIsImFza2dwIjp0cnVlfTp0NWtuMzVaV0NNbXZfMzNMWEFzb0V6RnJ3aEk',
+      handle,
+      ...(wgc ? { wgc } : {}),
     };
 
     const script = document.createElement('script');
@@ -48,7 +59,7 @@ export const PushpayEmbed = () => {
       window.clearTimeout(timeoutId);
       script.remove();
     };
-  }, []);
+  }, [handle, wgc]);
 
   return <div id='pushpay-embedded-giving-fallback' className='w-full' />;
 };
