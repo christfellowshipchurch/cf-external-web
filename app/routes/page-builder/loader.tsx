@@ -320,6 +320,12 @@ export const mapPageBuilderChildItems = async (
                     contentType: 'PODCASTS' as const,
                     name: item.title,
                     summary,
+                    season: getStringValue(
+                      itemAttributeValues?.seasonNumber || '',
+                    ),
+                    episodeNumber: getStringValue(
+                      itemAttributeValues?.episodeNumber || '',
+                    ),
                     image:
                       createImageUrlFromGuid(
                         getStringValue(itemAttributeValues?.image || ''),

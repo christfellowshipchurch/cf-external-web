@@ -270,6 +270,28 @@ describe('mapPageBuilderChildItems – podcast routing', () => {
     expect(sections[0].collection![0].contentType).toBe('PODCASTS');
   });
 
+  it('carries the episode season/episode attributes onto the collection item so cards can render "Season # | Episode #"', async () => {
+    const section = makeSection('s3b');
+    const episodeItem = makeCollectionItem('i3b', '181', {
+      pathname: 'ep-two',
+      image: '',
+      seasonNumber: '2',
+      episodeNumber: '7',
+    });
+
+    mockBuildPodcastRoutingIndex.mockResolvedValueOnce(
+      indexWith('181', 'crew-cast'),
+    );
+    mockFetchRockData
+      .mockResolvedValueOnce([{ childContentChannelItemId: 'i3b' }])
+      .mockResolvedValueOnce(episodeItem);
+
+    const sections = await mapPageBuilderChildItems([section]);
+
+    expect(sections[0].collection![0].season).toBe('2');
+    expect(sections[0].collection![0].episodeNumber).toBe('7');
+  });
+
   it('skips a podcast episode item that has no matching show in the index', async () => {
     const section = makeSection('s4');
     // Channel '181' is a known podcast type in CONTENT_TYPE_MAP (CREW_CAST)
