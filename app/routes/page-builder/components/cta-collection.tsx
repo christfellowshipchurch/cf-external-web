@@ -50,9 +50,7 @@ const PageBuilderCTACollection = ({
         {/* Header */}
         <div className='w-full flex items-end justify-between'>
           <div className='flex flex-col gap-2'>
-            <h2 className='text-text font-extrabold text-[40px] md:text-[32px] leading-tight'>
-              {title}
-            </h2>
+            <h2 className='heading-section text-text-primary'>{title}</h2>
             <p className='md:text-lg'>{description}</p>
           </div>
 

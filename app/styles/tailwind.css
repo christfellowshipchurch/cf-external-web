@@ -897,4 +897,26 @@ input[type='search']:focus::-webkit-search-cancel-button {
       line-height: 140%;
     }
   }
+
+  /* ------------ Page Builder Section Titles ------------ */
+  /* Heading/Mobile/H4 -> Heading/Desktop/H2 */
+  .heading-section {
+    font-size: 24px;
+    line-height: 140%;
+    font-weight: 800;
+    @media (min-width: 1024px) {
+      font-size: 52px;
+      line-height: 120%;
+    }
+  }
+  /* Heading/Mobile/H4 -> Heading/Desktop/H3 */
+  .heading-section-sm {
+    font-size: 24px;
+    line-height: 140%;
+    font-weight: 800;
+    @media (min-width: 1024px) {
+      font-size: 32px;
+      line-height: 120%;
+    }
+  }
 }

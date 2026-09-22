@@ -66,9 +66,7 @@ export const CardCarouselSection = ({
                   mode === 'dark' && 'text-white',
                 )}
               >
-                <h2 className='heading-h2 text-[24px] md:text-[52px] font-extrabold leading-tight'>
-                  {title}
-                </h2>
+                <h2 className='heading-section'>{title}</h2>
                 {description && (
                   <HTMLRenderer html={description} className='md:text-lg' />
                 )}
@@ -148,9 +146,7 @@ export const SingleEventCollectionSection = ({
             {/* Header */}
             <div className='w-full flex items-end justify-between pr-5 md:pr-12 lg:pr-18 2xl:pr-8! 3xl:pr-0!'>
               <div className='flex flex-col w-full gap-2'>
-                <h2 className='heading-h2 text-[24px] md:text-[52px] font-extrabold leading-tight'>
-                  {title}
-                </h2>
+                <h2 className='heading-section'>{title}</h2>
                 {description && (
                   <HTMLRenderer html={description} className='md:text-lg' />
                 )}

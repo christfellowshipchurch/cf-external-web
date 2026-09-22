@@ -35,7 +35,7 @@ export const CtaCardSection: FC<{ data: ContentBlockData }> = ({ data }) => {
       >
         <div className='flex-1 lg:max-w-[70%]'>
           <h2
-            className={cn('heading-h3 mb-4', {
+            className={cn('heading-section-sm mb-4', {
               'text-white': isDark,
             })}
           >
