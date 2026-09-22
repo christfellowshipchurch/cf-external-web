@@ -27,7 +27,7 @@ export const ImageGallerySection = ({ data }: { data: PageBuilderSection }) => {
         {shouldShowHeader && (
           <div className='flex max-w-3xl flex-col gap-5 md:gap-6'>
             {shouldShowTitle && (
-              <h2 className='text-[48px] font-extrabold leading-[1.2] text-text-primary md:text-[52px]'>
+              <h2 className='heading-section text-text-primary'>
                 {sectionTitle}
               </h2>
             )}

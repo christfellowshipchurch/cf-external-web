@@ -9,9 +9,7 @@ export const FAQsComponent = ({ data }: { data: PageBuilderSection }) => {
     <div className='w-full content-padding py-12 md:py-28 bg-white' id='faq'>
       <div className='max-w-[768px] mx-auto flex flex-col items-center gap-12 lg:gap-20'>
         <div className='flex flex-col gap-6 text-center'>
-          <h2 className='text-[48px] md:text-[52px] font-extrabold text-text-primary'>
-            {data.name}
-          </h2>
+          <h2 className='heading-section text-text-primary'>{data.name}</h2>
           {data?.content?.length > 0 && (
             <HTMLRenderer
               className='faq-content md:text-lg'
@@ -28,9 +26,7 @@ export const FAQsComponent = ({ data }: { data: PageBuilderSection }) => {
 
         {data.stillHaveQuestionsLink && (
           <div className='w-full flex flex-col items-center text-center gap-6 md:-mt-8'>
-            <h2 className='text-2xl md:text-[28px] font-extrabold'>
-              Still have questions?
-            </h2>
+            <h2 className='heading-section-sm'>Still have questions?</h2>
 
             <Button
               href={data.stillHaveQuestionsLink}
@@ -55,7 +51,9 @@ function FAQItem({ question, answer }: { question: string; answer: string }) {
       onClick={() => setIsExpanded(!isExpanded)}
     >
       <div className='flex justify-between gap-2 w-full cursor-pointer'>
-        <h3 className='md:text-lg font-bold text-left'>{question}</h3>
+        <h3 className='text-base lg:text-lg font-extrabold text-left'>
+          {question}
+        </h3>
         <div className='flex items-center gap-2'>
           <div
             className={`transition-transform duration-200 ${

@@ -31,14 +31,12 @@ export const CtaFullscreenSection: FC<{ data: ContentBlockData }> = ({
       )}
       aria-label={data.name}
     >
-      <h2 className='text-2xl md:text-4xl lg:text-[52px] font-extrabold leading-tight'>
-        {data.name}
-      </h2>
+      <h2 className='heading-section'>{data.name}</h2>
 
       {data.subtitle && (
         <h3
           className={cn(
-            'text-lg font-extrabold',
+            'text-base lg:text-lg font-extrabold',
             !isDark ? 'text-text-secondary' : 'text-white',
           )}
         >
