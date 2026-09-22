@@ -68,11 +68,11 @@ const PageBuilderCTACollection = ({
 
         <div
           className={cn(
-            'hidden md:grid',
+            'hidden lg:grid',
             'w-full',
             'mt-20',
-            'grid-cols-1 md:grid-cols-2 lg:grid-cols-3',
-            'gap-x-6 gap-y-12 md:gap-x-8 md:gap-y-16 lg:gap-x-8 lg:gap-y-16 xl:gap-x-12 xl:gap-y-20',
+            'grid-cols-3',
+            'gap-x-8 gap-y-16 xl:gap-x-12 xl:gap-y-20',
           )}
         >
           {resources.slice(0, 6).map((resource) => (
@@ -80,8 +80,8 @@ const PageBuilderCTACollection = ({
           ))}
         </div>
 
-        {/* Mobile Carousel */}
-        <div className='w-full md:hidden'>
+        {/* Mobile & Tablet Carousel */}
+        <div className='w-full lg:hidden'>
           <CardCarousel resources={resources} />
         </div>
 
