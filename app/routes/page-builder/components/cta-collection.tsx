@@ -81,7 +81,7 @@ const PageBuilderCTACollection = ({
         </div>
 
         {/* Mobile Carousel */}
-        <div className='md:hidden'>
+        <div className='w-full md:hidden'>
           <CardCarousel resources={resources} />
         </div>
 
