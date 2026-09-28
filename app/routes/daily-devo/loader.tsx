@@ -3,6 +3,7 @@ import https from 'https';
 import { fetchRockData } from '~/lib/.server/fetch-rock-data';
 import { createImageUrlFromGuid } from '~/lib/utils';
 import { TTL } from '~/lib/.server/fetch-rock-data';
+import { parseRockDateTime } from '~/lib/.server/rock-datetime';
 
 export type DailyDevo = {
   title: string;
@@ -73,7 +74,7 @@ const fetchDailyDevo = async () => {
   const currentDate = new Date();
   const validItems = dailyDevoItems.filter(
     (item: { startDateTime: string }) => {
-      const startDate = new Date(item.startDateTime);
+      const startDate = parseRockDateTime(item.startDateTime);
       return startDate <= currentDate;
     },
   );

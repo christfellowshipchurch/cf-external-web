@@ -1,4 +1,5 @@
 import { fetchRockData, TTL } from '~/lib/.server/fetch-rock-data';
+import { toRockDateTimeLiteral } from '~/lib/.server/rock-datetime';
 import { RockCampuses } from '~/lib/rock-config';
 import { buildPodcastRoutingIndex } from '~/routes/podcasts/podcast-routing.server';
 
@@ -176,10 +177,9 @@ const escapeXml = (s: string): string =>
 
 export async function loader() {
   const paths = new Set<string>(STATIC_ROUTES);
-  // ISO timestamp used for podcast date gates — mirrors StartDateTime filters in
-  // podcast-show/loader.tsx:98 and podcast-episode/loader.tsx:173.
-  const nowIso = new Date().toISOString();
-  const startedFilter = `StartDateTime le datetime'${nowIso}'`;
+  // Mirrors the StartDateTime filters in podcast-show/loader.tsx and
+  // podcast-episode/loader.tsx.
+  const startedFilter = `StartDateTime le datetime'${toRockDateTimeLiteral()}'`;
 
   // Campuses are a fixed const, not a Url-attribute channel.
   for (const campus of RockCampuses) {

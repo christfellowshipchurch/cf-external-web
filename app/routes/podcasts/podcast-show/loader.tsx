@@ -1,6 +1,7 @@
 import { LoaderFunctionArgs } from 'react-router-dom';
 import { PodcastEpisode, PodcastShow, RockChannelItem } from '../types';
 import { fetchRockData } from '~/lib/.server/fetch-rock-data';
+import { toRockDateTimeLiteral } from '~/lib/.server/rock-datetime';
 import { createImageUrlFromGuid } from '~/lib/utils';
 import {
   fetchChildItems,
@@ -50,7 +51,7 @@ export async function getLatestEpisodes(channelGuid: string) {
     episodes = await fetchRockData({
       endpoint: 'ContentChannelItems',
       queryParams: {
-        $filter: `ContentChannelId eq ${channelId} and Status eq 'Approved' and StartDateTime le datetime'${new Date().toISOString()}'`,
+        $filter: `ContentChannelId eq ${channelId} and Status eq 'Approved' and StartDateTime le datetime'${toRockDateTimeLiteral()}'`,
         $orderby: 'StartDateTime desc',
         $top: '6',
         loadAttributes: 'simple',
@@ -99,7 +100,7 @@ export async function getPodcast(path: string) {
       queryParams: {
         attributeKey: 'Url',
         value: path,
-        $filter: `ContentChannelId eq ${PODCAST_SHOW_CHANNEL_ID} and Status eq 'Approved' and StartDateTime le datetime'${new Date().toISOString()}'`,
+        $filter: `ContentChannelId eq ${PODCAST_SHOW_CHANNEL_ID} and Status eq 'Approved' and StartDateTime le datetime'${toRockDateTimeLiteral()}'`,
         loadAttributes: 'simple',
       },
       filterByDateRange: true,

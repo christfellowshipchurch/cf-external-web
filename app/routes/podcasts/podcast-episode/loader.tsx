@@ -4,6 +4,7 @@ import { algoliasearch } from 'algoliasearch';
 import { escapeAlgoliaFilterString } from '~/components/finders/finder-algolia.utils';
 import { PodcastEpisode, RockPodcastEpisode, WistiaElement } from '../types';
 import { fetchRockData } from '~/lib/.server/fetch-rock-data';
+import { toRockDateTimeLiteral } from '~/lib/.server/rock-datetime';
 import { createImageUrlFromGuid, parseRockKeyValueList } from '~/lib/utils';
 import { PODCAST_SHOW_CHANNEL_ID } from '../podcast-routing.server';
 import type { ContentItemHit } from '~/routes/search/types';
@@ -177,7 +178,7 @@ async function getPodcastEpisode({
     const episode = await fetchRockData({
       endpoint: 'ContentChannelItems/GetByAttributeValue',
       queryParams: {
-        $filter: `ContentChannelId eq ${channelId} and StartDateTime le datetime'${new Date().toISOString()}'`,
+        $filter: `ContentChannelId eq ${channelId} and StartDateTime le datetime'${toRockDateTimeLiteral()}'`,
         attributeKey: 'Url',
         value: path,
         loadAttributes: 'simple',

@@ -1,4 +1,13 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import {
+  describe,
+  it,
+  expect,
+  vi,
+  beforeAll,
+  beforeEach,
+  afterAll,
+  afterEach,
+} from 'vitest';
 import {
   fetchRockData,
   deleteRockData,
@@ -69,6 +78,41 @@ describe('isItemInDateRange', () => {
         now,
       ),
     ).toBe(true);
+  });
+
+  describe('with offset-less Rock values on a UTC host', () => {
+    // Rock returns Eastern wall-clock time; production runs in UTC (CFDP-4377).
+    beforeAll(() => {
+      vi.stubEnv('TZ', 'UTC');
+    });
+
+    afterAll(() => {
+      vi.unstubAllEnvs();
+    });
+
+    const expiresAt6pmEdt = { expireDateTime: '2026-09-25T18:00:00' };
+
+    it('keeps an item visible until its Eastern expire time, not 4 hours early', () => {
+      expect(
+        isItemInDateRange(expiresAt6pmEdt, new Date('2026-09-25T18:30:00Z')),
+      ).toBe(true);
+      expect(
+        isItemInDateRange(expiresAt6pmEdt, new Date('2026-09-25T21:59:00Z')),
+      ).toBe(true);
+      expect(
+        isItemInDateRange(expiresAt6pmEdt, new Date('2026-09-25T22:01:00Z')),
+      ).toBe(false);
+    });
+
+    it('does not show an item before its Eastern start time', () => {
+      const startsAt9amEst = { startDateTime: '2026-12-04T09:00:00' };
+      expect(
+        isItemInDateRange(startsAt9amEst, new Date('2026-12-04T09:30:00Z')),
+      ).toBe(false);
+      expect(
+        isItemInDateRange(startsAt9amEst, new Date('2026-12-04T14:00:00Z')),
+      ).toBe(true);
+    });
   });
 
   it('returns false when now is outside the date range', () => {
@@ -756,13 +800,14 @@ describe('fetchRockData TTL behavior', () => {
     const firstRequestFilter = new URL(firstRequestUrl).searchParams.get(
       '$filter',
     );
+    // Rock compares against Eastern wall-clock values, so 12:00Z is sent as 08:00 EDT.
     expect(firstRequestFilter).toContain(
-      "StartDateTime le datetime'2026-06-29T12:00:00.000Z'",
+      "StartDateTime le datetime'2026-06-29T08:00:00'",
     );
 
     const firstCacheKey = mockRedis.set.mock.calls[0][0];
     const expectedStableKey = buildCacheKey('ContentChannelItems', {
-      $filter: `(ContentChannelId eq 100) and (StartDateTime le datetime'2026-06-29T12:00:00.000Z' and (ExpireDateTime eq null or ExpireDateTime ge datetime'2026-06-29T12:00:00.000Z'))`,
+      $filter: `(ContentChannelId eq 100) and (StartDateTime le datetime'2026-06-29T08:00:00' and (ExpireDateTime eq null or ExpireDateTime ge datetime'2026-06-29T08:00:00'))`,
       $top: '1',
       loadAttributes: 'simple',
     });
@@ -813,12 +858,8 @@ describe('fetchRockData TTL behavior', () => {
     expect(requestFilter).toContain(
       "ContentChannelId eq 43 and Status eq 'Approved'",
     );
-    expect(requestFilter).not.toContain(
-      "StartDateTime le datetime'2026-06-29T12:00:00.000Z'",
-    );
-    expect(requestFilter).not.toContain(
-      "ExpireDateTime ge datetime'2026-06-29T12:00:00.000Z'",
-    );
+    expect(requestFilter).not.toContain('StartDateTime le datetime');
+    expect(requestFilter).not.toContain('ExpireDateTime ge datetime');
   });
 
   it('filters out-of-range single-item results in memory', async () => {

@@ -1,5 +1,6 @@
 import { normalize } from '~/lib/utils';
 import redis from './redis-config';
+import { parseRockDateTime, toRockDateTimeLiteral } from './rock-datetime';
 import {
   buildCacheKey,
   childItemTagKey,
@@ -129,11 +130,11 @@ export const isItemInDateRange = (
   const start = item.startDateTime ?? item.StartDateTime;
   const expire = item.expireDateTime ?? item.ExpireDateTime;
   if (start) {
-    const startDate = new Date(start);
+    const startDate = parseRockDateTime(start);
     if (now < startDate) return false;
   }
   if (expire) {
-    const expireDate = new Date(expire);
+    const expireDate = parseRockDateTime(expire);
     if (now > expireDate) return false;
   }
   return true;
@@ -147,9 +148,9 @@ const buildMergedFilter = (
   const clauses: string[] = [];
 
   if (filterByDateRange) {
-    const isoNow = new Date().toISOString();
+    const rockNow = toRockDateTimeLiteral();
     clauses.push(
-      `StartDateTime le datetime'${isoNow}' and (ExpireDateTime eq null or ExpireDateTime ge datetime'${isoNow}')`,
+      `StartDateTime le datetime'${rockNow}' and (ExpireDateTime eq null or ExpireDateTime ge datetime'${rockNow}')`,
     );
   }
   if (filterByStatusApproved) {
