@@ -1,0 +1,15 @@
+export const BAPTISM_GRADE_OPTIONS = [
+  { label: 'Kindergarten', grade: 0 },
+  { label: '1st', grade: 1 },
+  { label: '2nd', grade: 2 },
+  { label: '3rd', grade: 3 },
+  { label: '4th', grade: 4 },
+  { label: '5th', grade: 5 },
+  { label: '6th', grade: 6 },
+  { label: '7th', grade: 7 },
+  { label: '8th', grade: 8 },
+  { label: '9th', grade: 9 },
+  { label: '10th', grade: 10 },
+  { label: '11th', grade: 11 },
+  { label: '12th', grade: 12 },
+];

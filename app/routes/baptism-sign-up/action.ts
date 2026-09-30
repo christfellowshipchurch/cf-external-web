@@ -1,5 +1,6 @@
 import { ActionFunction, data } from 'react-router-dom';
 import { BaptismSignUpFormType } from './types';
+import { BAPTISM_GRADE_OPTIONS } from './grade-options';
 import {
   fetchRockData,
   postRockData,
@@ -121,6 +122,31 @@ export const action: ActionFunction = async ({ request }) => {
       return data({ error: 'Missing required fields' }, { status: 400 });
     }
 
+    let graduationYear: string | undefined;
+    if (grade) {
+      const gradeNumber = BAPTISM_GRADE_OPTIONS.find(
+        ({ label }) => label === grade,
+      )?.grade;
+      if (gradeNumber === undefined) {
+        return data({ error: 'Invalid grade' }, { status: 400 });
+      }
+
+      // Rock's Grade select stores graduation years, resolved using its
+      // configured school-year transition date rather than display labels.
+      const renderedYear = await postRockData({
+        endpoint: '/Lava/RenderTemplate',
+        body: `{[ gradYearFromGrade grade:'${gradeNumber}' ]}`,
+        contentType: 'text/plain',
+      });
+      if (
+        typeof renderedYear !== 'string' ||
+        !/^\d{4}$/.test(renderedYear.trim())
+      ) {
+        throw new Error('Rock did not return a valid graduation year');
+      }
+      graduationYear = renderedYear.trim();
+    }
+
     const address = {
       street1: normalizeAddressPart(addressLine1),
       street2: normalizeAddressPart(addressLine2),
@@ -140,8 +166,8 @@ export const action: ActionFunction = async ({ request }) => {
       Birthdate: birthdate as string,
       Address: locationGuid,
       'T-ShirtSize': tShirtSize as string,
-      ShareYourStory: shareYourStory as string,
-      MyStory: myStory as string,
+      ShareYourStory: myStory as string,
+      MyStory: shareYourStory as string,
       LaunchSource: 'app',
       Group: group,
     };
@@ -152,8 +178,8 @@ export const action: ActionFunction = async ({ request }) => {
     if (areYouInHighSchool) {
       baptismSignUpSubmission.AreyouinHighSchool = areYouInHighSchool as string;
     }
-    if (grade) {
-      baptismSignUpSubmission.Grade = grade as string;
+    if (graduationYear) {
+      baptismSignUpSubmission.Grade = graduationYear;
     }
     if (gFirstName) {
       baptismSignUpSubmission.GFirstName = gFirstName as string;
