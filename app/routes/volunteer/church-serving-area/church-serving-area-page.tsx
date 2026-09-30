@@ -16,7 +16,7 @@ import type { LoaderReturnType } from './loader';
 
 const CHURCH_OPPORTUNITY_OVERRIDES: Record<string, string> = {
   missions: '/volunteer#community',
-  worship: 'https://lnk.bio/CFWorshipLinks',
+  worship: '/cf-worship-team',
 };
 
 export function ChurchServingAreaPage() {
