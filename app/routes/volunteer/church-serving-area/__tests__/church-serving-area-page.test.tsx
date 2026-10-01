@@ -118,18 +118,12 @@ describe('ChurchServingAreaPage', () => {
     );
   });
 
-  it('navigates Worship opportunities to the worship links page', async () => {
+  it('navigates Worship opportunities to the worship team page', async () => {
     renderPage();
 
     await selectRoleAndContinue('Worship');
 
-    expect(mockWindowOpen).toHaveBeenCalledWith(
-      'https://lnk.bio/CFWorshipLinks',
-      '_blank',
-      'noopener,noreferrer',
-    );
-    expect(mockNavigate).not.toHaveBeenCalledWith(
-      'https://lnk.bio/CFWorshipLinks',
-    );
+    expect(mockNavigate).toHaveBeenCalledWith('/cf-worship-team');
+    expect(mockWindowOpen).not.toHaveBeenCalled();
   });
 });
