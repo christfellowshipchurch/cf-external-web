@@ -236,6 +236,31 @@ describe('BaptismSignUpForm', () => {
     expect(screen.getByText('Relation to the participant')).toBeInTheDocument();
   });
 
+  it('offers Rock grades from Kindergarten through 12th for children', () => {
+    renderForm();
+    setBirthdate(10);
+    const gradeSelect = screen.getByLabelText('Grade') as HTMLSelectElement;
+    expect(
+      Array.from(gradeSelect.options)
+        .slice(1)
+        .map((option) => option.value),
+    ).toEqual([
+      'Kindergarten',
+      '1st',
+      '2nd',
+      '3rd',
+      '4th',
+      '5th',
+      '6th',
+      '7th',
+      '8th',
+      '9th',
+      '10th',
+      '11th',
+      '12th',
+    ]);
+  });
+
   it('asks the High School question at exactly 18 and reveals guardian fields only when answered Yes', () => {
     renderForm();
     setBirthdate(18);

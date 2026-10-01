@@ -31,6 +31,7 @@ const createFormData = () => {
 const createRequest = (options: {
   group?: string;
   language?: 'English' | 'Spanish';
+  formData?: FormData;
 }) => {
   const searchParams = new URLSearchParams();
   if (options.group) {
@@ -44,7 +45,7 @@ const createRequest = (options: {
     `http://localhost/baptism-sign-up?${searchParams.toString()}`,
     {
       method: 'POST',
-      body: createFormData(),
+      body: options.formData ?? createFormData(),
     },
   );
 };
@@ -82,6 +83,127 @@ describe('baptism sign up action', () => {
         'T-ShirtSize': 'Adult Medium',
       }),
     });
+  });
+
+  it.each(['English', 'Spanish'] as const)(
+    'preserves child and guardian details using confirmed %s Rock attribute keys',
+    async (language) => {
+      vi.mocked(postRockData).mockResolvedValueOnce('2031');
+      const formData = createFormData();
+      formData.set('birthdate', '2012-01-01');
+      formData.set('grade', '8th');
+      formData.set('gFirstName', 'Parent');
+      formData.set('gLastName', 'Person');
+      formData.set('guardiansEmail', 'parent@example.com');
+      formData.set('guardiansPhone', '5615550100');
+      formData.set('relationship', 'Mother');
+
+      await action({
+        request: createRequest({ group: 'group-guid-123', language, formData }),
+      } as ActionFunctionArgs);
+
+      expect(postRockData).toHaveBeenCalledWith({
+        endpoint: expect.stringContaining(
+          `workflowTypeId=${language === 'Spanish' ? '1644' : '1465'}&`,
+        ),
+        body: expect.objectContaining({
+          FirstName: 'Test',
+          LastName: 'Person',
+          Birthdate: '2012-01-01',
+          Grade: '2031',
+          GFirstName: 'Parent',
+          GLastName: 'Person',
+          GuardiansEmail: 'parent@example.com',
+          GuardiansPhoneNumber: '5615550100',
+          Relationship: 'Mother',
+          ShareYourStory: 'I am ready.',
+          MyStory: 'Yes',
+        }),
+      });
+      expect(postRockData).toHaveBeenCalledWith({
+        endpoint: '/Lava/RenderTemplate',
+        body: "{[ gradYearFromGrade grade:'8' ]}",
+        contentType: 'text/plain',
+      });
+    },
+  );
+
+  it('does not launch a child workflow when Rock cannot resolve its grade option', async () => {
+    vi.mocked(postRockData).mockResolvedValueOnce('');
+    const formData = createFormData();
+    formData.set('grade', '8th');
+
+    const result = await action({
+      request: createRequest({ group: 'group-guid-123', formData }),
+    } as ActionFunctionArgs);
+
+    expect(result).toMatchObject({
+      data: { error: 'Rock did not return a valid graduation year' },
+      init: { status: 400 },
+    });
+    expect(postRockData).toHaveBeenCalledTimes(1);
+    expect(fetchRockData).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ['Kindergarten', 0],
+    ['1st', 1],
+    ['2nd', 2],
+    ['3rd', 3],
+    ['4th', 4],
+    ['5th', 5],
+    ['6th', 6],
+    ['7th', 7],
+    ['8th', 8],
+    ['9th', 9],
+    ['10th', 10],
+    ['11th', 11],
+    ['12th', 12],
+  ])(
+    'resolves %s through its Rock graduation-year grade number',
+    async (label, gradeNumber) => {
+      vi.mocked(postRockData).mockResolvedValueOnce('2040');
+      const formData = createFormData();
+      formData.set('grade', String(label));
+
+      await action({
+        request: createRequest({ group: 'group-guid-123', formData }),
+      } as ActionFunctionArgs);
+
+      expect(postRockData).toHaveBeenNthCalledWith(1, {
+        endpoint: '/Lava/RenderTemplate',
+        body: `{[ gradYearFromGrade grade:'${gradeNumber}' ]}`,
+        contentType: 'text/plain',
+      });
+      expect(postRockData).toHaveBeenNthCalledWith(2, {
+        endpoint: expect.stringContaining('Workflows/LaunchWorkflow/'),
+        body: expect.objectContaining({ Grade: '2040' }),
+      });
+    },
+  );
+
+  it('keeps adult submissions free of guardian attributes and maps story to its Rock text field', async () => {
+    await action({
+      request: createRequest({ group: 'group-guid-123' }),
+    } as ActionFunctionArgs);
+
+    const body = vi.mocked(postRockData).mock.calls[0][0].body;
+    expect(body).toMatchObject({
+      Birthdate: '2000-01-01',
+      ShareYourStory: 'I am ready.',
+      MyStory: 'Yes',
+    });
+    for (const key of [
+      'Grade',
+      'GFirstName',
+      'GLastName',
+      'GuardiansEmail',
+      'GuardiansPhoneNumber',
+      'Relationship',
+      'AreyouinHighSchool',
+    ]) {
+      expect(body).not.toHaveProperty(key);
+    }
   });
 
   it('creates a location before launching the workflow when none matches', async () => {

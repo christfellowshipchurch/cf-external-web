@@ -18,6 +18,7 @@ import {
 } from '~/primitives/inputs/form-radix-field';
 import BirthdateInput from '~/primitives/inputs/date-input/birthdate-input.primitive';
 import type { BaptismSignUpLoaderReturnType } from '~/routes/baptism-sign-up/types';
+import { BAPTISM_GRADE_OPTIONS } from '~/routes/baptism-sign-up/grade-options';
 
 export type BaptismSignUpSuccessDetails = {
   firstName: string;
@@ -46,7 +47,6 @@ const T_SHIRT_SIZES = [
   'Adult XL',
   'Adult XXL',
 ];
-const GRADE_OPTIONS = ['6th', '7th', '8th', '9th', '10th', '11th', '12th'];
 
 const SHARE_STORY_OPTIONS = [
   { value: 'Yes', label: 'Yes' },
@@ -733,9 +733,9 @@ const BaptismSignUpForm: React.FC<BaptismSignUpFormProps> = ({
               copy.grade,
               copy.gradePlaceholder,
               copy.requiredGrade,
-              GRADE_OPTIONS.map((grade) => (
-                <option key={grade} value={grade}>
-                  {grade}
+              BAPTISM_GRADE_OPTIONS.map(({ label }) => (
+                <option key={label} value={label}>
+                  {label}
                 </option>
               )),
             )}
