@@ -1,11 +1,19 @@
+import { useLocation } from 'react-router-dom';
 import { ContactInfo } from './footer-contact.partial';
 import { FooterSocialLinks } from './footer-links.partial';
 import { FooterColumnComponent } from './footer-column.component';
 import { footerColumns } from './footer-data';
 import { Icon } from '~/primitives/icon/icon';
+import { shouldHideFooter } from '../navbar/navbar-routes';
 
 export const Footer = () => {
+  const { pathname } = useLocation();
   const year = new Date().getFullYear();
+
+  // Routes that render the footer-less (bare) layout
+  if (shouldHideFooter(pathname)) {
+    return null;
+  }
 
   return (
     <footer className='flex flex-col items-center w-full bg-navy px-4 lg:px-18 relative z-30'>
