@@ -377,26 +377,6 @@ export const fetchRockData = async ({
 
     const data = await res
       .json()
-      .then((raw) => {
-        // TEMP DEBUG (CFDP-4377): remove before PR
-        if (filterByDateRange) {
-          const rows = Array.isArray(raw) ? raw : [raw];
-          console.log('[TZ-DEBUG]', {
-            endpoint,
-            processTZ: process.env.TZ,
-            resolvedTZ: Intl.DateTimeFormat().resolvedOptions().timeZone,
-            serverNow: new Date().toISOString(),
-            sentFilter: mergedQueryParams.$filter,
-            items: rows.slice(0, 5).map((r) => ({
-              id: r?.Id,
-              title: r?.Title,
-              StartDateTime: r?.StartDateTime,
-              ExpireDateTime: r?.ExpireDateTime,
-            })),
-          });
-        }
-        return raw;
-      })
       .then((data) => normalize(data))
       .then((data: unknown) =>
         Array.isArray(data) && data?.length === 1 ? data[0] : data,
