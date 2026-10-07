@@ -70,3 +70,8 @@ If you genuinely think a convention is harmful, surface it. Don't fork silently.
 "Completed" is wrong if anything was skipped silently.
 "Tests pass" is wrong if any were skipped.
 Default to surfacing uncertainty, not hiding it.
+
+## Creating a PR
+
+When asked to create or write a PR, write it from the diff of the current branch against `main`, using the `PULL_REQUEST_TEMPLATE.md` format. Return it in raw markdown.
+The template uses `pnpm check`, which combines the linter, type check and prettier format checks. If it reports an error, fix it. For a prettier format error, run `pnpm format` to update the files.

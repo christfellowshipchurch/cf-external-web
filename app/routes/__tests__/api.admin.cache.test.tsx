@@ -4,6 +4,7 @@ import { action, loader } from '../api.admin.cache';
 
 const mocks = vi.hoisted(() => ({
   invalidateItem: vi.fn(),
+  deleteByPrefix: vi.fn(),
   collectItemCacheFootprint: vi.fn(),
   redis: null as unknown as { pipeline: ReturnType<typeof vi.fn> } | null,
 }));
@@ -15,6 +16,7 @@ vi.mock('~/lib/.server/redis-config', () => ({
 }));
 vi.mock('~/lib/.server/cache-utils', () => ({
   invalidateItem: mocks.invalidateItem,
+  deleteByPrefix: mocks.deleteByPrefix,
   collectItemCacheFootprint: mocks.collectItemCacheFootprint,
 }));
 
@@ -57,6 +59,7 @@ const fakePipeline = (existsResults: number[]) => ({
 beforeEach(() => {
   mocks.redis = null;
   mocks.invalidateItem.mockReset();
+  mocks.deleteByPrefix.mockReset();
   mocks.collectItemCacheFootprint.mockReset();
 });
 
@@ -89,6 +92,118 @@ describe('admin content cache invalidation (POST)', () => {
     mocks.invalidateItem.mockRejectedValue(new Error('redis blip'));
 
     const response = await action(createArgs());
+
+    expect(readStatus(response)).toBe(500);
+    expect(readData(response)).toEqual({
+      success: false,
+      error: 'internal_error',
+    });
+  });
+});
+
+describe('admin cache invalidation (POST target=attribute-matrices)', () => {
+  const matrixArgs = (
+    secret = 'test-secret',
+    search = '?target=attribute-matrices',
+  ) => createArgs(secret, { search });
+
+  beforeEach(() => {
+    process.env.CACHE_INVALIDATION_SECRET = 'test-secret';
+  });
+
+  it('flushes both prefixes — items alone would leave the parent $expand listing stale ids', async () => {
+    mocks.redis = { pipeline: vi.fn() };
+    mocks.deleteByPrefix.mockResolvedValue(1);
+
+    await action(matrixArgs());
+
+    expect(mocks.deleteByPrefix).toHaveBeenCalledTimes(2);
+    expect(mocks.deleteByPrefix).toHaveBeenCalledWith(
+      mocks.redis,
+      'AttributeMatrices',
+    );
+    expect(mocks.deleteByPrefix).toHaveBeenCalledWith(
+      mocks.redis,
+      'AttributeMatrixItems',
+    );
+    expect(mocks.invalidateItem).not.toHaveBeenCalled();
+  });
+
+  it('reports deletedKeys as the sum of both flushes, in the shape clear.lava checks', async () => {
+    mocks.redis = { pipeline: vi.fn() };
+    mocks.deleteByPrefix.mockResolvedValueOnce(3).mockResolvedValueOnce(4);
+
+    const response = await action(matrixArgs());
+
+    expect(readData(response)).toEqual({
+      success: true,
+      target: 'attribute-matrices',
+      deletedKeys: 7,
+    });
+  });
+
+  it('rejects an unknown target with 400 and flushes nothing — a typo must not silently no-op or hit the id path', async () => {
+    mocks.redis = { pipeline: vi.fn() };
+
+    const response = await action(matrixArgs('test-secret', '?target=oops'));
+
+    expect(readStatus(response)).toBe(400);
+    expect(mocks.deleteByPrefix).not.toHaveBeenCalled();
+    expect(mocks.invalidateItem).not.toHaveBeenCalled();
+  });
+
+  it('rejects target together with id — callers must pick one', async () => {
+    mocks.redis = { pipeline: vi.fn() };
+
+    const response = await action(
+      matrixArgs('test-secret', '?id=10&target=attribute-matrices'),
+    );
+
+    expect(readStatus(response)).toBe(400);
+    expect(mocks.deleteByPrefix).not.toHaveBeenCalled();
+    expect(mocks.invalidateItem).not.toHaveBeenCalled();
+  });
+
+  it('treats a blank target as absent so the Rock workflow can still clear an item', async () => {
+    mocks.redis = { pipeline: vi.fn() };
+    mocks.invalidateItem.mockResolvedValue(2);
+
+    const response = await action(matrixArgs('test-secret', '?id=10&target='));
+
+    expect(mocks.invalidateItem).toHaveBeenCalledWith(mocks.redis, 10);
+    expect(mocks.deleteByPrefix).not.toHaveBeenCalled();
+    expect(readData(response)).toEqual({
+      success: true,
+      id: '10',
+      deletedKeys: 2,
+    });
+  });
+
+  it('returns 401 before any Redis call on a bad secret', async () => {
+    mocks.redis = { pipeline: vi.fn() };
+
+    const response = await action(matrixArgs('wrong-secret'));
+
+    expect(readStatus(response)).toBe(401);
+    expect(mocks.deleteByPrefix).not.toHaveBeenCalled();
+  });
+
+  it('returns 503 instead of reporting success when Redis is unavailable', async () => {
+    const response = await action(matrixArgs());
+
+    expect(readStatus(response)).toBe(503);
+    expect(readData(response)).toEqual({
+      success: false,
+      error: 'cache_unavailable',
+    });
+    expect(mocks.deleteByPrefix).not.toHaveBeenCalled();
+  });
+
+  it('returns a JSON 500 when deleteByPrefix throws', async () => {
+    mocks.redis = { pipeline: vi.fn() };
+    mocks.deleteByPrefix.mockRejectedValue(new Error('redis blip'));
+
+    const response = await action(matrixArgs());
 
     expect(readStatus(response)).toBe(500);
     expect(readData(response)).toEqual({

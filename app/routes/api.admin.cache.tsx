@@ -6,6 +6,7 @@ import {
 import redis from '~/lib/.server/redis-config';
 import {
   collectItemCacheFootprint,
+  deleteByPrefix,
   invalidateItem,
 } from '~/lib/.server/cache-utils';
 
@@ -31,6 +32,13 @@ function isAuthorized(request: Request): boolean {
  * manually by a developer and by a Rock RMS webhook on content publish/update.
  *
  * Channel id is not required — Rock ContentChannelItem ids are globally unique.
+ *
+ * POST /api/admin/cache?target=attribute-matrices
+ *   Flushes every cached Attribute Matrix (`AttributeMatrices` and
+ *   `AttributeMatrixItems`). Site-wide: this also clears matrix data used by
+ *   locations (During the Week), events, page-builder, ministry-builder and
+ *   studies. Cannot be combined with `id`; a blank `target=` is ignored.
+ *   Responds `{ success, target, deletedKeys }`.
  */
 export const action: ActionFunction = async ({ request }) => {
   if (request.method !== 'POST') {
@@ -43,6 +51,36 @@ export const action: ActionFunction = async ({ request }) => {
 
   const url = new URL(request.url);
   let id = url.searchParams.get('id');
+  // A Rock Web Request with a blank attribute renders `target=`; treat as absent.
+  const target = url.searchParams.get('target') || null;
+
+  if (target) {
+    if (id) {
+      return data(
+        { error: 'Provide either id or target, not both' },
+        { status: 400 },
+      );
+    }
+    if (target !== 'attribute-matrices') {
+      return data({ error: 'Invalid target' }, { status: 400 });
+    }
+    if (!redis) {
+      return data(
+        { success: false, error: 'cache_unavailable' },
+        { status: 503 },
+      );
+    }
+    try {
+      // Both prefixes: the parent `$expand` lists which item ids exist, the
+      // items carry the values — flushing only one leaves add/remove stale.
+      const deletedKeys =
+        (await deleteByPrefix(redis, 'AttributeMatrices')) +
+        (await deleteByPrefix(redis, 'AttributeMatrixItems'));
+      return data({ success: true, target, deletedKeys });
+    } catch {
+      return data({ success: false, error: 'internal_error' }, { status: 500 });
+    }
+  }
 
   // Fallback to a JSON body for curl/manual testing.
   if (!id) {
