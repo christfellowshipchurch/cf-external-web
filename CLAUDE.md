@@ -70,3 +70,22 @@ If you genuinely think a convention is harmful, surface it. Don't fork silently.
 "Completed" is wrong if anything was skipped silently.
 "Tests pass" is wrong if any were skipped.
 Default to surfacing uncertainty, not hiding it.
+
+## Creating a PR
+
+When asked to create or write a PR, write it from the diff of the current branch against `main`, using the `.github/PULL_REQUEST_TEMPLATE.md` format. Return it in raw markdown.
+
+**Checks:** The template uses `pnpm check`, which combines the linter, type check and prettier format checks. Run it before writing the PR. If it reports an error, fix it. For a prettier format error, run `pnpm format` to update the files.
+
+**Testing section:** Write it for another dev who has never seen this change and will review it.
+
+- Use a numbered checklist of concrete, actionable steps they can follow without reading the code: exact commands, URLs or routes, and any setup (env vars, test data, logged-in state).
+- Give the expected result for every step, so the reviewer knows what "pass" looks like.
+- Include edge cases or regressions worth checking, not just the happy path.
+- Say what was not tested and why (for example, no non-prod Redis available). Never imply a step was run if it wasn't.
+
+**Jira ticket:** Before filling in the Tickets section, search Jira for tickets assigned to the current user (JQL `assignee = currentUser() AND statusCategory != Done`, newest first).
+
+- Pick tickets whose summary or description matches the diff or branch name, and list them by key and link.
+- If more than one plausibly matches, or the match is uncertain, show the candidates and ask the user rather than guessing.
+- If nothing matches, write "N/A" and say that no matching assigned ticket was found. Never invent a ticket key.
