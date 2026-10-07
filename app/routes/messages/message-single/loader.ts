@@ -1,4 +1,4 @@
-import type { LoaderFunction } from 'react-router-dom';
+import type { LoaderFunction } from 'react-router';
 import { fetchRockData, TTL } from '~/lib/.server/fetch-rock-data';
 import {
   createImageUrlFromGuid,

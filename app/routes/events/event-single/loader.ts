@@ -1,4 +1,4 @@
-import type { LoaderFunction } from 'react-router-dom';
+import type { LoaderFunction } from 'react-router';
 import { EventSinglePageType, isEventRegistrationGroupType } from './types';
 import { RockContentChannelItem } from '~/lib/types/rock-types';
 import {

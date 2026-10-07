@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom';
+import { Link } from 'react-router';
 import { CollectionItem } from '~/routes/page-builder/types';
 
 export const GridCard = ({ resource }: { resource: CollectionItem }) => (

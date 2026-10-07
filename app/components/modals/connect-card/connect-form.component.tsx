@@ -13,7 +13,7 @@ import {
   radixSelectClassName,
 } from '~/primitives/inputs/form-radix-field';
 import { formFieldInvalidControlStyles } from '~/primitives/inputs/form-control.styles';
-import { useFetcher, useParams, useSearchParams } from 'react-router-dom';
+import { useFetcher, useParams, useSearchParams } from 'react-router';
 import type {
   ConnectCardLoaderReturnType,
   ConnectCardPrefill,

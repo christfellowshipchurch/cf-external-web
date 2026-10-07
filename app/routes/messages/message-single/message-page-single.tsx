@@ -3,7 +3,7 @@ import { MessageContent } from './partials/content.partial';
 import { InThisSeries } from './partials/series.partial';
 import { RelatedMessages } from './partials/related-messages.partial';
 import { AdditionalResources } from '~/components';
-import { useLoaderData, useRouteLoaderData } from 'react-router-dom';
+import { useLoaderData, useRouteLoaderData } from 'react-router';
 import { LoaderReturnType } from './loader';
 import { cn } from '~/lib/utils';
 import { RootLoaderData } from '~/routes/navbar/loader';

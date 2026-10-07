@@ -1,4 +1,4 @@
-import { useLoaderData, useLocation } from 'react-router-dom';
+import { useLoaderData, useLocation } from 'react-router';
 import CopyToClipboard from './copy-link.component';
 import Icon from '~/primitives/icon';
 import { buildSocialShareUrls } from '~/lib/share';

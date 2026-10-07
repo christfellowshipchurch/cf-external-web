@@ -1,3 +1,4 @@
+import { RouterContextProvider } from 'react-router';
 import { describe, expect, it } from 'vitest';
 import { loader } from '../loader';
 import {
@@ -11,9 +12,10 @@ import {
 function makeLoaderArgs(search = ''): Parameters<typeof loader>[0] {
   return {
     request: new Request(`http://localhost/rock-page${search}`),
+    url: new URL(`http://localhost/rock-page${search}`),
     params: {},
-    unstable_pattern: '/rock-page',
-    context: {},
+    pattern: '/rock-page',
+    context: new RouterContextProvider(),
   };
 }
 

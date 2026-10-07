@@ -1,4 +1,4 @@
-import type { MetaFunction } from 'react-router-dom';
+import type { MetaFunction } from 'react-router';
 import { loader } from './loader';
 import { Author } from './types';
 import { createMeta } from '~/lib/meta-utils';
@@ -11,7 +11,7 @@ function htmlToMetaDescription(html: string) {
     .trim();
 }
 
-export const meta: MetaFunction<typeof loader> = ({ data }) => {
+export const meta: MetaFunction<typeof loader> = ({ loaderData: data }) => {
   if (!data) {
     return createMeta({
       title: '404 – Author Not Found',

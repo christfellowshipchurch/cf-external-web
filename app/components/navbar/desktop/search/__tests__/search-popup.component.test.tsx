@@ -12,7 +12,7 @@ vi.mock('react-instantsearch', () => {
   };
 });
 
-vi.mock('react-router-dom', () => ({
+vi.mock('react-router', () => ({
   useRouteLoaderData: () => ({
     defaultSearchHits: [],
     locationSearchHits: [],

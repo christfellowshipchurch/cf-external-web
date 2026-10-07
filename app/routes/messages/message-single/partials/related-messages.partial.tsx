@@ -1,5 +1,5 @@
 import { Button } from '~/primitives/button/button.primitive';
-import { useLoaderData } from 'react-router-dom';
+import { useLoaderData } from 'react-router';
 import { SectionTitle } from '~/components';
 import { useMemo } from 'react';
 import { allMessagesUrlStateToParams } from '../../all-messages/all-messages-url-state';

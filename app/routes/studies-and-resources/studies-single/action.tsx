@@ -1,4 +1,4 @@
-import { ActionFunctionArgs } from 'react-router-dom';
+import { ActionFunctionArgs } from 'react-router';
 
 export async function action({ params }: ActionFunctionArgs) {
   const { path } = params;

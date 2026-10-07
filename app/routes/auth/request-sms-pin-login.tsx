@@ -1,4 +1,4 @@
-import { data } from 'react-router-dom';
+import { data } from 'react-router';
 import { requestSmsLogin } from '~/lib/.server/authentication/sms-authentication';
 import {
   AuthenticationError,

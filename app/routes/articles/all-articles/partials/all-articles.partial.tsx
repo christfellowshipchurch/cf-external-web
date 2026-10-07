@@ -1,4 +1,4 @@
-import { useLoaderData, useSearchParams } from 'react-router-dom';
+import { useLoaderData, useSearchParams } from 'react-router';
 import { useMemo, useRef } from 'react';
 import { liteClient as algoliasearch } from 'algoliasearch/lite';
 import {

@@ -6,9 +6,9 @@ import {
   ScrollRestoration,
   data,
   useRouteLoaderData,
-} from 'react-router-dom';
+} from 'react-router';
 import { type ReactNode } from 'react';
-import { type LoaderFunctionArgs } from 'react-router-dom';
+import { type LoaderFunctionArgs } from 'react-router';
 import { randomUUID } from 'node:crypto';
 
 import { Navbar, Footer } from './components';

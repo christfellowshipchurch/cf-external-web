@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom';
+import { Link } from 'react-router';
 import Icon from '~/primitives/icon';
 import { getDisplayContentType } from '../../search-utils';
 import { resolveSearchHitLinkFromHit } from '../../search-hit-links';

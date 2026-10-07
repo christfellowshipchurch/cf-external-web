@@ -12,7 +12,7 @@ import {
   RadixFormErrorMessage,
   RadixFormSelectShell,
 } from '~/primitives/inputs/form-radix-field';
-import { useFetcher } from 'react-router-dom';
+import { useFetcher } from 'react-router';
 import { ContactUsLoaderReturnType } from '~/routes/contact-us/types';
 import { pushFormEvent } from '~/lib/gtm';
 

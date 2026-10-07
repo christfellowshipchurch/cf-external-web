@@ -1,4 +1,4 @@
-import { Outlet, useLocation } from 'react-router-dom';
+import { Outlet, useLocation } from 'react-router';
 import React from 'react';
 import { cn } from '~/lib/utils';
 import { VolunteerFormNav } from '~/routes/volunteer-form/components/form-nav.component';

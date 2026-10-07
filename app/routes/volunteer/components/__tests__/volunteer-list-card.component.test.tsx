@@ -1,5 +1,5 @@
 import { fireEvent, render, screen } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter } from 'react-router';
 import { describe, expect, it } from 'vitest';
 
 import { VOLUNTEER_FINDER_BACK_STORAGE_KEY } from '../../outreach-opportunity/components/outreach-finder-return-href';

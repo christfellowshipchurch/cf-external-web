@@ -1,5 +1,5 @@
 import { render, screen } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter } from 'react-router';
 import { describe, it, expect } from 'vitest';
 import { MoreEpisodesSearch } from '../more-episodes-search';
 import type { ContentItemHit } from '~/routes/search/types';

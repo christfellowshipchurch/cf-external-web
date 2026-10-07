@@ -1,4 +1,4 @@
-import type { MetaFunction } from 'react-router-dom';
+import type { MetaFunction } from 'react-router';
 import { createMeta } from '~/lib/meta-utils';
 import { HeroSection } from './partials/hero.partial';
 import { NextStepsSection } from './partials/next-steps.partial';

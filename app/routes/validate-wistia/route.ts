@@ -1,5 +1,5 @@
 import { isValidWistiaId } from '~/lib/.server/fetch-wistia-data';
-import type { LoaderFunctionArgs } from 'react-router-dom';
+import type { LoaderFunctionArgs } from 'react-router';
 
 export async function loader({ request }: LoaderFunctionArgs) {
   const url = new URL(request.url);

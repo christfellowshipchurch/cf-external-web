@@ -1,6 +1,6 @@
 import Icon from '~/primitives/icon';
 import { useState, useEffect, useRef } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router';
 import MobileMenuContent from './mobile-menu-content';
 import { Button } from '~/primitives/button/button.primitive';
 import { MobileSearch } from './search/mobile-search.component';

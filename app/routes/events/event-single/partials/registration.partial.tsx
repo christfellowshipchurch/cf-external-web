@@ -1,4 +1,4 @@
-import { useLoaderData } from 'react-router-dom';
+import { useLoaderData } from 'react-router';
 import { EventSinglePageType, hasRegistrationContent } from '../types';
 import { SessionRegistration } from '../components/session-registration';
 import { ClickThroughRegistration } from '../components/clickthrough-registration.component';

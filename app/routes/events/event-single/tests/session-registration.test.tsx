@@ -4,15 +4,13 @@ import type { SessionRegistrationCardType } from '../types';
 
 const mockLoaderData = vi.fn();
 
-vi.mock('react-router-dom', async () => {
+vi.mock('react-router', async () => {
   const actual =
-    await vi.importActual<typeof import('react-router-dom')>(
-      'react-router-dom',
-    );
+    await vi.importActual<typeof import('react-router')>('react-router');
   return { ...actual, useLoaderData: () => mockLoaderData() };
 });
 
-const { MemoryRouter } = await import('react-router-dom');
+const { MemoryRouter } = await import('react-router');
 const { SessionRegistration } =
   await import('../components/session-registration');
 

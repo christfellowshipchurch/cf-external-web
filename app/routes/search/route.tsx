@@ -7,7 +7,7 @@ import {
   RefinementList,
 } from 'react-instantsearch';
 import { ContentItemHit } from './types';
-import { useLoaderData } from 'react-router-dom';
+import { useLoaderData } from 'react-router';
 import { LoaderReturnType } from './loader';
 import { SearchClient } from 'algoliasearch';
 

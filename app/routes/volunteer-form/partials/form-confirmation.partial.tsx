@@ -1,5 +1,5 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
+import { Link } from 'react-router';
 import { ResultsProgressBar } from '../components/results-progress-bar.component';
 import { ResultCard } from '../components/result-card.component';
 import { mockResultCards } from '../mock-data';

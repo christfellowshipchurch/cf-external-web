@@ -3,7 +3,7 @@
  */
 
 import { ClassHitType } from '../../types';
-import { Link } from 'react-router-dom';
+import { Link } from 'react-router';
 
 export function ClassHitComponent({
   hit,

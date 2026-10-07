@@ -3,7 +3,7 @@ import { ConnectCardModal } from '~/components/modals/connect-card';
 import { icons } from '~/lib/icons';
 import { Icon } from '~/primitives/icon/icon';
 import { ButtonProps } from '~/primitives/button/button.primitive';
-import { Link } from 'react-router-dom';
+import { Link } from 'react-router';
 import React from 'react';
 import { ShareButton } from '~/components/share-links/share-button.component';
 import { cn } from '~/lib/utils';

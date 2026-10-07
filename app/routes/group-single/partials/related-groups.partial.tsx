@@ -1,7 +1,7 @@
 import { Configure, InstantSearch } from 'react-instantsearch';
 import { useMemo, useState } from 'react';
 import { GroupHit } from '../../group-finder/components/group-hit.component';
-import { useLoaderData } from 'react-router-dom';
+import { useLoaderData } from 'react-router';
 import { LoaderReturnType } from '../loader';
 import { CardCarousel } from '~/components/resource-carousel';
 import {

@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams } from 'react-router';
 import { useInstantSearch } from 'react-instantsearch';
 
 import { buildIndexInitialUiState } from '~/components/finders/finder-algolia.utils';

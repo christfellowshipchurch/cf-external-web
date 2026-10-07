@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Form, useActionData } from 'react-router-dom';
+import { Form, useActionData } from 'react-router';
 import type { VolunteerFormAvailability } from '../types';
 import {
   DAYS_OF_WEEK,

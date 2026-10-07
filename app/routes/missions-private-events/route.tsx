@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useLoaderData } from 'react-router-dom';
+import { useLoaderData } from 'react-router';
 
 import { cn } from '~/lib/utils';
 import { VolunteerAlgolia } from '~/routes/volunteer/components/volunteer-algolia.component';

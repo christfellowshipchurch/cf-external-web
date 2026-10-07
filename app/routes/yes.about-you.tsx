@@ -1,5 +1,5 @@
 import React from 'react';
-import { useLoaderData } from 'react-router-dom';
+import { useLoaderData } from 'react-router';
 import YesAboutYou from './yes/partials/yes-about-you.partial';
 import { YesFormPersonalInfo } from './yes/types';
 

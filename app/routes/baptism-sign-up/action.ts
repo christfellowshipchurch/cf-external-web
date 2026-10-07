@@ -1,4 +1,4 @@
-import { ActionFunction, data } from 'react-router-dom';
+import { ActionFunction, data } from 'react-router';
 import { BaptismSignUpFormType } from './types';
 import { BAPTISM_GRADE_OPTIONS } from './grade-options';
 import {

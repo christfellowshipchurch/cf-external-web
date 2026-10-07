@@ -1,6 +1,6 @@
 // This loader is used to fetch the feature cards for the navbar and is stored in the root loader to be used across the app
 
-import type { LoaderFunctionArgs } from 'react-router-dom';
+import type { LoaderFunctionArgs } from 'react-router';
 import { fetchRockData } from '~/lib/.server/fetch-rock-data';
 // import { fetchTopSearches } from "~/lib/.server/fetch-top-searches";
 import type { FeatureCard } from '~/components/navbar/types';

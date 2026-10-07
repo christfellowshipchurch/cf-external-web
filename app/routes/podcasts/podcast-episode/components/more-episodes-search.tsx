@@ -1,5 +1,5 @@
 import { Icon } from '~/primitives/icon/icon';
-import { Link } from 'react-router-dom';
+import { Link } from 'react-router';
 import { ContentItemHit } from '~/routes/search/types';
 
 interface MoreEpisodesSearchProps {

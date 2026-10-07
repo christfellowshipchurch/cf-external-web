@@ -1,4 +1,4 @@
-import { LoaderFunctionArgs } from 'react-router-dom';
+import { LoaderFunctionArgs } from 'react-router';
 import { fetchRockData } from '~/lib/.server/fetch-rock-data';
 import { escapeOData } from '~/lib/.server/rock-utils';
 import {

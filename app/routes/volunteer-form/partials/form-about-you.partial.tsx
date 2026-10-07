@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Form, useActionData } from 'react-router-dom';
+import { Form, useActionData } from 'react-router';
 import { CAMPUS, type VolunteerFormPersonalInfo } from '../types';
 import { Button } from '~/primitives/button/button.primitive';
 import TextFieldInput from '~/primitives/inputs/text-field';

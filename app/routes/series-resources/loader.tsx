@@ -1,5 +1,5 @@
 import { fetchRockData } from '~/lib/.server/fetch-rock-data';
-import { LoaderFunctionArgs } from 'react-router-dom';
+import { LoaderFunctionArgs } from 'react-router';
 import { createImageUrlFromGuid, ensureArray } from '~/lib/utils';
 import { mapRockDataToMessage } from '../messages/message-single/loader';
 import {

@@ -1,4 +1,4 @@
-import { data } from 'react-router-dom';
+import { data } from 'react-router';
 import { z } from 'zod';
 import { registerPersonWithEmail } from '~/lib/.server/authentication/rock-authentication';
 import { RegistrationTypes } from '~/providers/auth-provider';

@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
-import { useLoaderData, useRouteLoaderData } from 'react-router-dom';
+import { useLoaderData, useRouteLoaderData } from 'react-router';
 import { InstantSearch, Configure, useHits } from 'react-instantsearch';
 import { createSearchClient } from '~/lib/create-search-client';
 import Icon from '~/primitives/icon';

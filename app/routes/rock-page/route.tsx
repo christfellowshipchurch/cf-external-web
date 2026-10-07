@@ -1,5 +1,5 @@
 import { useCallback } from 'react';
-import { Link, useLoaderData } from 'react-router-dom';
+import { Link, useLoaderData } from 'react-router';
 import { RockProxyEmbed } from '~/components/rock-embed';
 import Icon from '~/primitives/icon';
 import { loader } from './loader';

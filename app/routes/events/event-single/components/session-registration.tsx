@@ -1,4 +1,4 @@
-import { useLoaderData } from 'react-router-dom';
+import { useLoaderData } from 'react-router';
 import { EventSinglePageType, SessionRegistrationCardType } from '../types';
 import Icon from '~/primitives/icon';
 import { Button } from '~/primitives/button/button.primitive';

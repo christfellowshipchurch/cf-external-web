@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom';
+import { Link } from 'react-router';
 import { Fragment, type MouseEvent, type ReactNode } from 'react';
 
 import { SectionTitle } from '~/components';

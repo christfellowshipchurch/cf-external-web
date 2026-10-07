@@ -1,4 +1,4 @@
-import { Link, useRouteLoaderData } from 'react-router-dom';
+import { Link, useRouteLoaderData } from 'react-router';
 import type { RootLoaderData } from '~/routes/navbar/loader';
 
 /** Fallback when Algolia Analytics top hits are not yet available (e.g. before Premium plan). */

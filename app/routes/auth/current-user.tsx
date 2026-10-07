@@ -1,4 +1,4 @@
-import { data } from 'react-router-dom';
+import { data } from 'react-router';
 import { getCurrentPerson } from '~/lib/.server/authentication/rock-authentication';
 import { decrypt } from '~/lib/.server/decrypt';
 import { registerToken } from '~/lib/.server/token';

@@ -1,4 +1,4 @@
-import { useRouteLoaderData } from 'react-router-dom';
+import { useRouteLoaderData } from 'react-router';
 import { useEffect, useRef, useState } from 'react';
 import { getLatestMessageFeaturedUrl } from '~/components/navbar/get-latest-message-featured-url';
 import type { RootLoaderData } from '~/routes/navbar/loader';

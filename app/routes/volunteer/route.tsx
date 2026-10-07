@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation } from 'react-router';
 
 import { VolunteerHero } from './partials/volunteer-hero.partial';
 import { VolunteerHowItWorks } from './partials/volunteer-how-it-works.partial';

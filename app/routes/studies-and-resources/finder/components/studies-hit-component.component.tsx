@@ -3,7 +3,7 @@
  */
 
 import { StudyHitType } from '../../types';
-import { Link } from 'react-router-dom';
+import { Link } from 'react-router';
 import {
   iconForStudyFormat,
   StudiesTagItem,

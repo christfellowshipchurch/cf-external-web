@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useLoaderData } from 'react-router-dom';
+import { useLoaderData } from 'react-router';
 
 import { SectionTitle } from '~/components/section-title';
 import { ShareMySkillsModal } from '~/components/modals/share-my-skills';

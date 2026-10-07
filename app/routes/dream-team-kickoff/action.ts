@@ -1,4 +1,4 @@
-import { data, type ActionFunction } from 'react-router-dom';
+import { data, type ActionFunction } from 'react-router';
 import { postRockData } from '~/lib/.server/fetch-rock-data';
 import type { DreamTeamKickoffFormType } from './types';
 

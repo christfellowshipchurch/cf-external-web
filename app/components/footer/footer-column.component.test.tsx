@@ -1,6 +1,6 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import type { ReactNode } from 'react';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter } from 'react-router';
 import { describe, it, expect, vi } from 'vitest';
 import { FooterColumnComponent } from './footer-column.component';
 import { footerColumns } from './footer-data';

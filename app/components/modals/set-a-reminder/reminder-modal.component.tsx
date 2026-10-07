@@ -3,7 +3,7 @@ import Modal from '~/primitives/Modal';
 import ReminderFlow from './reminder-flow.component';
 import { Button, ButtonProps } from '~/primitives/button/button.primitive';
 import { LoaderReturnType } from '~/routes/locations/location-single/loader';
-import { useLoaderData } from 'react-router-dom';
+import { useLoaderData } from 'react-router';
 import { cn } from '~/lib/utils';
 import { pushFormEvent } from '~/lib/gtm';
 

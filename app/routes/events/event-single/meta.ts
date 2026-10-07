@@ -1,10 +1,13 @@
-import type { MetaFunction } from 'react-router-dom';
+import type { MetaFunction } from 'react-router';
 import { loader } from './loader';
 import { EventSinglePageType } from './types';
 import { createMeta } from '~/lib/meta-utils';
 import { generateMetaKeywords } from '~/lib/generate-meta-keywords';
 
-export const meta: MetaFunction<typeof loader> = ({ data, location }) => {
+export const meta: MetaFunction<typeof loader> = ({
+  loaderData: data,
+  location,
+}) => {
   const eventData = data as EventSinglePageType | undefined;
   if (!eventData) {
     return createMeta({

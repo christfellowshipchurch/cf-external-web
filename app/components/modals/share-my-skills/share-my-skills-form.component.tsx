@@ -1,6 +1,6 @@
 import * as Form from '@radix-ui/react-form';
 import { useEffect, useState } from 'react';
-import { useFetcher } from 'react-router-dom';
+import { useFetcher } from 'react-router';
 import { pushFormEvent } from '~/lib/gtm';
 import { cn } from '~/lib/utils';
 import { Button } from '~/primitives/button/button.primitive';

@@ -1,5 +1,5 @@
-import { Link, useLocation } from 'react-router-dom';
-import { useRouteLoaderData } from 'react-router-dom';
+import { Link, useLocation } from 'react-router';
+import { useRouteLoaderData } from 'react-router';
 import { useEffect, useState, useRef } from 'react';
 import { useResponsive } from '~/hooks/use-responsive';
 import lowerCase from 'lodash/lowerCase';

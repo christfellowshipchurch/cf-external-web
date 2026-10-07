@@ -1,6 +1,6 @@
 import React from 'react';
 import { AuthorLoaderData } from './types';
-import { useLoaderData } from 'react-router-dom';
+import { useLoaderData } from 'react-router';
 import BackButton from './components/back-button';
 import AuthorTabs from './components/author-tabs';
 import { AuthorBio } from './partials/author-bio';
