@@ -18,7 +18,14 @@ type WeeklyMinistryServiceDisplay = {
   learnMoreUrl: string;
 };
 
-const dayOrder = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
+const dayOrder = [
+  'Monday',
+  'Tuesday',
+  'Wednesday',
+  'Thursday',
+  'Friday',
+  'Saturday',
+];
 
 const weekdayDisplayNames = dayOrder.reduce<Record<string, string>>(
   (acc, day) => {
