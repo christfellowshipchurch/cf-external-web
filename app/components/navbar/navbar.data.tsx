@@ -132,7 +132,7 @@ export const watchReadListenData: MenuLink = {
           },
           {
             title: 'Worship',
-            url: '/link-tree/worship',
+            url: '/ministries/worship',
           },
         ],
       },
