@@ -4,6 +4,7 @@ import { Icon } from '~/primitives/icon/icon';
 import { ClassHitType } from '../../types';
 import { formatClassSessionDate } from '../../class-session.utils';
 import { cn } from '~/lib/utils';
+import { toPublicRockUrl } from '~/lib/rock-config';
 import { GroupConnectModal } from '~/components/modals/group-connect/group-connect-modal';
 import { ButtonProps } from '~/primitives/button/button.primitive';
 
@@ -118,7 +119,7 @@ const FullCardModalTrigger = forwardRef<HTMLButtonElement, ButtonProps>(
 
 export const UpcomingSessionCard = ({ hit }: { hit: ClassHitType }) => {
   const displayClassType = hit.classType?.trim() ?? '';
-  const registrationUrl = hit.registrationURL?.trim() ?? '';
+  const registrationUrl = toPublicRockUrl(hit.registrationURL?.trim() ?? '');
 
   // A Rock-provided registration URL takes precedence over the signup modal:
   // these sessions register through an external Rock page, so the in-app form

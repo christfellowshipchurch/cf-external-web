@@ -4,6 +4,27 @@
  */
 export const ROCK_PUBLIC_SITE_ORIGIN = 'https://rock.christfellowship.church';
 
+const ROCK_INTERNAL_HOST = 'rock.gocf.org';
+
+/**
+ * Rock content (e.g. Algolia `registrationURL`) is sometimes authored against the
+ * internal host, which external visitors cannot open.
+ */
+export function toPublicRockUrl(url: string): string {
+  let parsed: URL;
+  try {
+    parsed = new URL(url);
+  } catch {
+    return url;
+  }
+  if (parsed.hostname.toLowerCase() !== ROCK_INTERNAL_HOST) return url;
+
+  const publicOrigin = new URL(ROCK_PUBLIC_SITE_ORIGIN);
+  parsed.protocol = publicOrigin.protocol;
+  parsed.host = publicOrigin.host;
+  return parsed.toString();
+}
+
 export const ContentItemIds = {
   groupsLaunchNotify: 21402,
 };
