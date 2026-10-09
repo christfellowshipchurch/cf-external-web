@@ -1,6 +1,5 @@
 import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
-import { MemoryRouter as MemoryRouterDom } from 'react-router-dom';
 import { describe, expect, it } from 'vitest';
 
 import { NavbarVisibilityProvider } from '~/providers/navbar-visibility-context';
@@ -15,19 +14,17 @@ function leaderImages(count: number): ImageSource[] {
 
 function renderBanner(images: ImageSource[]) {
   return render(
-    <MemoryRouterDom>
-      <MemoryRouter>
-        <NavbarVisibilityProvider>
-          <GroupSingleBanner
-            language=''
-            topics={['Bible Study']}
-            leaderImages={images}
-            groupName='Test Group'
-            groupId='1'
-          />
-        </NavbarVisibilityProvider>
-      </MemoryRouter>
-    </MemoryRouterDom>,
+    <MemoryRouter>
+      <NavbarVisibilityProvider>
+        <GroupSingleBanner
+          language=''
+          topics={['Bible Study']}
+          leaderImages={images}
+          groupName='Test Group'
+          groupId='1'
+        />
+      </NavbarVisibilityProvider>
+    </MemoryRouter>,
   );
 }
 

@@ -1,4 +1,4 @@
-import { useLoaderData } from 'react-router-dom';
+import { useLoaderData } from 'react-router';
 import { DynamicHero } from '~/components';
 import { PodcastHubCard } from './components/podcast-card';
 import { loader } from './loader';

@@ -10,7 +10,7 @@ import {
   RadixFormErrorMessage,
 } from '~/primitives/inputs/form-radix-field';
 import { formRadioGroupVerticalStyles } from '~/primitives/inputs/form-control.styles';
-import { useFetcher } from 'react-router-dom';
+import { useFetcher } from 'react-router';
 import { renderInputField } from '../connect-card/connect-form.component';
 import { LoaderReturnType } from '~/routes/set-a-reminder/loader';
 import { pushFormEvent } from '~/lib/gtm';

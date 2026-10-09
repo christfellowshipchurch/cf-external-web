@@ -4,7 +4,7 @@ import {
   redirect,
   useNavigate,
   useLoaderData,
-} from 'react-router-dom';
+} from 'react-router';
 import type { VolunteerFormInterests } from './volunteer-form/types';
 import { mockInterests } from './volunteer-form/mock-data';
 import VolunteerFormInterestsPartial from './volunteer-form/partials/form-interests.partial';

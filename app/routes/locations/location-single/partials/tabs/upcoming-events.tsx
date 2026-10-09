@@ -1,5 +1,5 @@
 import { CardCarouselSection } from '~/components/resource-carousel';
-import { useLoaderData } from 'react-router-dom';
+import { useLoaderData } from 'react-router';
 import { LoaderReturnType } from '../../loader';
 
 export const UpcomingEvents = () => {

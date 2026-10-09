@@ -1,4 +1,4 @@
-import { data, isRouteErrorResponse } from 'react-router-dom';
+import { data, isRouteErrorResponse } from 'react-router';
 import { RateLimitError } from '~/lib/.server/error-types';
 import { authenticateOrRegisterWithSms } from '~/lib/.server/authentication/authenticate-or-register-with-sms';
 

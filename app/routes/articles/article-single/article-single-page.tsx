@@ -1,4 +1,4 @@
-import { useLoaderData } from 'react-router-dom';
+import { useLoaderData } from 'react-router';
 import { ArticleHero } from './partials/hero.partial';
 import { ArticleContent } from './partials/content.partial';
 import { ArticleNewsletter } from './partials/newsletter.partial';

@@ -1,4 +1,4 @@
-import { useLoaderData } from 'react-router-dom';
+import { useLoaderData } from 'react-router';
 import { LinkTreeLoaderData } from './loader';
 import { HTMLRenderer } from '~/primitives/html-renderer/html-renderer.component';
 import { cn } from '~/lib/utils';

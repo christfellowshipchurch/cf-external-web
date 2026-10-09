@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom';
+import { Link } from 'react-router';
 import Icon from '~/primitives/icon';
 import { SubMenuItem } from './types';
 import { useRef, useState, useEffect } from 'react';

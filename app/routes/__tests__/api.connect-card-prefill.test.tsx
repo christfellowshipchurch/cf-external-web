@@ -1,4 +1,4 @@
-import type { LoaderFunctionArgs } from 'react-router-dom';
+import type { LoaderFunctionArgs } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fetchRockData, postRockData } from '~/lib/.server/fetch-rock-data';
 import { loader } from '../api.connect-card-prefill';

@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom';
+import { Link } from 'react-router';
 import './locations-search-skeleton.css'; // todo : figure out how load in css SSR, to remove error on console
 
 const LocationSkeletonCard = () => {

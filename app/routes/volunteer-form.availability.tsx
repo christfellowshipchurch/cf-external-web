@@ -4,7 +4,7 @@ import {
   redirect,
   useNavigate,
   useLoaderData,
-} from 'react-router-dom';
+} from 'react-router';
 import type { VolunteerFormAvailability } from './volunteer-form/types';
 import { mockAvailability } from './volunteer-form/mock-data';
 import VolunteerFormAvailabilityPartial from './volunteer-form/partials/form-availability.partial';

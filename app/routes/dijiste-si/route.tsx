@@ -1,16 +1,10 @@
-import {
-  Outlet,
-  useLocation,
-  LoaderFunction,
-  redirect,
-} from 'react-router-dom';
+import { Outlet, useLocation, LoaderFunction, redirect } from 'react-router';
 import React from 'react';
 import { cn } from '~/lib/utils';
 
 export { meta } from './meta';
 
-export const loader: LoaderFunction = async ({ request }) => {
-  const url = new URL(request.url);
+export const loader: LoaderFunction = async ({ url }) => {
   if (url.pathname === '/dijiste-si' || url.pathname === '/dijiste-si/') {
     return redirect('/dijiste-si/bienvenida');
   }

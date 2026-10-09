@@ -1,5 +1,5 @@
 import { Icon } from '~/primitives/icon/icon';
-import { Link } from 'react-router-dom';
+import { Link } from 'react-router';
 import { CollectionItem } from '~/routes/page-builder/types';
 
 export const PodcastEpisodeCard = ({

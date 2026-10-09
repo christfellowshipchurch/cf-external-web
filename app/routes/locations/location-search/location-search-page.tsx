@@ -1,8 +1,4 @@
-import {
-  useFetcher,
-  useLoaderData,
-  useRouteLoaderData,
-} from 'react-router-dom';
+import { useFetcher, useLoaderData, useRouteLoaderData } from 'react-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { algoliasearch, type SearchClient } from 'algoliasearch';
 import {

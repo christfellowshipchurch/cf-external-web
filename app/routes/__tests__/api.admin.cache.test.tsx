@@ -1,4 +1,4 @@
-import type { ActionFunctionArgs, LoaderFunctionArgs } from 'react-router-dom';
+import type { ActionFunctionArgs, LoaderFunctionArgs } from 'react-router';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { action, loader } from '../api.admin.cache';
 

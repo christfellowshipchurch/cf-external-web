@@ -1,6 +1,6 @@
 import { Icon } from '~/primitives/icon/icon';
 import { cn } from '~/lib/utils';
-import { Link, useLoaderData } from 'react-router-dom';
+import { Link, useLoaderData } from 'react-router';
 import { HeroAction, HomeLoaderData } from '~/routes/home/loader';
 
 export const MobileFeaturedItems = () => {

@@ -1,4 +1,4 @@
-import { LoaderFunctionArgs } from 'react-router-dom';
+import { LoaderFunctionArgs } from 'react-router';
 import { PodcastEpisode, PodcastShow, RockChannelItem } from '../types';
 import { fetchRockData } from '~/lib/.server/fetch-rock-data';
 import { toRockDateTimeLiteral } from '~/lib/.server/rock-datetime';

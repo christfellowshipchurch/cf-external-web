@@ -1,7 +1,7 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi } from 'vitest';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter } from 'react-router';
 import { SetAReminderModal } from '../reminder-modal.component';
 
 vi.mock('~/lib/gtm', () => ({ pushFormEvent: vi.fn() }));
@@ -10,11 +10,9 @@ vi.mock('../reminder-flow.component', () => ({
   default: () => <div>ReminderFlowContent</div>,
 }));
 
-vi.mock('react-router-dom', async () => {
+vi.mock('react-router', async () => {
   const actual =
-    await vi.importActual<typeof import('react-router-dom')>(
-      'react-router-dom',
-    );
+    await vi.importActual<typeof import('react-router')>('react-router');
   return {
     ...actual,
     useLoaderData: () => ({ campusUrl: 'palm-beach-gardens' }),
@@ -36,11 +34,9 @@ describe('SetAReminderModal', () => {
   });
 
   it("renders 'Visítanos' button text when campusUrl includes 'iglesia'", () => {
-    vi.doMock('react-router-dom', async () => {
+    vi.doMock('react-router', async () => {
       const actual =
-        await vi.importActual<typeof import('react-router-dom')>(
-          'react-router-dom',
-        );
+        await vi.importActual<typeof import('react-router')>('react-router');
       return {
         ...actual,
         useLoaderData: () => ({ campusUrl: 'iglesia-pbg' }),

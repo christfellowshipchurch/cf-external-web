@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
-import { useLoaderData, useLocation, useSearchParams } from 'react-router-dom';
+import { useLoaderData, useLocation, useSearchParams } from 'react-router';
 import { liteClient as algoliasearch } from 'algoliasearch/lite';
 import {
   Configure,

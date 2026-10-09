@@ -10,9 +10,9 @@ function metaFor(campusUrl: string, campusName: string) {
   const data = { campusUrl, campusName } as LoaderReturnType;
   const descriptors = (
     meta as unknown as (args: {
-      data: LoaderReturnType;
+      loaderData: LoaderReturnType;
     }) => Array<{ title?: string } | { name?: string; content?: string }>
-  )({ data });
+  )({ loaderData: data });
 
   const title = descriptors.find((d) => 'title' in d) as
     | { title: string }

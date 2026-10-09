@@ -1,7 +1,7 @@
 import * as Form from '@radix-ui/react-form';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router';
 import ConnectCardForm, {
   renderInputField,
   renderCheckboxField,
@@ -22,11 +22,9 @@ const mockLoad = vi.fn();
 const mockSubmit = vi.fn();
 const mockPrefillLoad = vi.fn();
 
-vi.mock('react-router-dom', async () => {
+vi.mock('react-router', async () => {
   const actual =
-    await vi.importActual<typeof import('react-router-dom')>(
-      'react-router-dom',
-    );
+    await vi.importActual<typeof import('react-router')>('react-router');
   return {
     ...actual,
     useFetcher: (options?: { key?: string }) =>

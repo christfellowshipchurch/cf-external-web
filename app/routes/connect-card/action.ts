@@ -1,4 +1,4 @@
-import { ActionFunction, data } from 'react-router-dom';
+import { ActionFunction, data } from 'react-router';
 import { buildConnectCardSubmission } from './build-submission';
 import { postRockWorkflowLaunchWithApiInitiator } from '~/lib/.server/rock-workflow';
 

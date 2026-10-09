@@ -1,4 +1,4 @@
-import type { LoaderFunction } from 'react-router-dom';
+import type { LoaderFunction } from 'react-router';
 
 import { fetchVolunteerMissionDetailFromRock } from './outreach-mission-rock.server';
 import type { VolunteerMissionDetail } from './types';

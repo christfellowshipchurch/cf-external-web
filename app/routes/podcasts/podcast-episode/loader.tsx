@@ -1,4 +1,4 @@
-import { LoaderFunctionArgs } from 'react-router-dom';
+import { LoaderFunctionArgs } from 'react-router';
 import { algoliasearch } from 'algoliasearch';
 
 import { escapeAlgoliaFilterString } from '~/components/finders/finder-algolia.utils';

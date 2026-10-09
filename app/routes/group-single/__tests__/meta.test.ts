@@ -4,7 +4,7 @@ import { meta } from '../meta';
 import type { LoaderReturnType } from '../loader';
 
 function metaFor(data: Partial<LoaderReturnType> | undefined) {
-  return meta({ data } as never);
+  return meta({ loaderData: data } as never);
 }
 
 describe('group-single metadata', () => {

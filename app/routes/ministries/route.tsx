@@ -1,5 +1,5 @@
 import type { ShouldRevalidateFunction } from 'react-router';
-import { useLoaderData } from 'react-router-dom';
+import { useLoaderData } from 'react-router';
 
 import { AllMinistriesPartial } from './all-ministries/partials/all-ministries.partial';
 import type { Ministry } from './loader';

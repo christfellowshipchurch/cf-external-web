@@ -1,4 +1,4 @@
-import { LoaderFunctionArgs } from 'react-router-dom';
+import { LoaderFunctionArgs } from 'react-router';
 import { getUserFromRequest } from '~/lib/.server/authentication/get-user-from-request';
 import { fetchRockData } from '~/lib/.server/fetch-rock-data';
 import { dayTimes, formattedServiceTimes } from '~/lib/utils';

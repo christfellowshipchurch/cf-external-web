@@ -1,11 +1,14 @@
-import type { MetaFunction } from 'react-router-dom';
+import type { MetaFunction } from 'react-router';
 import type { LoaderReturnType } from './loader';
 import { loader } from './loader';
 import { createMeta } from '~/lib/meta-utils';
 import { generateMetaKeywords } from '~/lib/generate-meta-keywords';
 import { getFirstParagraph } from '~/lib/utils';
 
-export const meta: MetaFunction<typeof loader> = ({ data, location }) => {
+export const meta: MetaFunction<typeof loader> = ({
+  loaderData: data,
+  location,
+}) => {
   if (!data) {
     return createMeta({
       title: '404 – Message Not Found',

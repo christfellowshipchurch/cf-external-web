@@ -1,4 +1,4 @@
-import type { ActionFunctionArgs } from 'react-router-dom';
+import type { ActionFunctionArgs } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { postRockWorkflowLaunchWithApiInitiator } from '~/lib/.server/rock-workflow';
 import { action } from './action';

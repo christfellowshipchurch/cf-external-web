@@ -1,4 +1,4 @@
-import { useLoaderData, useLocation } from 'react-router-dom';
+import { useLoaderData, useLocation } from 'react-router';
 import { useState } from 'react';
 
 import { Button } from '~/primitives/button/button.primitive';

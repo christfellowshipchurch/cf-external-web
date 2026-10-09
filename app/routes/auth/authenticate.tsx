@@ -1,4 +1,4 @@
-import { data } from 'react-router-dom';
+import { data } from 'react-router';
 import { authenticateUser } from '~/lib/.server/authentication/authenticate-user';
 
 import {

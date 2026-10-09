@@ -1,4 +1,4 @@
-import { useLoaderData } from 'react-router-dom';
+import { useLoaderData } from 'react-router';
 import { Button } from '~/primitives/button/button.primitive';
 import HTMLRenderer from '~/primitives/html-renderer';
 import { LoaderReturnType } from '../loader';

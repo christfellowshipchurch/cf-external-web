@@ -1,4 +1,4 @@
-import type { ActionFunctionArgs } from 'react-router-dom';
+import type { ActionFunctionArgs } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { postRockData } from '~/lib/.server/fetch-rock-data';
 import { action } from '../action';

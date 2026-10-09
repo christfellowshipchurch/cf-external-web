@@ -1,5 +1,5 @@
 import React from 'react';
-import { useLoaderData } from 'react-router-dom';
+import { useLoaderData } from 'react-router';
 
 import { CardCarouselSection } from '~/components/resource-carousel';
 import { RelatedArticleCard } from '../components/related-article-card.components';

@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { useLoaderData, useLocation } from 'react-router-dom';
+import { useLoaderData, useLocation } from 'react-router';
 
 import { scrollToAnchor } from '~/lib/scroll-to-anchor';
 

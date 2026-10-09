@@ -1,4 +1,4 @@
-import { useNavigate, useRevalidator } from 'react-router-dom';
+import { useNavigate, useRevalidator } from 'react-router';
 import React, { createContext, useContext, useEffect, useState } from 'react';
 
 export const AuthContext = createContext<AuthContextType | undefined>(

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import ReminderConfirmation from './confirmation.component';
 import ReminderForm from './reminder-form.component';
-import { useLoaderData } from 'react-router-dom';
+import { useLoaderData } from 'react-router';
 import { LoaderReturnType } from '~/routes/locations/location-single/loader';
 
 interface ReminderFlowProps {

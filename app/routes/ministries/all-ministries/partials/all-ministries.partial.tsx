@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams } from 'react-router';
 
 import { RefinementPills } from '~/components/finders/refinement-pills/refinement-pills.component';
 import { MinistryFinderCard } from '../components/ministry-finder-card.component';

@@ -1,4 +1,4 @@
-import { useLoaderData, useLocation, useNavigate } from 'react-router-dom';
+import { useLoaderData, useLocation, useNavigate } from 'react-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { useCopyPagePath } from '~/hooks/use-copy-page-path';

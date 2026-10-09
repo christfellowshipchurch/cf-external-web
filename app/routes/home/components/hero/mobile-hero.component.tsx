@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useRouteLoaderData } from 'react-router-dom';
+import { useRouteLoaderData } from 'react-router';
 import { LocationSearch } from '../location-search/location-search.component';
 import { MobileFeaturedItems } from './mobile-features.component';
 import { RootLoaderData } from '~/routes/navbar/loader';

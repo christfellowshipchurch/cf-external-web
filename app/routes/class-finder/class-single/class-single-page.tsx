@@ -3,7 +3,7 @@ import {
   useMemo,
   type MouseEvent as ReactMouseEvent,
 } from 'react';
-import { useLoaderData, useLocation, useNavigate } from 'react-router-dom';
+import { useLoaderData, useLocation, useNavigate } from 'react-router';
 
 import { FinderHero, type FinderHeroCta } from '~/components/finders/hero';
 import { VideoModal } from '~/components/modals/video-modal';

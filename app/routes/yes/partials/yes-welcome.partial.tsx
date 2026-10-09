@@ -1,4 +1,4 @@
-// import { useNavigate } from "react-router-dom";
+// import { useNavigate } from "react-router";
 import { Button } from '~/primitives/button/button.primitive';
 import { YesWelcomeConfetti } from '../components/yes-welcome-confetti.component';
 

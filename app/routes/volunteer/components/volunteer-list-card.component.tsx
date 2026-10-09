@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom';
+import { Link } from 'react-router';
 
 import { RockCampuses } from '~/lib/rock-config';
 import { withRockGetImageSizing } from '~/lib/utils';

@@ -1,4 +1,4 @@
-import { LoaderFunctionArgs } from 'react-router-dom';
+import { LoaderFunctionArgs } from 'react-router';
 import { fetchRockData } from '~/lib/.server/fetch-rock-data';
 import { parseRockKeyValueList } from '~/lib/utils';
 
@@ -47,9 +47,9 @@ const fetchLinkTreePage = async (
 };
 
 export const loader = async ({
-  request,
+  url,
 }: LoaderFunctionArgs): Promise<LinkTreeLoaderData | []> => {
-  const pathname = request.url.split('/').pop();
+  const pathname = url.href.split('/').pop();
 
   if (!pathname) {
     throw new Response(

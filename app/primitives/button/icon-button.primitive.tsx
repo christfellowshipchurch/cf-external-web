@@ -1,5 +1,5 @@
 import React from 'react';
-import { Link, type LinkProps } from 'react-router-dom';
+import { Link, type LinkProps } from 'react-router';
 import { Button } from './button.primitive';
 import Icon from '../icon';
 import { twMerge } from 'tailwind-merge';

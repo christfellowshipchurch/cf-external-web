@@ -1,6 +1,6 @@
 import { SectionTitle } from '~/components/section-title';
 import { GlobalMap } from '../components/global-map.component';
-import { useLoaderData } from 'react-router-dom';
+import { useLoaderData } from 'react-router';
 import { Trip } from '../types';
 import { VolunteerTripsCarousel } from '../components/mission-trips-carousel.component';
 
