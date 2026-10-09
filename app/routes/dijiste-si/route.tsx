@@ -6,6 +6,7 @@ import {
 } from 'react-router-dom';
 import React from 'react';
 import { cn } from '~/lib/utils';
+import { YesWelcomeConfetti } from '~/routes/yes/components/yes-welcome-confetti.component';
 
 export { meta } from './meta';
 
@@ -24,7 +25,8 @@ export const DijisteSiRoute: React.FC = () => {
   const isWelcomeStep = currentStep === 'bienvenida';
 
   return (
-    <div className={cn('min-h-screen flex flex-col', 'bg-ocean')}>
+    <div className={cn('relative min-h-screen flex flex-col', 'bg-ocean')}>
+      {isWelcomeStep && <YesWelcomeConfetti />}
       <main
         className={cn(
           'flex flex-col items-center',

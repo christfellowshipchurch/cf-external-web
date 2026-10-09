@@ -57,19 +57,35 @@ describe('YesWelcomeConfetti', () => {
     );
   });
 
-  it('rains brand-colored confetti from above the top edge, like the old animation', async () => {
+  it('rains confetti from above the top edge, like the old animation', async () => {
     render(<YesWelcomeConfetti />);
     await flushProbe();
 
     expect(fire).toHaveBeenCalledWith(
       expect.objectContaining({
         angle: 270,
-        colors: CONFETTI_COLORS,
         origin: expect.objectContaining({ y: expect.any(Number) }),
       }),
     );
     const { origin } = fire.mock.calls[0][0];
     expect(origin.y).toBeLessThanOrEqual(0);
+  });
+
+  // canvas-confetti colors particle i with colors[i % length], so a fixed list
+  // with a small particleCount would only ever show its first one or two colors.
+  it('uses the whole palette over the run, not just the first colors in the list', async () => {
+    render(<YesWelcomeConfetti />);
+    await flushProbe();
+    await act(() => vi.advanceTimersByTimeAsync(EMIT_DURATION_MS));
+
+    const used = new Set(
+      fire.mock.calls.flatMap(([options]) => options.colors as string[]),
+    );
+    expect([...used].every((c) => CONFETTI_COLORS.includes(c))).toBe(true);
+    expect(used.size).toBe(CONFETTI_COLORS.length);
+    for (const [options] of fire.mock.calls) {
+      expect(options.colors).toHaveLength(options.particleCount);
+    }
   });
 
   it('plays once: stops emitting, then removes the canvas and frees the animation', async () => {

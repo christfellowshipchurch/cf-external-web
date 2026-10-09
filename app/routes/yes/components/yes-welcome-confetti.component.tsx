@@ -4,27 +4,38 @@ import { useEffect, useRef, useState } from 'react';
 export const CONFETTI_STILL_SRC = '/assets/confetti-still.webp';
 export const AUTOPLAY_PROBE_SRC = '/assets/autoplay-probe.mp4';
 
-// Sampled from the animated WEBP this replaced. The page background is
-// ocean blue, so a blues-only palette would disappear against it.
+// The page background is ocean blue (#0092bc), so the palette avoids mid blues
+// that would disappear against it.
 export const CONFETTI_COLORS = [
   '#56c6f2',
   '#1ea5fc',
-  '#0092bc',
   '#3b2a9c',
   '#6a3fc9',
   '#1aa39a',
   '#6cc04a',
   '#f2802c',
   '#f5d76e',
+  '#f9b233',
+  '#e8433f',
+  '#f25c9a',
+  '#c13fb8',
+  '#b5e61d',
+  '#ffffff',
 ];
 
-export const EMIT_DURATION_MS = 7000;
-const EMIT_INTERVAL_MS = 200;
-// Long enough for the last emitted pieces to fall past the bottom of the screen.
-export const ANIMATION_DURATION_MS = 11000;
+export const EMIT_DURATION_MS = 10000;
+const EMIT_INTERVAL_MS = 70;
+const PARTICLES_PER_EMIT = 2;
+// Pieces fade linearly over `ticks` (60 per second), so ticks stay high enough
+// that they are still visible at the bottom of a tall page; this gives the last
+// pieces time to fall about 1500px before reset() clears them.
+export const ANIMATION_DURATION_MS = 17000;
+
+const randomColor = () =>
+  CONFETTI_COLORS[Math.floor(Math.random() * CONFETTI_COLORS.length)];
 
 const overlayClassName =
-  'pointer-events-none w-full h-screen object-cover absolute top-0 left-0 z-2';
+  'pointer-events-none w-full h-full object-cover absolute top-0 left-0 z-2';
 
 const prefersReducedMotion = () =>
   typeof window !== 'undefined' &&
@@ -110,16 +121,18 @@ export const YesWelcomeConfetti = () => {
           return;
         }
         void instance?.({
-          particleCount: 4,
+          particleCount: PARTICLES_PER_EMIT,
           angle: 270,
           spread: 60,
           startVelocity: 4,
-          gravity: 0.5,
+          gravity: 1.2,
           drift: Math.random() - 0.5,
-          ticks: 600,
+          ticks: 1000,
           scalar: 1.4,
           origin: { x: Math.random(), y: -0.05 },
-          colors: CONFETTI_COLORS,
+          // canvas-confetti assigns colors[i % length] per particle, so passing the
+          // full list with a small particleCount would only ever use its first entries.
+          colors: Array.from({ length: PARTICLES_PER_EMIT }, randomColor),
         });
       };
       emit();
