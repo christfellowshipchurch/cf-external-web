@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom';
+import { Link } from 'react-router';
 import { CardAuthor, ArticleCardProps } from './card-author.component';
 
 export function RelatedArticleCard({

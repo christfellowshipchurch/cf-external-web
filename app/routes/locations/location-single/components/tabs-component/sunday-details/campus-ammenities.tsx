@@ -1,4 +1,4 @@
-import { useLoaderData } from 'react-router-dom';
+import { useLoaderData } from 'react-router';
 
 import { Icon } from '~/primitives/icon/icon';
 import { icons } from '~/lib/icons';

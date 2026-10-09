@@ -1,5 +1,5 @@
 import { Hit } from 'algoliasearch';
-import { Link } from 'react-router-dom';
+import { Link } from 'react-router';
 import { formattedServiceTimes } from '~/lib/utils';
 import Icon from '~/primitives/icon';
 

@@ -1,5 +1,5 @@
 import type { LinksFunction } from 'react-router';
-import { type MetaFunction } from 'react-router-dom';
+import { type MetaFunction } from 'react-router';
 
 import { BeliefsSection } from './about/partials/beliefs.partial';
 import { HistorySection } from './about/partials/history.partial';

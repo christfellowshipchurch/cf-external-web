@@ -1,7 +1,7 @@
 import { Breadcrumbs } from '~/components';
 import heroBgImgStyles from '~/styles/hero-bg-image-styles';
 import { HeroContent } from '../components/hero-content.component';
-import { useLoaderData } from 'react-router-dom';
+import { useLoaderData } from 'react-router';
 import { LoaderReturnType } from '../loader';
 
 export const PodcastsHero = () => {

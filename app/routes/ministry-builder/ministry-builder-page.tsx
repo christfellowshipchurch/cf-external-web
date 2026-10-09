@@ -1,4 +1,4 @@
-import { useLoaderData, useLocation } from 'react-router-dom';
+import { useLoaderData, useLocation } from 'react-router';
 import { DynamicHero } from '~/components';
 import { linkTargetForHref } from '~/lib/external-link';
 import { PageBuilderLoader } from '../page-builder/types';

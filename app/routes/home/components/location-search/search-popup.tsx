@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom';
+import { Link } from 'react-router';
 import { useHits } from 'react-instantsearch';
 
 import { Icon } from '~/primitives/icon/icon';

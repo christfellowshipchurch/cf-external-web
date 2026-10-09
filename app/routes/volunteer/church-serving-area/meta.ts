@@ -5,7 +5,7 @@ import { createMeta } from '~/lib/meta-utils';
 import type { LoaderReturnType } from './loader';
 import { loader } from './loader';
 
-export const meta: MetaFunction<typeof loader> = ({ data }) => {
+export const meta: MetaFunction<typeof loader> = ({ loaderData: data }) => {
   const pageData = data as LoaderReturnType | undefined;
   if (!pageData) return [];
 

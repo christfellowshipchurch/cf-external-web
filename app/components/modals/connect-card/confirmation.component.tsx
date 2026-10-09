@@ -1,6 +1,6 @@
 import { Button } from '~/primitives/button/button.primitive';
 import Icon from '~/primitives/icon';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router';
 
 interface ConnectCardConfirmationProps {
   onSuccess?: () => void;

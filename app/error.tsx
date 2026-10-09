@@ -1,5 +1,5 @@
 /** Root Error Boundary */
-import { useLocation } from 'react-router-dom';
+import { useLocation } from 'react-router';
 import { Navbar, Footer } from './components';
 import { AuthProvider } from './providers/auth-provider';
 import { CookieConsentProvider } from './providers/cookie-consent-provider';

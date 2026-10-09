@@ -1,5 +1,5 @@
 import { sanitizeCmsHtml } from '~/lib/sanitize';
-import { useLoaderData } from 'react-router-dom';
+import { useLoaderData } from 'react-router';
 import { LoaderReturnType } from '../loader';
 import { EpisodeShareButton } from './episode-share-button.component';
 

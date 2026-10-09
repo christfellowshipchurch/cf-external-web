@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import * as Accordion from '@radix-ui/react-accordion';
 import { cn } from '~/lib/utils';
-import { Link } from 'react-router-dom';
+import { Link } from 'react-router';
 import Modal from '~/primitives/Modal';
 import { Video } from '~/primitives/video/video.primitive';
 import { Icon } from '~/primitives/icon/icon';

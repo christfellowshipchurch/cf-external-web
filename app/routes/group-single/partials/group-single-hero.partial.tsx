@@ -5,7 +5,7 @@ import { MAX_VISIBLE_LEADERS } from '~/routes/group-finder/components/group-hit.
 import { formatGroupMeetingScheduleTitle } from '~/routes/group-finder/format-group-meeting-schedule';
 import { icons } from '~/lib/icons';
 import { Icon } from '~/primitives/icon/icon';
-import { Link } from 'react-router-dom';
+import { Link } from 'react-router';
 import { useGroupSearchBackUrl } from '../group-single-back-url';
 
 export function GroupSingleHero({ hit }: { hit: GroupType }) {

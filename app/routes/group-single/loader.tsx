@@ -1,4 +1,4 @@
-import { LoaderFunctionArgs } from 'react-router-dom';
+import { LoaderFunctionArgs } from 'react-router';
 import { AuthenticationError } from '~/lib/.server/error-types';
 import { getServerAlgoliaIndexes } from '~/lib/.server/algolia-indexes.server';
 import { GroupType } from '../group-finder/types';

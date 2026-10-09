@@ -1,4 +1,4 @@
-import { useLoaderData } from 'react-router-dom';
+import { useLoaderData } from 'react-router';
 import { formatDate } from 'date-fns';
 import { LoaderReturnType } from '../loader';
 import HTMLRenderer from '~/primitives/html-renderer';

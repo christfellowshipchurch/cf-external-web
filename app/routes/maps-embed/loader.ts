@@ -1,4 +1,4 @@
-import { LoaderFunction } from 'react-router-dom';
+import { LoaderFunction } from 'react-router';
 
 export const loader: LoaderFunction = async ({ request }) => {
   const url = new URL(request.url);

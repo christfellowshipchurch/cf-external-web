@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useHits, useInstantSearch, useSearchBox } from 'react-instantsearch';
-import { useRouteLoaderData } from 'react-router-dom';
+import { useRouteLoaderData } from 'react-router';
 
 import type { RootLoaderData } from '~/routes/navbar/loader';
 import type { ContentItemHit } from '~/routes/search/types';

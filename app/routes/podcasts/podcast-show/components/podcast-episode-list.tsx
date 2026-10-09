@@ -7,7 +7,7 @@ import {
   useRefinementList,
 } from 'react-instantsearch';
 import { Icon } from '~/primitives/icon/icon';
-import { Link, useLoaderData } from 'react-router-dom';
+import { Link, useLoaderData } from 'react-router';
 import { ContentItemHit } from '~/routes/search/types';
 import { createSearchClient } from '~/lib/create-search-client';
 import { LoaderReturnType } from '../loader';

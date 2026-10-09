@@ -1,4 +1,4 @@
-import { useLoaderData } from 'react-router-dom';
+import { useLoaderData } from 'react-router';
 
 import Icon from '~/primitives/icon';
 import { VolunteerAtChurchCarousel } from '../components/volunteer-at-church-carousel.component';

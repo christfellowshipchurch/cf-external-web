@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { useFetcher } from 'react-router-dom';
+import { useFetcher } from 'react-router';
 import { cn, isValidZip } from '~/lib/utils';
 import { getCurrentPositionFromUserGesture } from '~/lib/browser-geolocation';
 import { Icon } from '~/primitives/icon/icon';

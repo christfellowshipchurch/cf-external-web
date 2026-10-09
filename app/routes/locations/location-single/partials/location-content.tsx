@@ -1,4 +1,4 @@
-import { useFetcher, useLoaderData } from 'react-router-dom';
+import { useFetcher, useLoaderData } from 'react-router';
 import { useState, useEffect, useMemo } from 'react';
 
 import { CampusInfo } from './campus-info.partial';

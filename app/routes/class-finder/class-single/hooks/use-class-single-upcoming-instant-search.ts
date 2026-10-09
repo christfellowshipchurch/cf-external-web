@@ -1,4 +1,4 @@
-import { useLoaderData, useSearchParams } from 'react-router-dom';
+import { useLoaderData, useSearchParams } from 'react-router';
 import {
   type ComponentProps,
   useCallback,

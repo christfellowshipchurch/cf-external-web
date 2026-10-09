@@ -1,4 +1,4 @@
-import { useLoaderData } from 'react-router-dom';
+import { useLoaderData } from 'react-router';
 import { HeroContent } from '../components/hero-content.component';
 import { Breadcrumbs } from '~/components';
 import { LoaderReturnType } from '../loader';

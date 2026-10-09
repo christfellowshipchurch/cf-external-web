@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useFetcher, useNavigate } from 'react-router-dom';
+import { useFetcher, useNavigate } from 'react-router';
 
 import { Button } from '~/primitives/button/button.primitive';
 import TextFieldInput from '~/primitives/inputs/text-field';

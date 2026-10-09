@@ -1,4 +1,4 @@
-import type { ActionFunction } from 'react-router-dom';
+import type { ActionFunction } from 'react-router';
 import {
   fetchRockData,
   postRockData,

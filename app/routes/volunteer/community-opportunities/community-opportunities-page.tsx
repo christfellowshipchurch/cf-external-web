@@ -4,7 +4,7 @@ import {
   useLoaderData,
   useLocation,
   useNavigationType,
-} from 'react-router-dom';
+} from 'react-router';
 
 import { SectionTitle } from '~/components/section-title';
 import { cn } from '~/lib/utils';

@@ -1,7 +1,7 @@
 import { MetaFunction } from 'react-router';
 import { PageBuilderLoader } from './types';
 
-export const meta: MetaFunction<PageBuilderLoader> = ({ data }) => {
+export const meta: MetaFunction<PageBuilderLoader> = ({ loaderData: data }) => {
   if (!data) {
     return [
       { title: 'Page Not Found' },

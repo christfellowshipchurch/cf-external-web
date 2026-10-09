@@ -1,7 +1,7 @@
 import { algoliasearch } from 'algoliasearch';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Configure, InstantSearch } from 'react-instantsearch';
-import { useFetcher, useLoaderData } from 'react-router-dom';
+import { useFetcher, useLoaderData } from 'react-router';
 import { getCurrentPositionFromUserGesture } from '~/lib/browser-geolocation';
 import { SearchPopup } from './search-popup';
 import { cn, isValidZip } from '~/lib/utils';

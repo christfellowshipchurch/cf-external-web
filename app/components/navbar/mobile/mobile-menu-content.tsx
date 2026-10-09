@@ -13,7 +13,7 @@ import {
   moreMenuItems,
 } from './mobile-menu.data';
 import Icon from '~/primitives/icon';
-import { Link } from 'react-router-dom';
+import { Link } from 'react-router';
 import { WatchLiveBanner } from '../watch-live';
 
 interface MobileMenuContentProps {

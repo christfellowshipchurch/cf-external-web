@@ -1,4 +1,4 @@
-import { type LoaderFunction, data } from 'react-router-dom';
+import { type LoaderFunction, data } from 'react-router';
 import {
   fetchRockData,
   postRockData,

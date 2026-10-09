@@ -1,4 +1,4 @@
-// import { useNavigate } from "react-router-dom";
+// import { useNavigate } from "react-router";
 import { Button } from '~/primitives/button/button.primitive';
 
 export const YesWelcomePartial = ({ isSpanish }: { isSpanish?: boolean }) => {

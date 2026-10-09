@@ -1,4 +1,4 @@
-import { useLoaderData, useLocation, useNavigation } from 'react-router-dom';
+import { useLoaderData, useLocation, useNavigation } from 'react-router';
 import { IconButton } from '~/primitives/button/icon-button.primitive';
 
 import type { AllMessagesLoaderReturnType } from '../loader';

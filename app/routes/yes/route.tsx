@@ -1,9 +1,4 @@
-import {
-  Outlet,
-  useLocation,
-  LoaderFunction,
-  redirect,
-} from 'react-router-dom';
+import { Outlet, useLocation, LoaderFunction, redirect } from 'react-router';
 import React from 'react';
 import { cn } from '~/lib/utils';
 import { YesWelcomeConfetti } from '~/routes/yes/components/yes-welcome-confetti.component';
@@ -14,8 +9,7 @@ import { YesWelcomeConfetti } from '~/routes/yes/components/yes-welcome-confetti
 
 export { meta } from './meta';
 
-export const loader: LoaderFunction = async ({ request }) => {
-  const url = new URL(request.url);
+export const loader: LoaderFunction = async ({ url }) => {
   // If the path is exactly /yes (no trailing slash or anything after)
   if (url.pathname === '/yes' || url.pathname === '/yes/') {
     return redirect('/yes/welcome');

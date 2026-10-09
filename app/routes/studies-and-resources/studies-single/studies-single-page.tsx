@@ -1,4 +1,4 @@
-import { useLoaderData } from 'react-router-dom';
+import { useLoaderData } from 'react-router';
 import { LoaderReturnType } from './loader';
 
 import { StudySingleBasicContent } from './partials/basic-content.partial';

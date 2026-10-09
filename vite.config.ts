@@ -52,9 +52,7 @@ export default defineConfig(async ({ isSsrBuild, command }) => {
       // Bundle router packages so Vercel serverless handlers do not rely on
       // traced node_modules paths (pnpm + external imports often miss dist/index.js).
       noExternal:
-        command === 'build'
-          ? ['fs', 'path', 'url', 'react-router', 'react-router-dom']
-          : undefined,
+        command === 'build' ? ['fs', 'path', 'url', 'react-router'] : undefined,
     },
     plugins,
     optimizeDeps: {

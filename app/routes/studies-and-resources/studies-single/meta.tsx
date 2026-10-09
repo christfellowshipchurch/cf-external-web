@@ -1,4 +1,4 @@
-import type { MetaFunction } from 'react-router-dom';
+import type { MetaFunction } from 'react-router';
 import { loader } from './loader';
 import { createMeta } from '~/lib/meta-utils';
 

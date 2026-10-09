@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom';
+import { Link } from 'react-router';
 
 import { cn } from '~/lib/utils';
 import { Button } from '~/primitives/button/button.primitive';

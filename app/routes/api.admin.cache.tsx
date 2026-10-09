@@ -1,8 +1,4 @@
-import {
-  type ActionFunction,
-  type LoaderFunction,
-  data,
-} from 'react-router-dom';
+import { type ActionFunction, type LoaderFunction, data } from 'react-router';
 import redis from '~/lib/.server/redis-config';
 import {
   collectItemCacheFootprint,

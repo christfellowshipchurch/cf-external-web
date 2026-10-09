@@ -1,4 +1,4 @@
-import type { MetaFunction } from 'react-router-dom';
+import type { MetaFunction } from 'react-router';
 import { RockEmbed } from '~/components';
 import { createMeta } from '~/lib/meta-utils';
 

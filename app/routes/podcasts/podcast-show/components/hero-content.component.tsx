@@ -1,7 +1,7 @@
 import { Icon } from '~/primitives/icon/icon';
 import { sanitizeCmsHtml } from '~/lib/sanitize';
 import { PodcastEpisode } from '../../types';
-import { Link } from 'react-router-dom';
+import { Link } from 'react-router';
 
 export const HeroContent = ({
   title,

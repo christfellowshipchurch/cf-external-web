@@ -1,7 +1,7 @@
 import { cn, withRockGetImageSizing } from '~/lib/utils';
 import Icon from '~/primitives/icon';
 import { GroupType, splitGroupTopics } from '../types';
-import { Link } from 'react-router-dom';
+import { Link } from 'react-router';
 
 /** Group cards and the group detail hero show at most this many leader avatars; extras become a "+N" badge. */
 export const MAX_VISIBLE_LEADERS = 2;

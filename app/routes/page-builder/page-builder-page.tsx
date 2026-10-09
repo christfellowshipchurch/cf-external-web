@@ -1,4 +1,4 @@
-import { useLoaderData } from 'react-router-dom';
+import { useLoaderData } from 'react-router';
 import kebabCase from 'lodash/kebabCase';
 import { PageBuilderLoader, PageBuilderSection } from './types';
 import {

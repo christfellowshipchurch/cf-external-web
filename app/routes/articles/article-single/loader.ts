@@ -1,4 +1,4 @@
-import { type LoaderFunction } from 'react-router-dom';
+import { type LoaderFunction } from 'react-router';
 import { fetchRockData } from '~/lib/.server/fetch-rock-data';
 import { AuthorProps } from './partials/hero.partial';
 import { format } from 'date-fns';

@@ -1,6 +1,6 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter } from 'react-router';
 import { pushFormEvent } from '~/lib/gtm';
 import HelpMeFindAGroupForm from '../help-me-find-a-group-form.component';
 
@@ -13,11 +13,9 @@ let mockFetcherState = {
 const mockLoad = vi.fn();
 const mockSubmit = vi.fn();
 
-vi.mock('react-router-dom', async () => {
+vi.mock('react-router', async () => {
   const actual =
-    await vi.importActual<typeof import('react-router-dom')>(
-      'react-router-dom',
-    );
+    await vi.importActual<typeof import('react-router')>('react-router');
   return {
     ...actual,
     useFetcher: () => ({

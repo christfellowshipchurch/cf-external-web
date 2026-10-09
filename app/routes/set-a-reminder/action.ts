@@ -1,4 +1,4 @@
-import { ActionFunction, data } from 'react-router-dom';
+import { ActionFunction, data } from 'react-router';
 import { SetAReminderType } from './types';
 import { fetchRockData, postRockData } from '~/lib/.server/fetch-rock-data';
 import { escapeOData } from '~/lib/.server/rock-utils';

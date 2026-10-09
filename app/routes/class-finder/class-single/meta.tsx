@@ -1,4 +1,4 @@
-import type { MetaFunction } from 'react-router-dom';
+import type { MetaFunction } from 'react-router';
 import { loader } from './loader';
 import { createMeta } from '~/lib/meta-utils';
 
@@ -9,7 +9,7 @@ function slugToTitle(slug: string): string {
     .replace(/(^\w{1})|(\s+\w{1})/g, (letter) => letter.toUpperCase());
 }
 
-export const meta: MetaFunction<typeof loader> = ({ data }) => {
+export const meta: MetaFunction<typeof loader> = ({ loaderData: data }) => {
   if (!data) {
     return createMeta({
       title: '404 – Class Not Found',

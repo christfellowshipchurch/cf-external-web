@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useRef } from 'react';
-import { useLocation, useSearchParams } from 'react-router-dom';
+import { useLocation, useSearchParams } from 'react-router';
 
 import {
   eventsFinderEmptyState,

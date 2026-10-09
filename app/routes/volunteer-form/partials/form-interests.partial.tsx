@@ -5,7 +5,7 @@ import Slider from '~/primitives/inputs/slider/slider.primitive';
 import { Checkbox } from '~/primitives/inputs/checkbox/checkbox.primitive';
 import { formTextareaBaseStyles } from '~/primitives/inputs/form-control.styles';
 import SecureTextField from '~/primitives/inputs/text-field/secure-text-field.primitive';
-import { Form, useActionData } from 'react-router-dom';
+import { Form, useActionData } from 'react-router';
 
 interface Props {
   data: VolunteerFormInterests;

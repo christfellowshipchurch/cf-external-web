@@ -1,4 +1,4 @@
-import { type LoaderFunctionArgs } from 'react-router-dom';
+import { type LoaderFunctionArgs } from 'react-router';
 import { validateRockUrl } from '~/lib/.server/validate-rock-url';
 import { fetchRockProxyHtml, type RockProxyMode } from './rock-proxy.server';
 

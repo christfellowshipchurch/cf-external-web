@@ -1,4 +1,4 @@
-import type { LoaderFunctionArgs } from 'react-router-dom';
+import type { LoaderFunctionArgs } from 'react-router';
 
 /**
  * Resource route: serves LLMs.txt (LLM-friendly site overview) as plain text

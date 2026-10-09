@@ -1,4 +1,4 @@
-import { LoaderFunction } from 'react-router-dom';
+import { LoaderFunction } from 'react-router';
 import { createImageUrlFromGuid } from '~/lib/utils';
 import { format } from 'date-fns';
 import { AuthorArticleProps, AuthorLoaderData, SocialMedia } from './types';

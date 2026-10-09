@@ -1,4 +1,4 @@
-import type { MetaFunction } from 'react-router-dom';
+import type { MetaFunction } from 'react-router';
 import { createMeta } from '~/lib/meta-utils';
 import { loader } from './loader';
 import type { LoaderReturnType } from './loader';
@@ -54,7 +54,7 @@ function getLocationDescription(locationData: LoaderReturnType): string {
   return `Looking for a church in ${locationData.campusName?.trim()}, FL? Visit Christ Fellowship this Sunday! Enjoy live worship music, biblical teachings, and programs for all ages.`;
 }
 
-export const meta: MetaFunction<typeof loader> = ({ data }) => {
+export const meta: MetaFunction<typeof loader> = ({ loaderData: data }) => {
   const locationData = data as LoaderReturnType | undefined;
   if (!locationData) {
     return [];

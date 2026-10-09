@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom';
+import { Link } from 'react-router';
 import { CardCarouselSection } from '~/components/resource-carousel';
 import { cn } from '~/lib/utils';
 import HtmlRenderer from '~/primitives/html-renderer';

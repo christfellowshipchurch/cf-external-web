@@ -1,4 +1,4 @@
-import { LoaderFunctionArgs } from 'react-router-dom';
+import { LoaderFunctionArgs } from 'react-router';
 import { algoliasearch } from 'algoliasearch';
 import { AuthenticationError } from '~/lib/.server/error-types';
 import { fetchRockData } from '~/lib/.server/fetch-rock-data';

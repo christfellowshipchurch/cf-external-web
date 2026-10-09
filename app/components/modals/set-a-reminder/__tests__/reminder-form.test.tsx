@@ -1,6 +1,6 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter } from 'react-router';
 import ReminderForm from '../reminder-form.component';
 
 vi.mock('~/lib/gtm', () => ({ pushFormEvent: vi.fn() }));
@@ -19,11 +19,9 @@ const mockSubmitFetcher = {
 };
 let fetcherCallCount = 0;
 
-vi.mock('react-router-dom', async () => {
+vi.mock('react-router', async () => {
   const actual =
-    await vi.importActual<typeof import('react-router-dom')>(
-      'react-router-dom',
-    );
+    await vi.importActual<typeof import('react-router')>('react-router');
   return {
     ...actual,
     useFetcher: () => {
