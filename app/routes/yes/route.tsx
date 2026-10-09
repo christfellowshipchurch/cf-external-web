@@ -1,6 +1,7 @@
 import { Outlet, useLocation, LoaderFunction, redirect } from 'react-router';
 import React from 'react';
 import { cn } from '~/lib/utils';
+import { YesWelcomeConfetti } from '~/routes/yes/components/yes-welcome-confetti.component';
 
 // Step 1: Welcome
 // Step 2: Personal Info
@@ -23,7 +24,8 @@ export const YesRoute: React.FC = () => {
   const isWelcomeStep = currentStep === 'welcome';
 
   return (
-    <div className={cn('min-h-screen flex flex-col', 'bg-ocean')}>
+    <div className={cn('relative min-h-screen flex flex-col', 'bg-ocean')}>
+      {isWelcomeStep && <YesWelcomeConfetti />}
       <main
         className={cn(
           'flex flex-col items-center',
