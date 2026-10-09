@@ -68,6 +68,7 @@ export default [
         HTMLIFrameElement: 'readonly',
         HTMLVideoElement: 'readonly',
         HTMLMediaElement: 'readonly',
+        HTMLCanvasElement: 'readonly',
       },
     },
     plugins: {
