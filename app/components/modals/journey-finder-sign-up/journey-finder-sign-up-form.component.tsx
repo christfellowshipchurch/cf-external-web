@@ -62,7 +62,7 @@ const SPANISH_REASON_OPTIONS: { value: string; label: string }[] = [
   { value: '5', label: 'Involucrarme más en Christ Fellowship' },
 ];
 
-const FORM_COPY = {
+export const FORM_COPY = {
   English: {
     cardHeading: 'Personal Information',
     firstName: 'First Name',
