@@ -35,6 +35,7 @@ const SECTION_TYPE_MAP: Record<string, SectionType> = {
   '170': 'CONTENT_BLOCK',
   '178': 'FAQs',
   '177': 'IMAGE_GALLERY',
+  '199': 'ICON_SECTION',
 } as const;
 
 /**

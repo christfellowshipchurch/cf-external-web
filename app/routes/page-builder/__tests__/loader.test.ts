@@ -17,6 +17,10 @@ vi.mock('~/lib/.server/fetch-wistia-data', () => ({
   fetchWistiaDataFromRock: vi.fn(),
 }));
 
+vi.mock('~/lib/.server/rock-utils', () => ({
+  getAttributeMatrixItems: vi.fn(),
+}));
+
 import {
   fetchRockData,
   isItemInDateRange,
@@ -25,7 +29,12 @@ import {
   buildPodcastRoutingIndex,
   PODCAST_SHOW_CHANNEL_ID,
 } from '../../podcasts/podcast-routing.server';
+import { getAttributeMatrixItems } from '~/lib/.server/rock-utils';
 import { fetchChildItems, mapPageBuilderChildItems } from '../loader';
+
+const mockGetAttributeMatrixItems = getAttributeMatrixItems as ReturnType<
+  typeof vi.fn
+>;
 
 const mockFetchRockData = fetchRockData as ReturnType<typeof vi.fn>;
 const mockIsItemInDateRange = isItemInDateRange as ReturnType<typeof vi.fn>;
@@ -441,5 +450,97 @@ describe('mapPageBuilderChildItems – podcast routing', () => {
 
     // buildPodcastRoutingIndex must be called exactly once
     expect(mockBuildPodcastRoutingIndex).toHaveBeenCalledTimes(1);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// mapPageBuilderChildItems – Icon Section (channel 199)
+// ---------------------------------------------------------------------------
+
+describe('mapPageBuilderChildItems – icon section', () => {
+  const makeIconSection = (
+    attributeValues: Record<string, { value: string }>,
+  ) => ({
+    id: 'icon-1',
+    status: 2,
+    title: 'Ways to Partner With Us',
+    content: '<p>Ignored body copy</p>',
+    contentChannelId: '199',
+    attributeValues,
+  });
+
+  const matrixRow = (id: number, title: string, icon: string) => ({
+    id,
+    attributeValues: {
+      title: { value: title },
+      description: { value: `<p>${title} description</p>` },
+      icon: { value: icon },
+    },
+  });
+
+  it('builds the eyebrow and columns from the subheading and iconSections matrix editors fill in Rock', async () => {
+    mockGetAttributeMatrixItems.mockResolvedValueOnce([
+      matrixRow(1, 'Food', 'bowlHot'),
+      matrixRow(2, 'Shelter', 'homeAlt'),
+    ]);
+
+    const [section] = await mapPageBuilderChildItems([
+      makeIconSection({
+        iconSections: { value: 'matrix-guid' },
+        subheading: { value: ' Partner ' },
+      }),
+    ]);
+
+    expect(mockGetAttributeMatrixItems).toHaveBeenCalledWith({
+      attributeMatrixGuid: 'matrix-guid',
+    });
+    expect(section.type).toBe('ICON_SECTION');
+    expect(section.eyebrow).toBe('Partner');
+    // Column order is the editor's matrix order, and descriptions stay HTML.
+    expect(section.iconSection).toEqual([
+      {
+        id: '1',
+        icon: 'bowlHot',
+        title: 'Food',
+        description: '<p>Food description</p>',
+      },
+      {
+        id: '2',
+        icon: 'homeAlt',
+        title: 'Shelter',
+        description: '<p>Shelter description</p>',
+      },
+    ]);
+  });
+
+  it('cleans Rock icon values like the hero actions but drops names missing from the icon set', async () => {
+    mockGetAttributeMatrixItems.mockResolvedValueOnce([
+      matrixRow(1, 'Piped', '|donateHeart |'),
+      matrixRow(2, 'Typo', 'bolwHot'),
+      matrixRow(3, 'Empty', ''),
+    ]);
+
+    const [section] = await mapPageBuilderChildItems([
+      makeIconSection({ iconSections: { value: 'matrix-guid' } }),
+    ]);
+
+    // An unknown name would otherwise render a blank 40px gap above the title.
+    expect(section.iconSection?.map((item) => item.icon)).toEqual([
+      'donateHeart',
+      undefined,
+      undefined,
+    ]);
+  });
+
+  it('returns no columns without querying Rock when the iconSections matrix is unset', async () => {
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    const [section] = await mapPageBuilderChildItems([
+      makeIconSection({ subheading: { value: 'Partner' } }),
+    ]);
+
+    expect(mockGetAttributeMatrixItems).not.toHaveBeenCalled();
+    expect(section.iconSection).toEqual([]);
+    errorSpy.mockRestore();
   });
 });
