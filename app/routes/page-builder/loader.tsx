@@ -24,6 +24,8 @@ import {
 import { format, parseISO } from 'date-fns';
 import { fetchWistiaDataFromRock } from '~/lib/.server/fetch-wistia-data';
 import { getAttributeMatrixItems } from '~/lib/.server/rock-utils';
+import { icons } from '~/lib/icons';
+import type { IconName } from '~/primitives/button/types';
 import {
   buildPodcastRoutingIndex,
   PODCAST_SHOW_CHANNEL_ID,
@@ -52,6 +54,13 @@ const getBooleanValue = (
   if (value == null) return false;
   const normalized = String(value).toLowerCase();
   return normalized === 'true' || normalized === 'on' || normalized === '1';
+};
+
+// Same cleanup as the home hero actions (Rock values can carry pipes), but
+// names missing from the icon set are dropped instead of rendering an empty svg.
+const toIconName = (value: unknown): IconName | undefined => {
+  const cleaned = String(value ?? '').replace(/[|\s]/g, '');
+  return cleaned in icons ? (cleaned as IconName) : undefined;
 };
 
 const toArray = <T,>(value: T | T[] | null | undefined): T[] => {
@@ -525,6 +534,48 @@ export const mapPageBuilderChildItems = async (
             answer: getStringValue(faq.attributeValues.content?.value ?? ''),
           })),
         };
+      }
+
+      if (sectionType === 'ICON_SECTION') {
+        const iconSectionsGuid = getStringValue(
+          attributeValues?.iconSections || '',
+        );
+
+        if (!iconSectionsGuid) {
+          console.error(
+            'ICON_SECTION section is missing the iconSections attribute:',
+            child.id,
+          );
+          return { ...baseChild, iconSection: [] };
+        }
+
+        try {
+          const items = await getAttributeMatrixItems({
+            attributeMatrixGuid: iconSectionsGuid,
+          });
+
+          return {
+            ...baseChild,
+            eyebrow: getStringValue(attributeValues?.subheading || '').trim(),
+            iconSection: items.map((item) => ({
+              id: String(item.id),
+              icon: toIconName(item.attributeValues?.icon?.value),
+              title: getStringValue(
+                item.attributeValues?.title?.value ?? '',
+              ).trim(),
+              description: getStringValue(
+                item.attributeValues?.description?.value ?? '',
+              ),
+            })),
+          };
+        } catch (error) {
+          console.error(
+            'Failed to load ICON_SECTION section:',
+            child.id,
+            error,
+          );
+          return { ...baseChild, iconSection: [] };
+        }
       }
 
       if (sectionType === 'IMAGE_GALLERY') {

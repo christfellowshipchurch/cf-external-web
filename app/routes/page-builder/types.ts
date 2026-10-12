@@ -1,4 +1,5 @@
 import { RockCampus } from '~/lib/rock-config';
+import type { IconName } from '~/primitives/button/types';
 
 /**
  * Represents a section type in the page builder
@@ -9,7 +10,8 @@ export type SectionType =
   | 'CTA_COLLECTION'
   | 'CONTENT_BLOCK'
   | 'FAQs'
-  | 'IMAGE_GALLERY';
+  | 'IMAGE_GALLERY'
+  | 'ICON_SECTION';
 
 export type ContentType =
   | 'EVENTS'
@@ -78,6 +80,16 @@ export type ImageGallery = {
 };
 
 /**
+ * Represents a single column in an Icon Section
+ */
+export type IconSectionItem = {
+  id: string;
+  icon?: IconName;
+  title: string;
+  description: string;
+};
+
+/**
  * Represents a collection card in the page builder
  */
 export type CollectionItem = {
@@ -120,6 +132,8 @@ export type PageBuilderSection = {
   stillHaveQuestionsLink?: string; // only in FAQs component
   cta?: CallToAction; // Used in FAQs component
   imageGallery?: ImageGalleryItem[];
+  eyebrow?: string; // only in Icon Section
+  iconSection?: IconSectionItem[];
   viewMoreLink?: string | undefined;
   className?: string; // Location Single pages uses page builder components that want custom padding around
 };
