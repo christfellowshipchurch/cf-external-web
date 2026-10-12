@@ -84,7 +84,7 @@ export const PlanYourJourneyStep = ({
         </p>
       </div>
 
-      <div className='flex flex-col gap-3 rounded-lg border border-neutral-lighter bg-white px-4 py-3 md:flex-row md:items-center md:justify-between'>
+      <div className='flex flex-col gap-3 rounded-lg border border-gray-200 bg-white px-4 py-3 md:flex-row md:items-center md:justify-between'>
         <p className='flex items-center gap-1 text-sm text-neutral-default'>
           <Icon name='map' size={14} className='text-ocean' />
           Preferred campus:
@@ -103,7 +103,7 @@ export const PlanYourJourneyStep = ({
           <button
             type='button'
             onClick={onSelectEarliest}
-            className='flex items-center gap-2 rounded-md border border-neutral-lighter px-3 py-1.5 text-xs font-semibold text-black hover:border-ocean'
+            className='flex items-center gap-2 rounded-md border border-gray-200 px-3 py-1.5 text-xs font-semibold text-black hover:border-ocean'
           >
             <Icon name='calendarPlus' size={14} className='text-ocean' />
             {openSessions === 3
@@ -132,7 +132,7 @@ export const PlanYourJourneyStep = ({
         ))}
       </div>
 
-      <div className='flex flex-col gap-3 border-t border-neutral-lighter pt-4 md:flex-row md:items-center md:justify-between'>
+      <div className='flex flex-col gap-3 border-t border-neutral-lightest pt-4 md:flex-row md:items-center md:justify-between'>
         <div>
           <p className='text-sm font-semibold text-black'>
             {selectedCount === 0
@@ -199,8 +199,8 @@ const SessionColumn = ({
   const summary = registered ?? selected;
 
   return (
-    <div className='flex flex-col rounded-lg border border-neutral-lighter bg-white'>
-      <div className='flex flex-col gap-2 border-b border-neutral-lighter p-4'>
+    <div className='flex flex-col rounded-lg border border-gray-200 bg-white'>
+      <div className='flex flex-col gap-2 border-b border-neutral-lightest p-4'>
         <h4 className='flex items-center gap-1 font-bold text-black'>
           Session {sessionNumber}
           {summary && (

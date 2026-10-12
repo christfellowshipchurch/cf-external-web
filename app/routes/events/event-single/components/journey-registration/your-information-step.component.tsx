@@ -93,7 +93,7 @@ export const YourInformationStep = ({
   };
 
   return (
-    <div className='flex w-full flex-col gap-4'>
+    <div className='flex w-full max-w-[880px] flex-col gap-4'>
       <div className='flex items-center gap-4'>
         <button
           type='button'

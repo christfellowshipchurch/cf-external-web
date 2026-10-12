@@ -162,7 +162,7 @@ export const JourneyRegistration = () => {
 
   return (
     <div className='flex w-full justify-center bg-gray-50 px-4 py-12 md:py-16'>
-      <div className='flex w-full max-w-[880px] flex-col items-center gap-8'>
+      <div className='flex w-full max-w-[960px] flex-col items-center gap-8'>
         <div className='flex flex-col items-center gap-3 text-center'>
           <h2 className='text-[32px] font-extrabold text-black'>
             Register for Journey

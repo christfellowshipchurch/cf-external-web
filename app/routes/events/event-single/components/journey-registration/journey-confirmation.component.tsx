@@ -16,6 +16,10 @@ import { SESSION_DESCRIPTIONS } from './plan-your-journey-step.component';
 /** Rock doesn't store an end time for Journey sessions; calendar entries assume 90 minutes. */
 const SESSION_LENGTH_MINUTES = 90;
 
+/** Compact neutral outline shared by Add to Calendar and Get Directions, per the Figma session card. */
+const SESSION_ACTION_CLASSES =
+  'inline-flex h-auto min-h-0 min-w-0 items-center rounded-md border border-neutral-lighter bg-white px-3 py-1.5 text-sm font-medium text-black hover:border-ocean';
+
 interface JourneyConfirmationProps {
   campuses: JourneyCampus[];
   registered: JourneySessionSelection;
@@ -79,43 +83,46 @@ export const JourneyConfirmation = ({
           return (
             <div
               key={option.sessionNumber}
-              className='flex flex-col gap-1 rounded-lg border border-neutral-lighter p-3'
+              className='flex flex-col gap-2 rounded-lg border border-neutral-lighter p-4'
             >
-              <p className='flex items-center gap-1 font-bold text-black'>
+              <p className='flex items-center gap-2 font-semibold text-black'>
                 <Icon name='checkCircle' size={16} className='text-success' />
                 Session {option.sessionNumber}
               </p>
-              <p className='flex items-center gap-2 text-sm text-neutral-default'>
-                <Icon name='calendarAlt' size={14} className='text-ocean' />
-                {formatSessionDateHeading(option.startsAt)}
-              </p>
-              <p className='flex items-center gap-2 text-sm text-neutral-default'>
-                <Icon name='timeFive' size={14} className='text-ocean' />
-                {formatSessionTime(option.startsAt)} ET
-              </p>
-              <p className='flex items-center gap-2 text-sm text-neutral-default'>
-                <Icon name='map' size={14} className='text-ocean' />
-                {campus?.name}
-              </p>
-              <div className='mt-2 flex flex-wrap gap-2'>
-                <AddToCalendar
-                  googleHref={`${googleCalendarLink(event)}&ctz=America/New_York`}
-                  getIcsUrl={() => icsLink(event)}
-                  eventDate={parseISO(option.startsAt)}
-                  buttonSize='sm'
-                  buttonClassName='rounded-md'
-                />
-                {address && (
-                  <a
-                    href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(address)}`}
-                    target='_blank'
-                    rel='noopener noreferrer'
-                    className='flex items-center gap-2 rounded-md border border-neutral-lighter px-3 py-2 text-sm font-semibold text-black hover:border-ocean'
-                  >
-                    <Icon name='locationArrow' size={14} />
-                    Get Directions
-                  </a>
-                )}
+              {/* Details sit under the title text, not the check icon (16px icon + 8px gap). */}
+              <div className='flex flex-col gap-1.5 pl-6 text-sm text-neutral-default'>
+                <p className='flex items-center gap-2'>
+                  <Icon name='calendarAlt' size={14} className='text-ocean' />
+                  {formatSessionDateHeading(option.startsAt)}
+                </p>
+                <p className='flex items-center gap-2'>
+                  <Icon name='timeFive' size={14} className='text-ocean' />
+                  {formatSessionTime(option.startsAt)} ET
+                </p>
+                <p className='flex items-center gap-2'>
+                  <Icon name='map' size={14} className='text-ocean' />
+                  {campus?.name}
+                </p>
+                <div className='mt-1 flex flex-wrap gap-2'>
+                  <AddToCalendar
+                    googleHref={`${googleCalendarLink(event)}&ctz=America/New_York`}
+                    getIcsUrl={() => icsLink(event)}
+                    eventDate={parseISO(option.startsAt)}
+                    buttonSize='sm'
+                    buttonClassName={SESSION_ACTION_CLASSES}
+                  />
+                  {address && (
+                    <a
+                      href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(address)}`}
+                      target='_blank'
+                      rel='noopener noreferrer'
+                      className={SESSION_ACTION_CLASSES}
+                    >
+                      <Icon name='locationArrow' size={16} className='mr-2' />
+                      Get Directions
+                    </a>
+                  )}
+                </div>
               </div>
             </div>
           );
