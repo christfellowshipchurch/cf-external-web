@@ -6,9 +6,9 @@ import { isSpanishCampusLabel } from './events/event-single/registration.data';
 
 /**
  * Journey "Plan Your Journey" sign-up. Each selected session is sent as
- * `SessionNGroup` + `SessionNDateTime`; the Rock workflow adds the person to
- * each group with the matching `SessionN` member flag. Unselected sessions are
- * omitted so the workflow can skip them.
+ * `SessionNGroup`; the Rock workflow adds the person to each group with the
+ * matching `SessionN` member flag and reads the session time from the group.
+ * Unselected sessions are omitted so the workflow can skip them.
  */
 export const action: ActionFunction = async ({ request }) => {
   try {
@@ -70,9 +70,6 @@ export const action: ActionFunction = async ({ request }) => {
         );
       }
       sessionFields[`Session${sessionNumber}Group`] = option.groupGuid;
-      // Eastern wall-clock literal, the same offset-less format Rock stores.
-      sessionFields[`Session${sessionNumber}DateTime`] =
-        `${option.startsAt}:00`;
     }
 
     const preferredCampus = campuses.find(

@@ -89,16 +89,11 @@ describe('journey sign up action', () => {
   });
 
   it.each([
-    [{ session1Group: 'oct' }, ['Session1Group', 'Session1DateTime']],
-    [{ session2Group: 'nov' }, ['Session2Group', 'Session2DateTime']],
+    [{ session1Group: 'oct' }, ['Session1Group']],
+    [{ session2Group: 'nov' }, ['Session2Group']],
     [
       { session1Group: 'oct', session3Group: 'nov' },
-      [
-        'Session1Group',
-        'Session1DateTime',
-        'Session3Group',
-        'Session3DateTime',
-      ],
+      ['Session1Group', 'Session3Group'],
     ],
   ])(
     'sends only the selected sessions to Rock (%o)',
@@ -112,22 +107,19 @@ describe('journey sign up action', () => {
     },
   );
 
-  it('sends all three sessions, mixing groups, with ET wall-clock datetimes', async () => {
+  it('sends all three sessions, mixing groups, validated against fresh Rock data', async () => {
     await submit({
       session1Group: 'oct',
       session2Group: 'nov',
       session3Group: 'nov',
     });
 
+    // Session times live on the group in Rock, so only the group is sent.
     expect(sentBody()).toMatchObject({
       Session1Group: 'oct',
-      Session1DateTime: '2026-10-04T09:45:00',
       Session2Group: 'nov',
-      Session2DateTime: '2026-11-08T09:45:00',
       Session3Group: 'nov',
-      Session3DateTime: '2026-11-15T09:45:00',
     });
-    // Datetimes come from Rock, not the browser, and are re-checked fresh.
     expect(getJourneySessionOptions).toHaveBeenCalledWith({ fresh: true });
   });
 
