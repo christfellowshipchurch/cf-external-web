@@ -10,6 +10,7 @@ import { ContentBlock } from './components/content-block';
 import { ContentBlockData } from './types';
 import { ImageGallerySection } from './components/image-gallery';
 import { FAQsComponent } from './components/faq';
+import { IconSection } from './components/icon-section';
 import { getCarouselCollectionBackgrounds } from './components/builder-utils';
 
 export function renderSection(
@@ -107,6 +108,20 @@ export function renderSection(
 
       console.error(
         'Image Gallery section is missing the required imageGallery data:',
+        section.id,
+      );
+      return null;
+    case 'ICON_SECTION':
+      if (section.iconSection?.length) {
+        return (
+          <div key={section.id} id={anchorId} className='scroll-mt-18'>
+            <IconSection data={section} />
+          </div>
+        );
+      }
+
+      console.error(
+        'Icon Section is missing the required iconSection data:',
         section.id,
       );
       return null;
