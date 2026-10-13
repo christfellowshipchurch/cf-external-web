@@ -2,6 +2,35 @@
 
 Hand this to an AI agent with browser access to Rock (Claude in the browser, or ChatGPT Agent). It describes the goal, the contract with the website, and the build steps. It's a first version for testing; the Rock team will review it.
 
+## Progress (2026-10-12)
+
+- **Step 1 is done.** Workflow type **1968, "Journey Session Sign Up"**, was copied from 1833. It's in the _Group Finder Sign Up Workflows_ category with slug `journey-session-sign-up`. Edit it at `/page/136?WorkflowTypeId=1968`. The Change Log entry hasn't been added yet.
+- **Steps 2 and 3 are done and saved.** The new Group attributes are `Session1Group` (229472), `Session2Group` (229473) and `Session3Group` (229474). The seven Rock-form actions were removed from Start.
+- **Step 4, Session 1 block is done and saved.** "Add to Group" and the four attribute-set actions were deleted. Six "Session 1 - …" actions now sit right after Persist WF (positions 5–10), each with Run If `Session 1 Group` Is Not Blank.
+  - In 1833, "Which Campus Regularly Attend" had Run If `Is Class Online?` = True. Decision: replace it with the session filter. The website doesn't send `Whatcampusdoyoumostregularlyattend`, so the value is blank.
+- **Step 4, Session 2 and 3 blocks are done and saved.** They follow the same pattern at positions 11–16 and 17–22, filtered on `Session 2 Group` and `Session 3 Group`. Start now has 39 actions, with Set Workflow Name at position 23.
+- **Step 7 is done and saved.** "Activate Childcare Questions" was removed. It had also been set to complete Start. "Activate Send Confirmation Email" had Run If `Childcare Needed` = No, where Childcare Needed comes from the group's `Childcare` attribute. That filter was cleared so the email always activates.
+- **Step 6 is done and saved, with a design change.** The emails didn't read `ClassSchedule`. Each one built `day1`/`day2`/`day3` from `Group`'s `ClassOne`/`ClassTwo`/`ClassThree`, so step 8's assumption was wrong.
+  - Both "Set Class Schedule…" actions now output one `<li>` per sent session: the date from the matching `ClassOne`/`ClassTwo`/`ClassThree`, then "EST", the group's campus name and its `ClassLocation`. The "Session N:" / "Sesión N:" label only appears when more than one session was sent. The Spanish version keeps the `M/dd/yy` date format.
+  - In "Send English Journey Confirmation Email", "Send Spanish Email" and "Send Online Journey Email", the `{% if day1 … %}` block was replaced with `{{ Workflow | Attribute:'ClassSchedule' }}`. Their `day1`–`day3` assigns are left in place but no longer used.
+- **Childcare is handled in Start and saved (decided 2026-10-13).** The native form replaces the Rock childcare form. Each session block is followed by 5 Group Member Attribute Set actions, with Run If `SessionNGroup` Is Not Blank: S1 at 11–15, S2 at 22–26, S3 at 33–37. They copy `0-23Months`, `2Years`, `3Years-4Years`, `5Years-Kindergarten` and `Grades1-5` from the same-named workflow attributes (Single-Select, values `1`–`8`). Childcare need is inferred from whether counts are sent; a count that isn't sent writes a blank.
+  - The Childcare Requirements Form activity is now never activated. "Set Childcare", `Childcare Needed` and `WillyouneedChildcare` are unused; flagged for cleanup.
+  - Website side (done 2026-10-13): `journey-sessions.ts` loads `Childcare` as `offersChildcare`. The Your Information step asks "Will you need childcare?" only when a selected session offers it, and shows five 0–8 counts after "Yes". `api.journey-sign-up.tsx` sends only counts of 1–8, only when a selected group offers childcare, and returns 400 for out-of-range values. No upcoming three-session group has `Childcare` = True yet, so the question won't show live until one does.
+- **Still to do:** the rest of step 8 (check that the Defined Type 640 subject line doesn't assume a single date), the Change Log entry from step 1, and the test cases.
+- Code-editor fields (Lava, email body) are Ace editors. Set them with `ace.edit(el).setValue(v, -1)`, and Rock escapes the hidden textarea automatically.
+- Gotchas found while building:
+  - An action's Value field (text or attribute) only saves after focusout. Setting it from script needs `.trigger('focusout')`, or it's silently dropped on the next postback or save.
+  - New actions are appended to the end. To reorder, use the drag handle, or `__doPostBack('ctl00_main_ctl35_ctl01_ctl06_upDetail', 're-order-action:<data-key>;<index>')`. Inside a script function, call it through `window.location = "javascript:__doPostBack(...)"`, because a direct call throws a strict-mode error.
+- How the existing actions are configured:
+  - **Add to Group** is a _Group Member Add From Attribute_ action with Person = `Person`, Group = `Group`, Disable Security Groups = No and Ignore Group Member Requirements = No. Its Group Member output is blank.
+  - The **member attribute actions** are _Group Member Attribute Set_ actions with Group = `Group`, Person = `Person` and Group Member Attribute Key = e.g. `AtCF`. The value comes from Attribute Value = the matching workflow attribute. The Run If filter is blank.
+  - There's no duplicate-action button. Each session block (step 4) is 6 new actions: one Add plus five attribute sets for `SessionN`, `AtCF`, Which Campus Regularly Attend, Home Campus and Reason. Before rebuilding them, open each of the four existing attribute-set actions to copy its key and value.
+- Browser tips:
+  - Rock's text fields ignore select-all key shortcuts. To replace a value, triple-click the field and then type.
+  - The left sidebar's "Workflow Type Search › Name" box is also labeled "Name". Don't type into it by mistake.
+  - Actions open only after their parent activity panel is expanded.
+  - Saving takes about 10 seconds and then reloads the page.
+
 ## Ground rules for the agent
 
 - Work only in **Admin › General › Workflows** (`/admin/general/workflows`).

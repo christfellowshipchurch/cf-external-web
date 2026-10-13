@@ -1,7 +1,12 @@
 import { type ActionFunction, data } from 'react-router';
 import { getJourneySessionOptions } from '~/lib/.server/journey-sessions';
 import { postRockWorkflowLaunchWithApiInitiator } from '~/lib/.server/rock-workflow';
-import { JOURNEY_SESSION_NUMBERS } from '~/lib/journey-sessions';
+import {
+  childcareFieldName,
+  JOURNEY_CHILDCARE_AGE_RANGES,
+  JOURNEY_CHILDCARE_MAX_COUNT,
+  JOURNEY_SESSION_NUMBERS,
+} from '~/lib/journey-sessions';
 import { isSpanishCampusLabel } from './events/event-single/registration.data';
 
 /**
@@ -72,6 +77,35 @@ export const action: ActionFunction = async ({ request }) => {
       sessionFields[`Session${sessionNumber}Group`] = option.groupGuid;
     }
 
+    // Childcare need is inferred from which counts are sent: only ranges with
+    // 1–8 children, and only when a selected session's group offers childcare.
+    const offersChildcare = selectedGroups.some(
+      ({ sessionNumber, groupGuid }) =>
+        options.some(
+          (option) =>
+            option.sessionNumber === sessionNumber &&
+            option.groupGuid === groupGuid &&
+            option.offersChildcare,
+        ),
+    );
+    const childcareFields: Record<string, string> = {};
+    for (const { key } of JOURNEY_CHILDCARE_AGE_RANGES) {
+      const raw = field(childcareFieldName(key));
+      if (!raw) continue;
+      const count = Number(raw);
+      if (
+        !Number.isInteger(count) ||
+        count < 0 ||
+        count > JOURNEY_CHILDCARE_MAX_COUNT
+      ) {
+        return data(
+          { error: 'Please enter a valid number of children.' },
+          { status: 400 },
+        );
+      }
+      if (offersChildcare && count > 0) childcareFields[key] = String(count);
+    }
+
     const preferredCampus = campuses.find(
       (campus) => campus.id === preferredCampusId,
     );
@@ -90,6 +124,7 @@ export const action: ActionFunction = async ({ request }) => {
         LaunchSource: 'app',
         ...(hopeToGet ? { hopetoget: hopeToGet } : {}),
         ...sessionFields,
+        ...childcareFields,
       },
       instanceName: `${firstName} ${lastName}`.trim(),
     });

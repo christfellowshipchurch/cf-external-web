@@ -15,6 +15,7 @@ const option = (
   campusId: 2,
   startsAt: '2026-11-01T09:45',
   isFull: false,
+  offersChildcare: false,
   ...overrides,
 });
 

@@ -141,6 +141,26 @@ describe('buildJourneySessionOptions', () => {
     ]);
   });
 
+  // Drives whether the form asks about childcare for the chosen session.
+  it('reads whether the group offers childcare from its Childcare attribute', () => {
+    const withChildcare = makeGroup({ id: 2, guid: 'kids' });
+    withChildcare.attributeValues!.childcare = value('True');
+    const options = buildJourneySessionOptions({
+      groups: [makeGroup(), withChildcare],
+      sessionCounts: noCounts,
+      now: new Date('2026-10-12T12:00:00Z'),
+    });
+
+    expect(
+      options
+        .filter((o) => o.sessionNumber === 1)
+        .map((o) => [o.groupGuid, o.offersChildcare]),
+    ).toEqual([
+      ['group-a', false],
+      ['kids', true],
+    ]);
+  });
+
   it('skips sessions with no date and groups with no campus', () => {
     const options = buildJourneySessionOptions({
       groups: [

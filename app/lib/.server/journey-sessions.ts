@@ -101,6 +101,7 @@ export function buildJourneySessionOptions({
         startsAt: toWallClockMinutes(raw),
         // Full stays off until Rock admins set a capacity on the group.
         isFull: capacity != null && capacity > 0 && taken >= capacity,
+        offersChildcare: attr(group, 'childcare').toLowerCase() === 'true',
       });
     }
   }
@@ -152,7 +153,7 @@ async function fetchUpcomingThreeDayGroups(
           $filter: `GroupTypeId eq ${JOURNEY_GROUP_TYPE_ID} and IsActive eq true and IsArchived eq false and (${ids.map((id) => `Id eq ${id}`).join(' or ')})`,
           loadAttributes: 'simple',
           attributeKeys:
-            'ClassOne,ClassTwo,ClassThree,DisplayStartDate,DisplayEndDate',
+            'ClassOne,ClassTwo,ClassThree,DisplayStartDate,DisplayEndDate,Childcare',
         },
         ttl,
       }),

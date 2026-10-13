@@ -1,5 +1,7 @@
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { useState } from 'react';
+import { createMemoryRouter } from 'react-router';
+import { RouterProvider } from 'react-router/dom';
 import { describe, expect, it, vi } from 'vitest';
 import type {
   JourneySessionNumber,
@@ -8,6 +10,7 @@ import type {
 } from '~/lib/journey-sessions';
 import { PlanYourJourneyStep } from './plan-your-journey-step.component';
 import { JourneyConfirmation } from './journey-confirmation.component';
+import { YourInformationStep } from './your-information-step.component';
 
 const campuses = [
   {
@@ -29,6 +32,7 @@ const opt = (
   groupGuid: `g-${sessionNumber}-${startsAt}`,
   campusId: 2,
   isFull: false,
+  offersChildcare: false,
   ...extra,
 });
 
@@ -187,5 +191,52 @@ describe('JourneyConfirmation', () => {
     expect(
       screen.queryByRole('button', { name: 'Schedule Another Session' }),
     ).not.toBeInTheDocument();
+  });
+});
+
+describe('YourInformationStep childcare', () => {
+  const renderStep = (selection: JourneySessionSelection) => {
+    const router = createMemoryRouter(
+      [
+        {
+          path: '/',
+          element: (
+            <YourInformationStep
+              campuses={campuses}
+              preferredCampusId={2}
+              selection={selection}
+              registered={{}}
+              isSpanish={false}
+              onBack={vi.fn()}
+              onSuccess={vi.fn()}
+            />
+          ),
+        },
+      ],
+      { initialEntries: ['/'] },
+    );
+    render(<RouterProvider router={router} />);
+  };
+
+  it('does not ask about childcare when no chosen session offers it', () => {
+    renderStep({ 1: options[0] });
+    expect(
+      screen.queryByText('Will you need childcare?'),
+    ).not.toBeInTheDocument();
+  });
+
+  // Rock reads childcare need from which counts arrive, so the counts only
+  // exist in the form after the person says yes.
+  it('asks about childcare and only shows the counts after "Yes"', () => {
+    renderStep({ 2: opt(2, '2026-10-11T18:00', { offersChildcare: true }) });
+
+    expect(screen.getByText('Will you need childcare?')).toBeInTheDocument();
+    expect(screen.queryByLabelText('2 years')).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByLabelText('Yes'));
+    expect(screen.getByLabelText('2 years')).toHaveValue('0');
+
+    fireEvent.click(screen.getByLabelText('No'));
+    expect(screen.queryByLabelText('2 years')).not.toBeInTheDocument();
   });
 });

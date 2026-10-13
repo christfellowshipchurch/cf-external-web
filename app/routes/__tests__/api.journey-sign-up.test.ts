@@ -29,6 +29,7 @@ const liveData: JourneySessionsData = {
       campusId: 2,
       startsAt: '2026-10-04T09:45',
       isFull: false,
+      offersChildcare: false,
     },
     {
       sessionNumber: 2,
@@ -36,6 +37,7 @@ const liveData: JourneySessionsData = {
       campusId: 2,
       startsAt: '2026-11-08T09:45',
       isFull: false,
+      offersChildcare: false,
     },
     {
       sessionNumber: 3,
@@ -43,6 +45,15 @@ const liveData: JourneySessionsData = {
       campusId: 2,
       startsAt: '2026-11-15T09:45',
       isFull: false,
+      offersChildcare: false,
+    },
+    {
+      sessionNumber: 2,
+      groupGuid: 'kids',
+      campusId: 2,
+      startsAt: '2026-11-08T18:30',
+      isFull: false,
+      offersChildcare: true,
     },
     {
       sessionNumber: 3,
@@ -50,6 +61,7 @@ const liveData: JourneySessionsData = {
       campusId: 2,
       startsAt: '2026-12-13T10:45',
       isFull: true,
+      offersChildcare: false,
     },
   ],
 };
@@ -143,6 +155,55 @@ describe('journey sign up action', () => {
 
     expect(statusOf(result)).toBe(400);
     expect(postRockWorkflowLaunchWithApiInitiator).not.toHaveBeenCalled();
+  });
+
+  // Rock infers childcare need from which counts arrive, so anything sent
+  // lands on the group membership as-is.
+  describe('childcare', () => {
+    const childcareKeys = () =>
+      Object.keys(sentBody() ?? {}).filter((key) =>
+        /Months|Years|Grades/.test(key),
+      );
+
+    it('sends only the age ranges with children, as Rock option values', async () => {
+      await submit({
+        session1Group: 'oct',
+        session2Group: 'kids',
+        'childcare-0-23Months': '0',
+        'childcare-2Years': '2',
+        'childcare-Grades1-5': '8',
+      });
+
+      expect(sentBody()).toMatchObject({ '2Years': '2', 'Grades1-5': '8' });
+      expect(childcareKeys().sort()).toEqual(['2Years', 'Grades1-5']);
+    });
+
+    it('sends no childcare when none of the selected groups offers it', async () => {
+      await submit({ session1Group: 'oct', 'childcare-2Years': '2' });
+
+      expect(postRockWorkflowLaunchWithApiInitiator).toHaveBeenCalled();
+      expect(childcareKeys()).toEqual([]);
+    });
+
+    it('sends no childcare when the person needs none', async () => {
+      await submit({ session2Group: 'kids' });
+
+      expect(childcareKeys()).toEqual([]);
+    });
+
+    // Rock's single-select only accepts 1–8 and silently drops anything else.
+    it.each(['9', '-1', '1.5', 'two'])(
+      'rejects a count Rock would drop (%s)',
+      async (count) => {
+        const result = await submit({
+          session2Group: 'kids',
+          'childcare-2Years': count,
+        });
+
+        expect(statusOf(result)).toBe(400);
+        expect(postRockWorkflowLaunchWithApiInitiator).not.toHaveBeenCalled();
+      },
+    );
   });
 
   it('uses the English workflow for an English preferred campus', async () => {

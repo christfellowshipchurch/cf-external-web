@@ -24,6 +24,8 @@ export type JourneySessionOption = {
   /** Eastern wall-clock start, `YYYY-MM-DDTHH:mm`. */
   startsAt: string;
   isFull: boolean;
+  /** Group attribute `Childcare` ("Does this Journey need Childcare?"). */
+  offersChildcare: boolean;
 };
 
 export type JourneySessionsData = {
@@ -34,6 +36,27 @@ export type JourneySessionsData = {
 export type JourneySessionSelection = Partial<
   Record<JourneySessionNumber, JourneySessionOption>
 >;
+
+/**
+ * Childcare age ranges. `key` is both the workflow attribute and the group
+ * member attribute in Rock, which only accepts counts 1–8.
+ */
+export const JOURNEY_CHILDCARE_AGE_RANGES = [
+  { key: '0-23Months', label: '0–23 months', spanishLabel: '0–23 meses' },
+  { key: '2Years', label: '2 years', spanishLabel: '2 años' },
+  { key: '3Years-4Years', label: '3–4 years', spanishLabel: '3–4 años' },
+  {
+    key: '5Years-Kindergarten',
+    label: '5 years–Kindergarten',
+    spanishLabel: '5 años–Kínder',
+  },
+  { key: 'Grades1-5', label: 'Grades 1–5', spanishLabel: 'Grados 1–5' },
+] as const;
+
+export const JOURNEY_CHILDCARE_MAX_COUNT = 8;
+
+/** Form field name for one age range's count. */
+export const childcareFieldName = (key: string) => `childcare-${key}`;
 
 const WEEKDAYS = [
   'Sunday',

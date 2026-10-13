@@ -1,5 +1,5 @@
 import * as Form from '@radix-ui/react-form';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useFetcher } from 'react-router';
 import Icon from '~/primitives/icon';
 import { Button } from '~/primitives/button/button.primitive';
@@ -8,6 +8,7 @@ import { cn } from '~/lib/utils';
 import {
   radixFormFieldStackClassName,
   radixFormLabelClassName,
+  radixRadioClassName,
   radixSelectClassName,
   radixTextareaClassName,
   renderRadixInputField,
@@ -16,12 +17,37 @@ import {
 } from '~/primitives/inputs/form-radix-field';
 import { FORM_COPY } from '~/components/modals/journey-finder-sign-up/journey-finder-sign-up-form.component';
 import {
+  childcareFieldName,
   formatSessionShortDate,
   formatSessionTime,
+  JOURNEY_CHILDCARE_AGE_RANGES,
+  JOURNEY_CHILDCARE_MAX_COUNT,
   JOURNEY_SESSION_NUMBERS,
   type JourneyCampus,
   type JourneySessionSelection,
 } from '~/lib/journey-sessions';
+
+const CHILDCARE_COPY = {
+  English: {
+    question: 'Will you need childcare?',
+    yes: 'Yes',
+    no: 'No',
+    required: 'Please select an option',
+    counts: 'How many children in each age range?',
+  },
+  Spanish: {
+    question: '¿Necesitarás cuidado de niños?',
+    yes: 'Sí',
+    no: 'No',
+    required: 'Por favor selecciona una opción',
+    counts: '¿Cuántos niños en cada rango de edad?',
+  },
+};
+
+const CHILDCARE_COUNT_OPTIONS = Array.from(
+  { length: JOURNEY_CHILDCARE_MAX_COUNT + 1 },
+  (_, count) => count,
+);
 
 /** Kept between submissions so "Schedule Another Session" doesn't re-ask. */
 export type JourneyPersonDetails = {
@@ -60,6 +86,11 @@ export const YourInformationStep = ({
   const fetcher = useFetcher<ActionResult>();
   const submittedRef = useRef<JourneyPersonDetails | null>(null);
   const copy = FORM_COPY[isSpanish ? 'Spanish' : 'English'];
+  const childcareCopy = CHILDCARE_COPY[isSpanish ? 'Spanish' : 'English'];
+  const [needsChildcare, setNeedsChildcare] = useState(false);
+  const offersChildcare = JOURNEY_SESSION_NUMBERS.some(
+    (n) => selection[n]?.offersChildcare,
+  );
   const isSubmitting = fetcher.state !== 'idle';
   const campusName = (id: number) =>
     campuses.find((campus) => campus.id === id)?.name ?? '';
@@ -220,6 +251,81 @@ export const YourInformationStep = ({
                 />
               </Form.Control>
             </Form.Field>
+
+            {offersChildcare && (
+              <Form.Field
+                name='needsChildcare'
+                className={cn(
+                  'mb-4 md:col-span-2',
+                  radixFormFieldStackClassName,
+                )}
+              >
+                <Form.Label className={radixFormLabelClassName}>
+                  {childcareCopy.question}
+                </Form.Label>
+                <div className='flex gap-6'>
+                  {[
+                    { value: 'yes', label: childcareCopy.yes },
+                    { value: 'no', label: childcareCopy.no },
+                  ].map((option) => (
+                    <label
+                      key={option.value}
+                      className='flex items-center gap-2'
+                    >
+                      <Form.Control asChild>
+                        <input
+                          type='radio'
+                          name='needsChildcare'
+                          value={option.value}
+                          required
+                          onChange={() =>
+                            setNeedsChildcare(option.value === 'yes')
+                          }
+                          className={radixRadioClassName}
+                        />
+                      </Form.Control>
+                      <span className='leading-4'>{option.label}</span>
+                    </label>
+                  ))}
+                </div>
+                <RadixFormErrorMessage match='valueMissing'>
+                  {childcareCopy.required}
+                </RadixFormErrorMessage>
+              </Form.Field>
+            )}
+
+            {offersChildcare && needsChildcare && (
+              <fieldset className='mb-4 grid grid-cols-2 gap-x-4 gap-y-2 md:col-span-2 md:grid-cols-3'>
+                <legend className={cn('mb-2', radixFormLabelClassName)}>
+                  {childcareCopy.counts}
+                </legend>
+                {JOURNEY_CHILDCARE_AGE_RANGES.map((range) => (
+                  <Form.Field
+                    key={range.key}
+                    name={childcareFieldName(range.key)}
+                    className={radixFormFieldStackClassName}
+                  >
+                    <Form.Label className='text-xs text-neutral-default'>
+                      {isSpanish ? range.spanishLabel : range.label}
+                    </Form.Label>
+                    <RadixFormSelectShell>
+                      <Form.Control asChild>
+                        <select
+                          defaultValue='0'
+                          className={radixSelectClassName}
+                        >
+                          {CHILDCARE_COUNT_OPTIONS.map((count) => (
+                            <option key={count} value={count}>
+                              {count}
+                            </option>
+                          ))}
+                        </select>
+                      </Form.Control>
+                    </RadixFormSelectShell>
+                  </Form.Field>
+                ))}
+              </fieldset>
+            )}
 
             <input
               type='hidden'
