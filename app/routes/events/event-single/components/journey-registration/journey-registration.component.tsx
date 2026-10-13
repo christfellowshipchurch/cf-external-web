@@ -134,7 +134,6 @@ export const JourneyRegistration = () => {
         return (
           <YourInformationStep
             campuses={sessionsData.campuses}
-            preferredCampusId={preferredCampusId}
             selection={selection}
             registered={registered}
             isSpanish={isSpanish}

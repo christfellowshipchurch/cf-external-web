@@ -62,7 +62,6 @@ export type JourneyPersonDetails = {
 
 interface YourInformationStepProps {
   campuses: JourneyCampus[];
-  preferredCampusId: number;
   selection: JourneySessionSelection;
   registered: JourneySessionSelection;
   isSpanish: boolean;
@@ -75,7 +74,6 @@ type ActionResult = { success?: boolean; error?: string };
 
 export const YourInformationStep = ({
   campuses,
-  preferredCampusId,
   selection,
   registered,
   isSpanish,
@@ -327,11 +325,6 @@ export const YourInformationStep = ({
               </fieldset>
             )}
 
-            <input
-              type='hidden'
-              name='preferredCampusId'
-              value={preferredCampusId}
-            />
             {JOURNEY_SESSION_NUMBERS.map((n) =>
               selection[n] ? (
                 <input

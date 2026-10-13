@@ -56,6 +56,22 @@ const liveData: JourneySessionsData = {
       offersChildcare: true,
     },
     {
+      sessionNumber: 2,
+      groupGuid: 'esp',
+      campusId: 7,
+      startsAt: '2026-11-09T19:00',
+      isFull: false,
+      offersChildcare: false,
+    },
+    {
+      sessionNumber: 3,
+      groupGuid: 'esp',
+      campusId: 7,
+      startsAt: '2026-11-16T19:00',
+      isFull: false,
+      offersChildcare: false,
+    },
+    {
       sessionNumber: 3,
       groupGuid: 'dec',
       campusId: 2,
@@ -66,7 +82,7 @@ const liveData: JourneySessionsData = {
   ],
 };
 
-const submit = (sessions: Record<string, string>, preferredCampusId = '2') => {
+const submit = (sessions: Record<string, string>) => {
   const formData = new FormData();
   formData.set('firstName', 'Test');
   formData.set('lastName', 'Person');
@@ -74,7 +90,6 @@ const submit = (sessions: Record<string, string>, preferredCampusId = '2') => {
   formData.set('email', 'test@example.com');
   formData.set('atCF', '1');
   formData.set('reason', '3');
-  formData.set('preferredCampusId', preferredCampusId);
   Object.entries(sessions).forEach(([key, val]) => formData.set(key, val));
   const request = new Request('http://localhost/api/journey-sign-up', {
     method: 'POST',
@@ -206,21 +221,41 @@ describe('journey sign up action', () => {
     );
   });
 
-  it('uses the English workflow for an English preferred campus', async () => {
-    await submit({ session1Group: 'oct' }, '2');
+  // One workflow handles both languages; it reads the campus from `Group`.
+  it.each([[{ session1Group: 'oct' }], [{ session2Group: 'esp' }]])(
+    'launches the Journey Session Sign Up workflow for every campus (%o)',
+    async (sessions) => {
+      await submit(sessions);
 
-    expect(
-      vi.mocked(postRockWorkflowLaunchWithApiInitiator).mock.calls[0][0]
-        .workflowTypeId,
-    ).toBe('1833');
-  });
+      expect(
+        vi.mocked(postRockWorkflowLaunchWithApiInitiator).mock.calls[0][0]
+          .workflowTypeId,
+      ).toBe('1968');
+    },
+  );
 
-  it('uses the Spanish workflow when the preferred campus is CF Español', async () => {
-    await submit({ session1Group: 'oct' }, '7');
+  // `Group` picks the confirmation email's language, contact and campus, so it
+  // must follow where most of the person's sessions are.
+  it.each([
+    [
+      'all at one campus: the earliest session',
+      { session1Group: 'oct', session3Group: 'nov' },
+      'oct',
+    ],
+    [
+      'the campus with the most sessions, even if not the earliest',
+      { session1Group: 'oct', session2Group: 'esp', session3Group: 'esp' },
+      'esp',
+    ],
+    [
+      'a tie goes to the earliest session',
+      { session2Group: 'esp', session3Group: 'nov' },
+      'esp',
+    ],
+    ['a single session: that group', { session3Group: 'nov' }, 'nov'],
+  ])('sends the primary Group: %s', async (_case, sessions, expected) => {
+    await submit(sessions);
 
-    expect(
-      vi.mocked(postRockWorkflowLaunchWithApiInitiator).mock.calls[0][0]
-        .workflowTypeId,
-    ).toBe('1835');
+    expect(sentBody()?.Group).toBe(expected);
   });
 });

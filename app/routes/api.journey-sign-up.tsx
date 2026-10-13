@@ -6,14 +6,34 @@ import {
   JOURNEY_CHILDCARE_AGE_RANGES,
   JOURNEY_CHILDCARE_MAX_COUNT,
   JOURNEY_SESSION_NUMBERS,
+  type JourneySessionOption,
 } from '~/lib/journey-sessions';
-import { isSpanishCampusLabel } from './events/event-single/registration.data';
+
+/** Rock workflow type "Journey Session Sign Up" (copied from 1833). */
+const JOURNEY_SESSION_WORKFLOW_TYPE_ID = '1968';
+
+/**
+ * The workflow's `Group` drives the email, contact, Spanish and online logic.
+ * Use the campus with the most selected sessions; on a tie, the campus of the
+ * earliest session. Its earliest selected group is the primary.
+ */
+const pickPrimaryGroupGuid = (selected: JourneySessionOption[]) => {
+  const byStart = [...selected].sort((a, b) =>
+    a.startsAt.localeCompare(b.startsAt),
+  );
+  const countFor = (campusId: number) =>
+    selected.filter((option) => option.campusId === campusId).length;
+  const topCount = Math.max(...selected.map((o) => countFor(o.campusId)));
+  return byStart.find((option) => countFor(option.campusId) === topCount)
+    ?.groupGuid;
+};
 
 /**
  * Journey "Plan Your Journey" sign-up. Each selected session is sent as
  * `SessionNGroup`; the Rock workflow adds the person to each group with the
  * matching `SessionN` member flag and reads the session time from the group.
- * Unselected sessions are omitted so the workflow can skip them.
+ * Unselected sessions are omitted so the workflow can skip them. One workflow
+ * (1968) handles English and Spanish; it picks the language from `Group`.
  */
 export const action: ActionFunction = async ({ request }) => {
   try {
@@ -27,7 +47,6 @@ export const action: ActionFunction = async ({ request }) => {
     const atCF = field('atCF');
     const reason = field('reason');
     const hopeToGet = field('hopeToGet');
-    const preferredCampusId = Number(field('preferredCampusId'));
 
     if (!firstName || !lastName || !phone || !email || !atCF || !reason) {
       return data({ error: 'Missing required fields' }, { status: 400 });
@@ -47,11 +66,12 @@ export const action: ActionFunction = async ({ request }) => {
 
     // Re-check against live Rock data: the page may have sat open past a
     // session's start, or the last seat may have been taken since it loaded.
-    const { campuses, options } = await getJourneySessionOptions({
+    const { options } = await getJourneySessionOptions({
       fresh: true,
     });
 
     const sessionFields: Record<string, string> = {};
+    const selectedOptions: JourneySessionOption[] = [];
     for (const { sessionNumber, groupGuid } of selectedGroups) {
       const option = options.find(
         (candidate) =>
@@ -75,18 +95,13 @@ export const action: ActionFunction = async ({ request }) => {
         );
       }
       sessionFields[`Session${sessionNumber}Group`] = option.groupGuid;
+      selectedOptions.push(option);
     }
 
     // Childcare need is inferred from which counts are sent: only ranges with
     // 1–8 children, and only when a selected session's group offers childcare.
-    const offersChildcare = selectedGroups.some(
-      ({ sessionNumber, groupGuid }) =>
-        options.some(
-          (option) =>
-            option.sessionNumber === sessionNumber &&
-            option.groupGuid === groupGuid &&
-            option.offersChildcare,
-        ),
+    const offersChildcare = selectedOptions.some(
+      (option) => option.offersChildcare,
     );
     const childcareFields: Record<string, string> = {};
     for (const { key } of JOURNEY_CHILDCARE_AGE_RANGES) {
@@ -106,13 +121,8 @@ export const action: ActionFunction = async ({ request }) => {
       if (offersChildcare && count > 0) childcareFields[key] = String(count);
     }
 
-    const preferredCampus = campuses.find(
-      (campus) => campus.id === preferredCampusId,
-    );
-    const isSpanish = isSpanishCampusLabel(preferredCampus?.name ?? '');
-
     await postRockWorkflowLaunchWithApiInitiator({
-      workflowTypeId: isSpanish ? '1835' : '1833',
+      workflowTypeId: JOURNEY_SESSION_WORKFLOW_TYPE_ID,
       workflowName: 'Journey Sign Up',
       body: {
         FirstName: firstName,
@@ -123,6 +133,7 @@ export const action: ActionFunction = async ({ request }) => {
         Reason: reason,
         LaunchSource: 'app',
         ...(hopeToGet ? { hopetoget: hopeToGet } : {}),
+        Group: pickPrimaryGroupGuid(selectedOptions) ?? '',
         ...sessionFields,
         ...childcareFields,
       },

@@ -4,7 +4,7 @@ Hand this to an AI agent with browser access to Rock (Claude in the browser, or 
 
 ## Progress (2026-10-12)
 
-- **Step 1 is done.** Workflow type **1968, "Journey Session Sign Up"**, was copied from 1833. It's in the _Group Finder Sign Up Workflows_ category with slug `journey-session-sign-up`. Edit it at `/page/136?WorkflowTypeId=1968`. The Change Log entry hasn't been added yet.
+- **Step 1 is done.** Workflow type **1968, "Journey Session Sign Up"**, was copied from 1833. It's in the _Group Finder Sign Up Workflows_ category with slug `journey-session-sign-up`. Edit it at `/page/136?WorkflowTypeId=1968`. The Change Log entry was added on 2026-10-13.
 - **Steps 2 and 3 are done and saved.** The new Group attributes are `Session1Group` (229472), `Session2Group` (229473) and `Session3Group` (229474). The seven Rock-form actions were removed from Start.
 - **Step 4, Session 1 block is done and saved.** "Add to Group" and the four attribute-set actions were deleted. Six "Session 1 - …" actions now sit right after Persist WF (positions 5–10), each with Run If `Session 1 Group` Is Not Blank.
   - In 1833, "Which Campus Regularly Attend" had Run If `Is Class Online?` = True. Decision: replace it with the session filter. The website doesn't send `Whatcampusdoyoumostregularlyattend`, so the value is blank.
@@ -16,7 +16,18 @@ Hand this to an AI agent with browser access to Rock (Claude in the browser, or 
 - **Childcare is handled in Start and saved (decided 2026-10-13).** The native form replaces the Rock childcare form. Each session block is followed by 5 Group Member Attribute Set actions, with Run If `SessionNGroup` Is Not Blank: S1 at 11–15, S2 at 22–26, S3 at 33–37. They copy `0-23Months`, `2Years`, `3Years-4Years`, `5Years-Kindergarten` and `Grades1-5` from the same-named workflow attributes (Single-Select, values `1`–`8`). Childcare need is inferred from whether counts are sent; a count that isn't sent writes a blank.
   - The Childcare Requirements Form activity is now never activated. "Set Childcare", `Childcare Needed` and `WillyouneedChildcare` are unused; flagged for cleanup.
   - Website side (done 2026-10-13): `journey-sessions.ts` loads `Childcare` as `offersChildcare`. The Your Information step asks "Will you need childcare?" only when a selected session offers it, and shows five 0–8 counts after "Yes". `api.journey-sign-up.tsx` sends only counts of 1–8, only when a selected group offers childcare, and returns 400 for out-of-range values. No upcoming three-session group has `Childcare` = True yet, so the question won't show live until one does.
-- **Still to do:** the rest of step 8 (check that the Defined Type 640 subject line doesn't assume a single date), the Change Log entry from step 1, and the test cases.
+- **Website switched to 1968 (2026-10-13, uncommitted).** `api.journey-sign-up.tsx` launches 1968 for every campus, without the 1833/1835 split. It sends `Group` = the earliest selected group at the campus with the most selected sessions, with ties going to the earliest session. The unused `preferredCampusId` hidden input was removed from the Your Information step.
+- **Step 8 is checked and needs no change.** The subject line (Defined Value 12571) and the intro and body content (12539, 12528) are static text with no dates. In the three Send actions, the only date output is `ClassSchedule`.
+- **Test cases run 2026-10-13 against 1968 from the dev server.** The test person was Daniel Wood, using real upcoming Nov groups because there are no test groups. Case 1 went through the UI; cases 2–4 were posted to the API.
+  - Case 1 (workflow 6034164, all three sessions at PBG): pass. One membership with Session1–3 = True; the email lists Session 1/2/3.
+  - Case 2 (6034167, S1 at Boca, S2/S3 at Jupiter): pass. `Group` = Jupiter, contact = Austin Warner, memberships in both groups, each with only its own flags. The email was sent from Hello@ChristFellowship.church rather than the contact's address; this needs checking.
+  - Case 3 (6034169, only S3 at Stuart): pass. One line with no "Session" label.
+  - Case 4 (6034171, CFE PBG S1/S2): pass. Spanish = True, contact John Vanegas, Spanish subject, "Sesión N" lines.
+  - Case 5 (repeat launches): pass from case 2 on. The same record was reused and each email lists only its own launch.
+  - **Issue (existing behavior):** case 1 created a duplicate person (736475) even though active record 27099 has the same name, email and mobile. "Match or create person record" is unchanged from 1833, so 1833 probably does the same; worth asking the Rock team.
+  - **Issue (existing behavior):** group type 137 has no `Campus` member attribute, so the "Set Home Campus" actions do nothing. Same in 1833.
+  - Not tested: childcare counts, because no upcoming group has `Childcare` = True. Also not tested: an online campus.
+  - Cleanup needed: merge 736475 into 27099, and remove test memberships 9233790–9233794.
 - Code-editor fields (Lava, email body) are Ace editors. Set them with `ace.edit(el).setValue(v, -1)`, and Rock escapes the hidden textarea automatically.
 - Gotchas found while building:
   - An action's Value field (text or attribute) only saves after focusout. Setting it from script needs `.trigger('focusout')`, or it's silently dropped on the next postback or save.

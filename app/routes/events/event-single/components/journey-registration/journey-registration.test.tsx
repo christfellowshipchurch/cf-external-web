@@ -203,7 +203,6 @@ describe('YourInformationStep childcare', () => {
           element: (
             <YourInformationStep
               campuses={campuses}
-              preferredCampusId={2}
               selection={selection}
               registered={{}}
               isSpanish={false}
