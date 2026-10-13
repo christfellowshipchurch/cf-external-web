@@ -1,12 +1,9 @@
-import { useMemo } from 'react';
 import type React from 'react';
 
 import { cn } from '~/lib/utils';
 import {
-  CLASS_SINGLE_CAROUSEL_MOBILE_PEEK_CONTENT_GAP_CLASS,
-  CLASS_SINGLE_CAROUSEL_MOBILE_PEEK_ITEM_CLASS,
-  classSingleCarouselSlideGridColsClass,
-  useClassSingleCarouselLayoutMode,
+  CLASS_SINGLE_CAROUSEL_CONTENT_GAP_CLASS,
+  CLASS_SINGLE_CAROUSEL_ITEM_CLASS,
 } from '../hooks/use-class-single-carousel-cards-per-slide';
 import { Button } from '~/primitives/shadcn-primitives/button';
 import {
@@ -69,8 +66,6 @@ function UpcomingCarouselNavRow() {
   );
 }
 
-const DESKTOP_CAROUSEL_CHUNK = 4;
-
 export function UpcomingSessionsCarousel({
   hits,
   resetKey,
@@ -80,106 +75,39 @@ export function UpcomingSessionsCarousel({
   resetKey: string;
   extraCard?: React.ReactNode;
 }) {
-  const layoutMode = useClassSingleCarouselLayoutMode();
-  const isDesktopChunkGrid = layoutMode === 'chunk';
-
-  const slides = useMemo(() => {
-    const out: ClassHitType[][] = [];
-    for (let i = 0; i < hits.length; i += DESKTOP_CAROUSEL_CHUNK) {
-      out.push(hits.slice(i, i + DESKTOP_CAROUSEL_CHUNK));
-    }
-    return out;
-  }, [hits]);
-
   if (hits.length === 0) {
     return null;
   }
 
   return (
     <Carousel
-      key={`${resetKey}-${layoutMode}`}
-      opts={{ align: 'start', containScroll: 'trimSnaps' }}
+      key={resetKey}
+      opts={{
+        align: 'start',
+        containScroll: 'trimSnaps',
+        slidesToScroll: 'auto',
+      }}
       className='w-full max-w-[1296px]'
     >
       <CarouselContent
-        className={cn(
-          'ml-0 py-3',
-          isDesktopChunkGrid ? 'gap-6 xl:gap-8' : null,
-          !isDesktopChunkGrid
-            ? CLASS_SINGLE_CAROUSEL_MOBILE_PEEK_CONTENT_GAP_CLASS
-            : null,
-        )}
+        className={cn('ml-0 py-3', CLASS_SINGLE_CAROUSEL_CONTENT_GAP_CLASS)}
       >
-        {!isDesktopChunkGrid ? (
-          <>
-            {hits.map((hit, idx) => (
-              <CarouselItem
-                key={hit.objectID ?? idx}
-                className={CLASS_SINGLE_CAROUSEL_MOBILE_PEEK_ITEM_CLASS}
-              >
-                <div className='flex h-full min-h-0 w-full min-w-0 max-w-full justify-center'>
-                  <UpcomingSessionCard hit={hit} />
-                </div>
-              </CarouselItem>
-            ))}
-            {extraCard && (
-              <CarouselItem
-                className={CLASS_SINGLE_CAROUSEL_MOBILE_PEEK_ITEM_CLASS}
-              >
-                <div className='flex h-full min-h-0 w-full min-w-0 max-w-full justify-center'>
-                  {extraCard}
-                </div>
-              </CarouselItem>
-            )}
-          </>
-        ) : (
-          <>
-            {slides.map((chunk, slideIndex) => {
-              const isLastSlide = slideIndex === slides.length - 1;
-              const showExtraInSlide =
-                isLastSlide &&
-                extraCard &&
-                chunk.length < DESKTOP_CAROUSEL_CHUNK;
-              return (
-                <CarouselItem key={slideIndex} className='basis-full pl-0'>
-                  <div
-                    className={cn(
-                      'grid w-full auto-rows-fr items-stretch gap-x-4 gap-y-6 xl:gap-x-8',
-                      classSingleCarouselSlideGridColsClass(
-                        DESKTOP_CAROUSEL_CHUNK,
-                      ),
-                    )}
-                  >
-                    {chunk.map((hit, idx) => (
-                      <div
-                        key={idx}
-                        className='flex h-full min-h-0 w-full justify-center sm:justify-start'
-                      >
-                        <UpcomingSessionCard hit={hit} />
-                      </div>
-                    ))}
-                    {showExtraInSlide && extraCard}
-                  </div>
-                </CarouselItem>
-              );
-            })}
-            {extraCard &&
-              slides.length > 0 &&
-              slides[slides.length - 1].length === DESKTOP_CAROUSEL_CHUNK && (
-                <CarouselItem className='basis-full pl-0'>
-                  <div
-                    className={cn(
-                      'grid w-full auto-rows-fr items-stretch gap-x-4 gap-y-6 xl:gap-x-8',
-                      classSingleCarouselSlideGridColsClass(
-                        DESKTOP_CAROUSEL_CHUNK,
-                      ),
-                    )}
-                  >
-                    {extraCard}
-                  </div>
-                </CarouselItem>
-              )}
-          </>
+        {hits.map((hit, idx) => (
+          <CarouselItem
+            key={hit.objectID ?? idx}
+            className={CLASS_SINGLE_CAROUSEL_ITEM_CLASS}
+          >
+            <div className='flex h-full min-h-0 w-full min-w-0 max-w-full justify-center lg:justify-start'>
+              <UpcomingSessionCard hit={hit} />
+            </div>
+          </CarouselItem>
+        ))}
+        {extraCard && (
+          <CarouselItem className={CLASS_SINGLE_CAROUSEL_ITEM_CLASS}>
+            <div className='flex h-full min-h-0 w-full min-w-0 max-w-full justify-center lg:justify-start'>
+              {extraCard}
+            </div>
+          </CarouselItem>
         )}
       </CarouselContent>
       <UpcomingCarouselNavRow />
