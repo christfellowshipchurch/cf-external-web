@@ -239,3 +239,61 @@ describe('YourInformationStep childcare', () => {
     expect(screen.queryByLabelText('2 years')).not.toBeInTheDocument();
   });
 });
+
+describe('YourInformationStep going back to edit sessions', () => {
+  const renderStep = (
+    props: Partial<React.ComponentProps<typeof YourInformationStep>>,
+  ) => {
+    const router = createMemoryRouter(
+      [
+        {
+          path: '/',
+          element: (
+            <YourInformationStep
+              campuses={campuses}
+              selection={{
+                2: opt(2, '2026-10-11T18:00', { offersChildcare: true }),
+              }}
+              registered={{}}
+              isSpanish={false}
+              onBack={vi.fn()}
+              onSuccess={vi.fn()}
+              {...props}
+            />
+          ),
+        },
+      ],
+      { initialEntries: ['/'] },
+    );
+    return render(<RouterProvider router={router} />);
+  };
+
+  // The step unmounts while the person edits sessions, so anything not handed
+  // back to the parent is lost and they'd have to type it all again.
+  it('restores everything entered after "Edit Sessions" and returning', () => {
+    const onBack = vi.fn();
+    const { unmount } = renderStep({ onBack });
+
+    fireEvent.change(screen.getByLabelText('First Name'), {
+      target: { value: 'Ada' },
+    });
+    fireEvent.change(screen.getByLabelText('Email Address'), {
+      target: { value: 'ada@example.com' },
+    });
+    fireEvent.click(screen.getByLabelText('Yes'));
+    fireEvent.change(screen.getByLabelText('2 years'), {
+      target: { value: '2' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Edit Sessions' }));
+    unmount();
+
+    renderStep({ defaults: onBack.mock.calls[0][0] });
+
+    expect(screen.getByLabelText('First Name')).toHaveValue('Ada');
+    expect(screen.getByLabelText('Email Address')).toHaveValue(
+      'ada@example.com',
+    );
+    expect(screen.getByLabelText('Yes')).toBeChecked();
+    expect(screen.getByLabelText('2 years')).toHaveValue('2');
+  });
+});

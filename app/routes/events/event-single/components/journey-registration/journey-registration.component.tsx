@@ -12,7 +12,7 @@ import { JourneyCampusStep } from './journey-campus-step.component';
 import { PlanYourJourneyStep } from './plan-your-journey-step.component';
 import {
   YourInformationStep,
-  type JourneyPersonDetails,
+  type JourneyInformationDraft,
 } from './your-information-step.component';
 import { JourneyConfirmation } from './journey-confirmation.component';
 
@@ -35,7 +35,7 @@ export const JourneyRegistration = () => {
   >(sameCampusForAll(0));
   const [selection, setSelection] = useState<JourneySessionSelection>({});
   const [registered, setRegistered] = useState<JourneySessionSelection>({});
-  const [person, setPerson] = useState<JourneyPersonDetails>();
+  const [person, setPerson] = useState<JourneyInformationDraft>();
 
   useEffect(() => {
     fetcher.load('/api/journey-sessions');
@@ -138,7 +138,10 @@ export const JourneyRegistration = () => {
             registered={registered}
             isSpanish={isSpanish}
             defaults={person}
-            onBack={() => setStep(2)}
+            onBack={(draft) => {
+              setPerson(draft);
+              setStep(2);
+            }}
             onSuccess={(details) => {
               setPerson(details);
               setRegistered((prev) => ({ ...prev, ...selection }));

@@ -60,13 +60,32 @@ export type JourneyPersonDetails = {
   hopeToGet: string;
 };
 
+/** What's on the form when the person goes back, so returning restores it. */
+export type JourneyInformationDraft = JourneyPersonDetails & {
+  needsChildcare?: string;
+  childcareCounts?: Record<string, string>;
+};
+
+const readDetails = (formData: FormData): JourneyPersonDetails => {
+  const value = (name: string) => formData.get(name)?.toString() ?? '';
+  return {
+    firstName: value('firstName'),
+    lastName: value('lastName'),
+    phone: value('phone'),
+    email: value('email'),
+    atCF: value('atCF'),
+    reason: value('reason'),
+    hopeToGet: value('hopeToGet'),
+  };
+};
+
 interface YourInformationStepProps {
   campuses: JourneyCampus[];
   selection: JourneySessionSelection;
   registered: JourneySessionSelection;
   isSpanish: boolean;
-  defaults?: JourneyPersonDetails;
-  onBack: () => void;
+  defaults?: JourneyInformationDraft;
+  onBack: (draft: JourneyInformationDraft) => void;
   onSuccess: (details: JourneyPersonDetails) => void;
 }
 
@@ -83,9 +102,12 @@ export const YourInformationStep = ({
 }: YourInformationStepProps) => {
   const fetcher = useFetcher<ActionResult>();
   const submittedRef = useRef<JourneyPersonDetails | null>(null);
+  const formRef = useRef<HTMLFormElement>(null);
   const copy = FORM_COPY[isSpanish ? 'Spanish' : 'English'];
   const childcareCopy = CHILDCARE_COPY[isSpanish ? 'Spanish' : 'English'];
-  const [needsChildcare, setNeedsChildcare] = useState(false);
+  const [needsChildcare, setNeedsChildcare] = useState(
+    defaults?.needsChildcare === 'yes',
+  );
   const offersChildcare = JOURNEY_SESSION_NUMBERS.some(
     (n) => selection[n]?.offersChildcare,
   );
@@ -105,19 +127,25 @@ export const YourInformationStep = ({
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const formData = new FormData(event.currentTarget);
-    const value = (name: string) => formData.get(name)?.toString() ?? '';
-    submittedRef.current = {
-      firstName: value('firstName'),
-      lastName: value('lastName'),
-      phone: value('phone'),
-      email: value('email'),
-      atCF: value('atCF'),
-      reason: value('reason'),
-      hopeToGet: value('hopeToGet'),
-    };
+    submittedRef.current = readDetails(formData);
     fetcher.submit(formData, {
       method: 'post',
       action: '/api/journey-sign-up',
+    });
+  };
+
+  const handleBack = () => {
+    const formData = new FormData(formRef.current ?? undefined);
+    onBack({
+      ...readDetails(formData),
+      needsChildcare:
+        formData.get('needsChildcare')?.toString() ?? defaults?.needsChildcare,
+      childcareCounts: Object.fromEntries(
+        JOURNEY_CHILDCARE_AGE_RANGES.flatMap((range) => {
+          const count = formData.get(childcareFieldName(range.key));
+          return count === null ? [] : [[range.key, count.toString()]];
+        }),
+      ),
     });
   };
 
@@ -126,7 +154,7 @@ export const YourInformationStep = ({
       <div className='flex items-center gap-4'>
         <button
           type='button'
-          onClick={onBack}
+          onClick={handleBack}
           className='flex items-center gap-1 text-sm font-semibold text-black'
         >
           <Icon name='chevronLeft' size={16} /> Back
@@ -141,6 +169,7 @@ export const YourInformationStep = ({
             <h4 className='text-sm font-extrabold'>{copy.cardHeading}</h4>
           </div>
           <Form.Root
+            ref={formRef}
             onSubmit={handleSubmit}
             className='grid grid-cols-1 gap-x-4 gap-y-1 text-left md:grid-cols-2'
           >
@@ -276,6 +305,9 @@ export const YourInformationStep = ({
                           name='needsChildcare'
                           value={option.value}
                           required
+                          defaultChecked={
+                            defaults?.needsChildcare === option.value
+                          }
                           onChange={() =>
                             setNeedsChildcare(option.value === 'yes')
                           }
@@ -309,7 +341,9 @@ export const YourInformationStep = ({
                     <RadixFormSelectShell>
                       <Form.Control asChild>
                         <select
-                          defaultValue='0'
+                          defaultValue={
+                            defaults?.childcareCounts?.[range.key] ?? '0'
+                          }
                           className={radixSelectClassName}
                         >
                           {CHILDCARE_COUNT_OPTIONS.map((count) => (
@@ -360,7 +394,7 @@ export const YourInformationStep = ({
             <h4 className='font-bold text-black'>Your Sessions</h4>
             <button
               type='button'
-              onClick={onBack}
+              onClick={handleBack}
               className='text-xs font-semibold text-ocean'
             >
               Edit Sessions
