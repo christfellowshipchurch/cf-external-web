@@ -3,7 +3,6 @@ import { useFetcher } from 'react-router';
 import {
   JOURNEY_SESSION_NUMBERS,
   pickEarliestAvailable,
-  type JourneySessionNumber,
   type JourneySessionSelection,
   type JourneySessionsData,
 } from '~/lib/journey-sessions';
@@ -20,19 +19,10 @@ type Step = 1 | 2 | 3 | 'confirmation';
 
 type SessionsResponse = JourneySessionsData | { error: string };
 
-const sameCampusForAll = (campusId: number) => ({
-  1: campusId,
-  2: campusId,
-  3: campusId,
-});
-
 export const JourneyRegistration = () => {
   const fetcher = useFetcher<SessionsResponse>();
   const [step, setStep] = useState<Step>(1);
   const [preferredCampusId, setPreferredCampusId] = useState<number>(0);
-  const [sessionCampusIds, setSessionCampusIds] = useState<
-    Record<JourneySessionNumber, number>
-  >(sameCampusForAll(0));
   const [selection, setSelection] = useState<JourneySessionSelection>({});
   const [registered, setRegistered] = useState<JourneySessionSelection>({});
   const [person, setPerson] = useState<JourneyInformationDraft>();
@@ -56,14 +46,12 @@ export const JourneyRegistration = () => {
 
   const choosePreferredCampus = (campusId: number) => {
     setPreferredCampusId(campusId);
-    setSessionCampusIds(sameCampusForAll(campusId));
     setStep(2);
   };
 
   const resetAll = () => {
     setStep(1);
     setPreferredCampusId(0);
-    setSessionCampusIds(sameCampusForAll(0));
     setSelection({});
     setRegistered({});
     setPerson(undefined);
@@ -103,29 +91,21 @@ export const JourneyRegistration = () => {
             campuses={sessionsData.campuses}
             options={sessionsData.options}
             preferredCampusId={preferredCampusId}
-            sessionCampusIds={sessionCampusIds}
             selection={selection}
             registered={registered}
             onChangePreferredCampus={() => setStep(1)}
-            onChangeSessionCampus={(sessionNumber, campusId) =>
-              setSessionCampusIds((prev) => ({
-                ...prev,
-                [sessionNumber]: campusId,
-              }))
-            }
             onSelect={(sessionNumber, option) =>
               setSelection((prev) => ({ ...prev, [sessionNumber]: option }))
             }
-            onSelectEarliest={() => {
-              setSessionCampusIds(sameCampusForAll(preferredCampusId));
+            onSelectEarliest={() =>
               setSelection(
                 pickEarliestAvailable(
                   sessionsData.options,
                   preferredCampusId,
                   registeredSessions,
                 ),
-              );
-            }}
+              )
+            }
             onBack={() => setStep(1)}
             onContinue={() => setStep(3)}
           />

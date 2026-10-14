@@ -66,8 +66,9 @@ describe('buildJourneySessionOptions', () => {
   });
 
   // Production runs in UTC. At 11:30 PM ET it is already the next day in UTC;
-  // reading Rock's offset-less values as UTC would hide a session that is
-  // still 15 minutes away, or keep one that started 15 minutes ago.
+  // reading Rock's offset-less values as UTC would lock a session that is
+  // still 15 minutes away, or offer one that started 15 minutes ago.
+  // Past sessions stay in the list so a group's dates still line up by month.
   it('judges past sessions in Eastern time across the midnight-UTC rollover', () => {
     const now = new Date('2026-10-13T03:30:00Z'); // Oct 12, 11:30 PM EDT
     const options = buildJourneySessionOptions({
@@ -82,7 +83,11 @@ describe('buildJourneySessionOptions', () => {
       now,
     });
 
-    expect(options.map((o) => o.sessionNumber)).toEqual([2, 3]);
+    expect(options.map((o) => [o.sessionNumber, o.isPast])).toEqual([
+      [1, true],
+      [2, false],
+      [3, false],
+    ]);
   });
 
   it('uses the standard-time offset after the November DST change', () => {
@@ -99,8 +104,10 @@ describe('buildJourneySessionOptions', () => {
       now: new Date('2026-11-01T14:46:00Z'),
     });
 
-    expect(justBefore.some((o) => o.sessionNumber === 1)).toBe(true);
-    expect(justAfter.some((o) => o.sessionNumber === 1)).toBe(false);
+    const session1 = (opts: typeof justBefore) =>
+      opts.find((o) => o.sessionNumber === 1)?.isPast;
+    expect(session1(justBefore)).toBe(false);
+    expect(session1(justAfter)).toBe(true);
   });
 
   it('respects the finder display window', () => {

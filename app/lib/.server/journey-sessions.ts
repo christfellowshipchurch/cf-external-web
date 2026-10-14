@@ -62,9 +62,10 @@ const attr = (
 const toWallClockMinutes = (value: string) => value.slice(0, 16);
 
 /**
- * Pure transform from Rock groups to session options. Drops sessions that have
- * already started and groups outside their finder display window, both judged
- * in Eastern time so a UTC server can't shift the boundary (CFDP-4377).
+ * Pure transform from Rock groups to session options. Flags sessions that have
+ * already started as `isPast` and drops groups outside their finder display
+ * window, both judged in Eastern time so a UTC server can't shift the boundary
+ * (CFDP-4377).
  */
 export function buildJourneySessionOptions({
   groups,
@@ -89,7 +90,6 @@ export function buildJourneySessionOptions({
     for (const sessionNumber of [1, 2, 3] as const) {
       const raw = attr(group, SESSION_ATTRIBUTE_KEYS[sessionNumber]);
       if (!raw) continue;
-      if (parseRockDateTime(raw) <= now) continue;
 
       const capacity = group.groupCapacity;
       const taken = sessionCounts.get(group.id)?.[sessionNumber] ?? 0;
@@ -101,6 +101,7 @@ export function buildJourneySessionOptions({
         startsAt: toWallClockMinutes(raw),
         // Full stays off until Rock admins set a capacity on the group.
         isFull: capacity != null && capacity > 0 && taken >= capacity,
+        isPast: parseRockDateTime(raw) <= now,
         offersChildcare: attr(group, 'childcare').toLowerCase() === 'true',
       });
     }

@@ -32,11 +32,13 @@ const opt = (
   groupGuid: `g-${sessionNumber}-${startsAt}`,
   campusId: 2,
   isFull: false,
+  isPast: false,
   offersChildcare: false,
   ...extra,
 });
 
 const options = [
+  opt(1, '2026-09-27T09:00', { isPast: true }),
   opt(1, '2026-10-04T09:00'),
   opt(1, '2026-10-04T11:00'),
   opt(2, '2026-10-11T09:00', { isFull: true }),
@@ -51,19 +53,14 @@ const Harness = ({
   registered?: JourneySessionSelection;
 }) => {
   const [selection, setSelection] = useState<JourneySessionSelection>({});
-  const [campusIds, setCampusIds] = useState({ 1: 2, 2: 2, 3: 2 });
   return (
     <PlanYourJourneyStep
       campuses={campuses}
       options={options}
       preferredCampusId={2}
-      sessionCampusIds={campusIds}
       selection={selection}
       registered={registered}
       onChangePreferredCampus={vi.fn()}
-      onChangeSessionCampus={(n, id) =>
-        setCampusIds((prev) => ({ ...prev, [n]: id }))
-      }
       onSelect={(n, option) =>
         setSelection((prev) => ({ ...prev, [n]: option }))
       }
@@ -123,18 +120,23 @@ describe('PlanYourJourneyStep', () => {
     expect(within(column(1)).getByText('11:00 AM')).toBeInTheDocument();
   });
 
-  it('changing one session’s campus only changes that session’s times', () => {
+  // Campus is chosen once at the top; cards only show that campus's times and
+  // offer no way to switch, so the user goes back to campus selection instead.
+  it('shows only the selected campus with no per-session campus switch', () => {
     render(<Harness />);
-    fireEvent.change(within(column(3)).getByRole('combobox'), {
-      target: { value: '14' },
-    });
+    expect(screen.getByText('Selected campus:')).toBeInTheDocument();
+    expect(screen.queryByRole('combobox')).not.toBeInTheDocument();
+    expect(within(column(3)).queryByText('Sunday, October 25')).toBeNull();
+  });
 
+  // Past dates stay listed so a group's sessions line up by month, but can't be booked.
+  it('lists past dates as unselectable', () => {
+    render(<Harness />);
     expect(
-      within(column(3)).getByText('Sunday, October 25'),
+      within(column(1)).getByText('Sunday, September 27'),
     ).toBeInTheDocument();
-    expect(
-      within(column(1)).getByText('Sunday, October 4'),
-    ).toBeInTheDocument();
+    expect(within(column(1)).getByText('Passed')).toBeInTheDocument();
+    expect(within(column(1)).getAllByRole('radio')[0]).toBeDisabled();
   });
 
   it('can clear a selection back to not scheduled', () => {
@@ -145,7 +147,7 @@ describe('PlanYourJourneyStep', () => {
   });
 
   it('locks sessions already registered in this visit', () => {
-    render(<Harness registered={{ 1: options[0] }} />);
+    render(<Harness registered={{ 1: options[1] }} />);
     expect(within(column(1)).queryAllByRole('radio')).toHaveLength(0);
     expect(
       within(column(1)).getByText(/You.re registered for this session/),
@@ -159,7 +161,7 @@ describe('JourneyConfirmation', () => {
       <JourneyConfirmation
         campuses={campuses}
         registered={{
-          1: options[1],
+          1: options[2],
           3: opt(3, '2026-10-25T09:00', { campusId: 14 }),
         }}
         onScheduleAnother={vi.fn()}
@@ -183,7 +185,7 @@ describe('JourneyConfirmation', () => {
     render(
       <JourneyConfirmation
         campuses={campuses}
-        registered={{ 1: options[0], 2: options[3], 3: options[4] }}
+        registered={{ 1: options[1], 2: options[4], 3: options[5] }}
         onScheduleAnother={vi.fn()}
         onRegisterSomeoneElse={vi.fn()}
       />,
@@ -218,7 +220,7 @@ describe('YourInformationStep childcare', () => {
   };
 
   it('does not ask about childcare when no chosen session offers it', () => {
-    renderStep({ 1: options[0] });
+    renderStep({ 1: options[1] });
     expect(
       screen.queryByText('Will you need childcare?'),
     ).not.toBeInTheDocument();

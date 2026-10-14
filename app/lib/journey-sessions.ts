@@ -24,6 +24,8 @@ export type JourneySessionOption = {
   /** Eastern wall-clock start, `YYYY-MM-DDTHH:mm`. */
   startsAt: string;
   isFull: boolean;
+  /** Already started — shown so dates line up by month, but not selectable. */
+  isPast: boolean;
   /** Group attribute `Childcare` ("Does this Journey need Childcare?"). */
   offersChildcare: boolean;
 };
@@ -142,7 +144,8 @@ export const pickEarliestAvailable = (
         (option) =>
           option.sessionNumber === sessionNumber &&
           option.campusId === campusId &&
-          !option.isFull,
+          !option.isFull &&
+          !option.isPast,
       )
       .sort((a, b) => a.startsAt.localeCompare(b.startsAt))[0];
     if (earliest) selection[sessionNumber] = earliest;

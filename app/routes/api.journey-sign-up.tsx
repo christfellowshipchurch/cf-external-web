@@ -78,7 +78,7 @@ export const action: ActionFunction = async ({ request }) => {
           candidate.sessionNumber === sessionNumber &&
           candidate.groupGuid === groupGuid,
       );
-      if (!option) {
+      if (!option || option.isPast) {
         return data(
           {
             error: `Session ${sessionNumber} is no longer available. Please choose another time.`,

@@ -15,6 +15,7 @@ const option = (
   campusId: 2,
   startsAt: '2026-11-01T09:45',
   isFull: false,
+  isPast: false,
   offersChildcare: false,
   ...overrides,
 });
@@ -39,6 +40,7 @@ describe('Journey session labels', () => {
 
 describe('pickEarliestAvailable', () => {
   const options = [
+    option({ sessionNumber: 1, startsAt: '2026-09-27T09:00', isPast: true }),
     option({ sessionNumber: 1, startsAt: '2026-10-04T09:00', isFull: true }),
     option({ sessionNumber: 1, startsAt: '2026-10-04T11:00', groupGuid: 'b' }),
     option({ sessionNumber: 1, startsAt: '2026-09-06T09:00', campusId: 3 }),
@@ -49,7 +51,7 @@ describe('pickEarliestAvailable', () => {
   it('picks the earliest open time per session at the preferred campus', () => {
     const selection = pickEarliestAvailable(options, 2);
 
-    expect(selection[1]?.groupGuid).toBe('b'); // 9:00 is full, other campus ignored
+    expect(selection[1]?.groupGuid).toBe('b'); // past and full skipped, other campus ignored
     expect(selection[2]?.startsAt).toBe('2026-10-11T09:00');
     expect(selection[3]?.startsAt).toBe('2026-10-18T09:00');
   });

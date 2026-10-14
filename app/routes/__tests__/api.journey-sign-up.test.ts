@@ -29,6 +29,7 @@ const liveData: JourneySessionsData = {
       campusId: 2,
       startsAt: '2026-10-04T09:45',
       isFull: false,
+      isPast: false,
       offersChildcare: false,
     },
     {
@@ -37,6 +38,7 @@ const liveData: JourneySessionsData = {
       campusId: 2,
       startsAt: '2026-11-08T09:45',
       isFull: false,
+      isPast: false,
       offersChildcare: false,
     },
     {
@@ -45,6 +47,7 @@ const liveData: JourneySessionsData = {
       campusId: 2,
       startsAt: '2026-11-15T09:45',
       isFull: false,
+      isPast: false,
       offersChildcare: false,
     },
     {
@@ -53,6 +56,7 @@ const liveData: JourneySessionsData = {
       campusId: 2,
       startsAt: '2026-11-08T18:30',
       isFull: false,
+      isPast: false,
       offersChildcare: true,
     },
     {
@@ -61,6 +65,7 @@ const liveData: JourneySessionsData = {
       campusId: 7,
       startsAt: '2026-11-09T19:00',
       isFull: false,
+      isPast: false,
       offersChildcare: false,
     },
     {
@@ -69,6 +74,7 @@ const liveData: JourneySessionsData = {
       campusId: 7,
       startsAt: '2026-11-16T19:00',
       isFull: false,
+      isPast: false,
       offersChildcare: false,
     },
     {
@@ -77,6 +83,7 @@ const liveData: JourneySessionsData = {
       campusId: 2,
       startsAt: '2026-12-13T10:45',
       isFull: true,
+      isPast: false,
       offersChildcare: false,
     },
   ],

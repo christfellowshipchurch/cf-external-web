@@ -25,15 +25,10 @@ interface PlanYourJourneyStepProps {
   campuses: JourneyCampus[];
   options: JourneySessionOption[];
   preferredCampusId: number;
-  sessionCampusIds: Record<JourneySessionNumber, number>;
   selection: JourneySessionSelection;
   /** Sessions already booked in this visit — shown locked. */
   registered: JourneySessionSelection;
   onChangePreferredCampus: () => void;
-  onChangeSessionCampus: (
-    sessionNumber: JourneySessionNumber,
-    campusId: number,
-  ) => void;
   onSelect: (
     sessionNumber: JourneySessionNumber,
     option: JourneySessionOption | undefined,
@@ -47,11 +42,9 @@ export const PlanYourJourneyStep = ({
   campuses,
   options,
   preferredCampusId,
-  sessionCampusIds,
   selection,
   registered,
   onChangePreferredCampus,
-  onChangeSessionCampus,
   onSelect,
   onSelectEarliest,
   onBack,
@@ -87,7 +80,7 @@ export const PlanYourJourneyStep = ({
       <div className='flex flex-col gap-3 rounded-lg border border-gray-200 bg-white px-4 py-3 md:flex-row md:items-center md:justify-between'>
         <p className='flex items-center gap-1 text-sm text-neutral-default'>
           <Icon name='map' size={14} className='text-ocean' />
-          Preferred campus:
+          Selected campus:
           <span className='font-semibold text-black'>
             {campusName(preferredCampusId)}
           </span>
@@ -118,15 +111,10 @@ export const PlanYourJourneyStep = ({
           <SessionColumn
             key={sessionNumber}
             sessionNumber={sessionNumber}
-            campuses={campuses}
-            campusId={sessionCampusIds[sessionNumber]}
+            campusId={preferredCampusId}
             options={options}
             selected={selection[sessionNumber]}
             registered={registered[sessionNumber]}
-            campusName={campusName}
-            onChangeCampus={(campusId) =>
-              onChangeSessionCampus(sessionNumber, campusId)
-            }
             onSelect={(option) => onSelect(sessionNumber, option)}
           />
         ))}
@@ -160,25 +148,19 @@ export const PlanYourJourneyStep = ({
 
 interface SessionColumnProps {
   sessionNumber: JourneySessionNumber;
-  campuses: JourneyCampus[];
   campusId: number;
   options: JourneySessionOption[];
   selected?: JourneySessionOption;
   registered?: JourneySessionOption;
-  campusName: (id: number) => string;
-  onChangeCampus: (campusId: number) => void;
   onSelect: (option: JourneySessionOption | undefined) => void;
 }
 
 const SessionColumn = ({
   sessionNumber,
-  campuses,
   campusId,
   options,
   selected,
   registered,
-  campusName,
-  onChangeCampus,
   onSelect,
 }: SessionColumnProps) => {
   const optionsByDate = useMemo(() => {
@@ -219,31 +201,9 @@ const SessionColumn = ({
           )}
         >
           {summary
-            ? `${registered ? 'Registered · ' : ''}${formatSessionShortDate(summary.startsAt)} · ${formatSessionTime(summary.startsAt)} · ${campusName(summary.campusId)}`
+            ? `${registered ? 'Registered · ' : ''}${formatSessionShortDate(summary.startsAt)} · ${formatSessionTime(summary.startsAt)}`
             : 'Not scheduled'}
         </p>
-        {!registered && (
-          <p className='flex items-center gap-1 text-xs text-neutral-default'>
-            <Icon name='map' size={12} className='text-ocean' />
-            {campusName(campusId)}
-            {/* Native select laid invisibly over the link text: keyboard and screen-reader friendly, styled like the design's link. */}
-            <label className='relative ml-1 font-semibold text-ocean'>
-              Change campus
-              <select
-                aria-label={`Campus for session ${sessionNumber}`}
-                value={campusId}
-                onChange={(event) => onChangeCampus(Number(event.target.value))}
-                className='absolute inset-0 cursor-pointer opacity-0'
-              >
-                {campuses.map((campus) => (
-                  <option key={campus.id} value={campus.id}>
-                    {campus.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-          </p>
-        )}
       </div>
 
       {registered ? (
@@ -259,18 +219,26 @@ const SessionColumn = ({
           )}
           {optionsByDate.map(([dateKey, dateOptions]) => (
             <fieldset key={dateKey} className='flex flex-col gap-1'>
-              <legend className='mb-1 text-sm font-semibold text-black'>
+              <legend
+                className={cn(
+                  'mb-1 text-sm font-semibold',
+                  dateOptions.every((option) => option.isPast)
+                    ? 'text-neutral-light'
+                    : 'text-black',
+                )}
+              >
                 {formatSessionDateHeading(dateOptions[0].startsAt)}
               </legend>
               {dateOptions.map((option) => {
                 const isSelected = isSameSessionOption(option, selected);
+                const isUnavailable = option.isFull || option.isPast;
                 return (
                   <label
                     key={`${option.groupGuid}-${option.startsAt}`}
                     className={cn(
                       'flex items-center gap-3 rounded-md px-2 py-2 text-sm',
                       isSelected && 'bg-ocean-subdued',
-                      option.isFull
+                      isUnavailable
                         ? 'cursor-not-allowed text-neutral-light'
                         : 'cursor-pointer text-black',
                     )}
@@ -279,17 +247,27 @@ const SessionColumn = ({
                       type='radio'
                       name={`session-${sessionNumber}`}
                       checked={isSelected}
-                      disabled={option.isFull}
+                      disabled={isUnavailable}
                       onChange={() => onSelect(option)}
                       className='accent-ocean'
                     />
-                    <span className={cn(option.isFull && 'line-through')}>
+                    <span
+                      className={cn(
+                        option.isFull && !option.isPast && 'line-through',
+                      )}
+                    >
                       {formatSessionTime(option.startsAt)}
                     </span>
-                    {option.isFull && (
-                      <span className='rounded border border-alert px-1 text-[10px] text-alert'>
-                        Full
+                    {option.isPast ? (
+                      <span className='rounded border border-neutral-light px-1 text-[10px] text-neutral-light'>
+                        Passed
                       </span>
+                    ) : (
+                      option.isFull && (
+                        <span className='rounded border border-alert px-1 text-[10px] text-alert'>
+                          Full
+                        </span>
+                      )
                     )}
                   </label>
                 );
