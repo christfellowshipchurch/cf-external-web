@@ -22,6 +22,9 @@ export function renderSection(
 
   const anchorId = kebabCase(sectionName?.toLowerCase() || '');
 
+  // Every item expired (or couldn't be routed): don't show the title over nothing.
+  if (section.collection && section.collection.length === 0) return null;
+
   switch (section.type) {
     case 'EVENT_COLLECTION': {
       const events = section.collection || [];
