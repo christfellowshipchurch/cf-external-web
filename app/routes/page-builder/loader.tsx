@@ -175,11 +175,16 @@ export const mapPageBuilderChildItems = async (
   // blank instead of falling back to the item's HTML body content. Link tree
   // cards opt out so empty-summary articles don't render raw content.
   const { summaryFallbackToContent = true } = options;
+  // Checked here, not in the Rock query: fetches are cached, so a query can't know the current time.
+  const now = new Date();
+  const liveChildren = children.filter((child) =>
+    isItemInDateRange(child, now),
+  );
   // Build the podcast routing index once if any section is a collection.
   // This resolves Rock show items once for all collections in this call so that
   // episode items can be routed to /podcasts/:showPath/:episodePath without
   // hardcoding any show-specific content channel IDs.
-  const hasCollections = children.some((child) =>
+  const hasCollections = liveChildren.some((child) =>
     isCollectionType(child.contentChannelId),
   );
   const podcastIndex: PodcastRoutingIndex = hasCollections
@@ -188,7 +193,7 @@ export const mapPageBuilderChildItems = async (
 
   return Promise.all(
     // Map over the children and define the PageBuilder Section Type
-    children.map(async (child) => {
+    liveChildren.map(async (child) => {
       const typeId = child.contentChannelId;
       const isCollection = isCollectionType(typeId);
       const sectionType = getSectionType(typeId) as SectionType;
@@ -227,7 +232,6 @@ export const mapPageBuilderChildItems = async (
       // If the child is a collection, fetch the child items and return them
       if (isCollection) {
         const collection = await fetchChildItems(child.id);
-        const now = new Date();
         const visibleItems = collection.filter((item: RockContentItem) =>
           isItemInDateRange(item, now),
         );
