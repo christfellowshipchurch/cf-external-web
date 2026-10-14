@@ -99,9 +99,7 @@ export const PlanYourJourneyStep = ({
             className='flex items-center gap-2 rounded-md border border-gray-200 px-3 py-1.5 text-xs font-semibold text-black hover:border-ocean'
           >
             <Icon name='calendarPlus' size={14} className='text-ocean' />
-            {openSessions === 3
-              ? 'Select Earliest Available for All Three'
-              : 'Select Earliest Available'}
+            Select earliest available class
           </button>
         )}
       </div>

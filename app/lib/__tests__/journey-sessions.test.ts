@@ -39,27 +39,74 @@ describe('Journey session labels', () => {
 });
 
 describe('pickEarliestAvailable', () => {
+  // Mirrors Palm Beach Gardens: October's group has Sessions 1–2 behind it,
+  // so the earliest class someone can attend start to finish is November's.
+  const group = (
+    groupGuid: string,
+    dates: [string, string, string],
+    extra: Partial<JourneySessionOption>[] = [],
+  ) =>
+    dates.map((startsAt, i) =>
+      option({
+        groupGuid,
+        sessionNumber: (i + 1) as 1 | 2 | 3,
+        startsAt,
+        ...extra[i],
+      }),
+    );
   const options = [
-    option({ sessionNumber: 1, startsAt: '2026-09-27T09:00', isPast: true }),
-    option({ sessionNumber: 1, startsAt: '2026-10-04T09:00', isFull: true }),
-    option({ sessionNumber: 1, startsAt: '2026-10-04T11:00', groupGuid: 'b' }),
-    option({ sessionNumber: 1, startsAt: '2026-09-06T09:00', campusId: 3 }),
-    option({ sessionNumber: 2, startsAt: '2026-10-11T09:00' }),
-    option({ sessionNumber: 3, startsAt: '2026-10-18T09:00' }),
+    ...group(
+      'other-campus',
+      ['2026-10-25T09:00', '2026-10-26T09:00', '2026-10-27T09:00'],
+      [{ campusId: 3 }, { campusId: 3 }, { campusId: 3 }],
+    ),
+    ...group(
+      'oct',
+      ['2026-10-04T09:45', '2026-10-11T09:45', '2026-10-18T09:45'],
+      [{ isPast: true }, { isPast: true }],
+    ),
+    ...group('nov', [
+      '2026-11-01T09:45',
+      '2026-11-08T09:45',
+      '2026-11-15T09:45',
+    ]),
+    ...group('dec', [
+      '2026-12-06T09:45',
+      '2026-12-13T09:45',
+      '2026-12-13T10:45',
+    ]),
   ];
 
-  it('picks the earliest open time per session at the preferred campus', () => {
+  it('selects all three sessions from the earliest group that is fully open', () => {
     const selection = pickEarliestAvailable(options, 2);
 
-    expect(selection[1]?.groupGuid).toBe('b'); // past and full skipped, other campus ignored
-    expect(selection[2]?.startsAt).toBe('2026-10-11T09:00');
-    expect(selection[3]?.startsAt).toBe('2026-10-18T09:00');
+    expect(
+      [selection[1], selection[2], selection[3]].map((o) => o?.groupGuid),
+    ).toEqual(['nov', 'nov', 'nov']);
   });
 
-  it('leaves already-registered sessions alone', () => {
-    const selection = pickEarliestAvailable(options, 2, [2]);
+  // One full session means the class can't be attended together, so skip the group.
+  it('skips a group with any full session', () => {
+    const withFull = options.map((o) =>
+      o.groupGuid === 'nov' && o.sessionNumber === 2
+        ? { ...o, isFull: true }
+        : o,
+    );
 
+    expect(pickEarliestAvailable(withFull, 2)[1]?.groupGuid).toBe('dec');
+  });
+
+  // Already-registered sessions don't need to be open, so October's open
+  // Session 3 qualifies once 1 and 2 are booked.
+  it('only requires the sessions still to be scheduled', () => {
+    const selection = pickEarliestAvailable(options, 2, [1, 2]);
+
+    expect(selection[1]).toBeUndefined();
     expect(selection[2]).toBeUndefined();
-    expect(selection[1]).toBeDefined();
+    expect(selection[3]?.groupGuid).toBe('oct');
+  });
+
+  it('selects nothing when no group at the campus is fully open', () => {
+    expect(pickEarliestAvailable(options, 99)).toEqual({});
   });
 });

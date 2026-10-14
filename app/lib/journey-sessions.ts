@@ -128,27 +128,40 @@ export const isSameSessionOption = (
   a.startsAt === b.startsAt;
 
 /**
- * "Select Earliest Available for All Three": the first open option per session
- * at the given campus. Sessions in `skip` (already registered) are left alone.
+ * "Select earliest available class": every session from the earliest group at
+ * the given campus whose sessions are all still open, so the person attends one
+ * class together. Sessions in `skip` (already registered) are left alone and
+ * don't need to be open. Returns an empty selection when no group qualifies.
  */
 export const pickEarliestAvailable = (
   options: JourneySessionOption[],
   campusId: number,
   skip: JourneySessionNumber[] = [],
 ): JourneySessionSelection => {
-  const selection: JourneySessionSelection = {};
-  for (const sessionNumber of JOURNEY_SESSION_NUMBERS) {
-    if (skip.includes(sessionNumber)) continue;
-    const earliest = options
-      .filter(
+  const needed = JOURNEY_SESSION_NUMBERS.filter((n) => !skip.includes(n));
+  const groups = new Map<string, JourneySessionOption[]>();
+  options
+    .filter((option) => option.campusId === campusId)
+    .sort((a, b) => a.startsAt.localeCompare(b.startsAt))
+    .forEach((option) =>
+      groups.set(option.groupGuid, [
+        ...(groups.get(option.groupGuid) ?? []),
+        option,
+      ]),
+    );
+
+  for (const groupOptions of groups.values()) {
+    const open = needed.map((n) =>
+      groupOptions.find(
         (option) =>
-          option.sessionNumber === sessionNumber &&
-          option.campusId === campusId &&
-          !option.isFull &&
-          !option.isPast,
-      )
-      .sort((a, b) => a.startsAt.localeCompare(b.startsAt))[0];
-    if (earliest) selection[sessionNumber] = earliest;
+          option.sessionNumber === n && !option.isFull && !option.isPast,
+      ),
+    );
+    if (open.every(Boolean)) {
+      return Object.fromEntries(
+        needed.map((n, i) => [n, open[i]]),
+      ) as JourneySessionSelection;
+    }
   }
-  return selection;
+  return {};
 };
