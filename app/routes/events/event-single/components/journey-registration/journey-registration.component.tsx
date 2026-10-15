@@ -45,6 +45,11 @@ export const JourneyRegistration = () => {
   );
 
   const choosePreferredCampus = (campusId: number) => {
+    // One campus per registration: a new campus starts over, keeping only the person's details.
+    if (campusId !== preferredCampusId) {
+      setSelection({});
+      setRegistered({});
+    }
     setPreferredCampusId(campusId);
     setStep(2);
   };

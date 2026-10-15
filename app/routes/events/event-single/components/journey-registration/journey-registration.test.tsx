@@ -10,6 +10,7 @@ import type {
 } from '~/lib/journey-sessions';
 import { PlanYourJourneyStep } from './plan-your-journey-step.component';
 import { JourneyConfirmation } from './journey-confirmation.component';
+import { JourneyRegistration } from './journey-registration.component';
 import { YourInformationStep } from './your-information-step.component';
 
 const campuses = [
@@ -18,8 +19,15 @@ const campuses = [
     name: 'Palm Beach Gardens',
     street1: '5343 Northlake Blvd',
     city: 'Palm Beach Gardens',
+    mapLink: 'https://maps.example/pbg',
   },
-  { id: 14, name: 'Jupiter', street1: '1200 W Indiantown Rd', city: 'Jupiter' },
+  {
+    id: 14,
+    name: 'Jupiter',
+    street1: '1200 W Indiantown Rd',
+    city: 'Jupiter',
+    mapLink: 'https://maps.example/jupiter',
+  },
 ];
 
 const opt = (
@@ -181,14 +189,49 @@ describe('PlanYourJourneyStep', () => {
   });
 });
 
+describe('JourneyRegistration changing campus', () => {
+  const renderFlow = async () => {
+    const router = createMemoryRouter(
+      [
+        { path: '/', element: <JourneyRegistration /> },
+        {
+          path: '/api/journey-sessions',
+          loader: () => ({ campuses, options }),
+        },
+      ],
+      { initialEntries: ['/'] },
+    );
+    render(<RouterProvider router={router} />);
+    fireEvent.click(
+      await screen.findByRole('button', { name: /Palm Beach Gardens/ }),
+    );
+    pickFirstOpen(1);
+    expect(screen.queryByText('No sessions selected')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Change' }));
+  };
+
+  // One campus per registration, so picks from the old campus can't carry over to a new one.
+  it('clears selected sessions when a different campus is chosen', async () => {
+    await renderFlow();
+    fireEvent.click(screen.getByRole('button', { name: /Jupiter/ }));
+    expect(screen.getByText('No sessions selected')).toBeInTheDocument();
+  });
+
+  it('keeps selected sessions when the same campus is chosen again', async () => {
+    await renderFlow();
+    fireEvent.click(screen.getByRole('button', { name: /Palm Beach Gardens/ }));
+    expect(screen.queryByText('No sessions selected')).not.toBeInTheDocument();
+  });
+});
+
 describe('JourneyConfirmation', () => {
-  it('lists each registered session with its own date, time and campus', () => {
+  it('lists each registered session date and time under one campus', () => {
     render(
       <JourneyConfirmation
         campuses={campuses}
         registered={{
           1: options[2],
-          3: opt(3, '2026-10-25T09:00', { campusId: 14 }),
+          3: opt(3, '2026-10-25T09:00'),
         }}
         onScheduleAnother={vi.fn()}
         onRegisterSomeoneElse={vi.fn()}
@@ -198,13 +241,17 @@ describe('JourneyConfirmation', () => {
     expect(screen.getByText('Sunday, October 4')).toBeInTheDocument();
     expect(screen.getByText('11:00 AM ET')).toBeInTheDocument();
     expect(screen.getByText('Sunday, October 25')).toBeInTheDocument();
-    expect(screen.getByText('Jupiter')).toBeInTheDocument();
     expect(
       screen.getByText(/You.ve scheduled 2 of 3 Journey sessions/),
     ).toBeInTheDocument();
+    // A person registers at one campus, so campus and directions show once for the card,
+    // and directions use the campus mapLink from Rock, matching the location pages.
+    expect(screen.getAllByText('Palm Beach Gardens')).toHaveLength(1);
     expect(
-      screen.getAllByRole('link', { name: /Get Directions/ }),
-    ).toHaveLength(2);
+      screen
+        .getAllByRole('link', { name: /Get Directions/ })
+        .map((link) => link.getAttribute('href')),
+    ).toEqual(['https://maps.example/pbg']);
   });
 
   it('hides "Schedule Another Session" once all three are booked', () => {

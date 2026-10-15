@@ -15,6 +15,8 @@ export type JourneyCampus = {
   name: string;
   street1: string;
   city: string;
+  /** Campus `mapLink` attribute — the same directions link the location pages use. */
+  mapLink: string;
 };
 
 export type JourneySessionOption = {

@@ -14,12 +14,13 @@ vi.mock('~/lib/.server/journey-sessions', () => ({
 
 const liveData: JourneySessionsData = {
   campuses: [
-    { id: 2, name: 'Palm Beach Gardens', street1: '', city: '' },
+    { id: 2, name: 'Palm Beach Gardens', street1: '', city: '', mapLink: '' },
     {
       id: 7,
       name: 'Christ Fellowship Español Palm Beach Gardens',
       street1: '',
       city: '',
+      mapLink: '',
     },
   ],
   options: [

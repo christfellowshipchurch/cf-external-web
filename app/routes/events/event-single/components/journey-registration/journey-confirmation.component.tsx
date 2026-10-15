@@ -40,7 +40,7 @@ const buildCalendarEvent = (
 ) => {
   const start = parseISO(option.startsAt);
   return {
-    title: `Journey Session ${option.sessionNumber}`,
+    title: `CF Journey Session ${option.sessionNumber}${campus?.name ? ` · ${campus.name}` : ''}`,
     description: SESSION_DESCRIPTIONS[option.sessionNumber],
     address: campusAddress(campus) || campus?.name || '',
     startTime: option.startsAt,
@@ -60,8 +60,8 @@ export const JourneyConfirmation = ({
   const sessions = JOURNEY_SESSION_NUMBERS.flatMap((n) =>
     registered[n] ? [registered[n]] : [],
   );
-  const findCampus = (id: number) =>
-    campuses.find((campus) => campus.id === id);
+  // A person registers at one campus, so every session shares the first one's campus.
+  const campus = campuses.find((c) => c.id === sessions[0]?.campusId);
 
   return (
     <div className='mx-auto flex w-full max-w-[560px] flex-col items-center gap-4'>
@@ -76,10 +76,25 @@ export const JourneyConfirmation = ({
 
       <div className='flex w-full flex-col gap-3 rounded-xl border border-neutral-lighter bg-white p-4'>
         <h4 className='font-bold text-black'>Registered Sessions</h4>
+        <div className='flex flex-wrap items-center justify-between gap-2'>
+          <p className='flex items-center gap-2 text-sm text-neutral-default'>
+            <Icon name='map' size={14} className='text-ocean' />
+            {campus?.name}
+          </p>
+          {campus?.mapLink && (
+            <a
+              href={campus.mapLink}
+              target='_blank'
+              rel='noopener noreferrer'
+              className={SESSION_ACTION_CLASSES}
+            >
+              <Icon name='locationArrow' size={16} className='mr-2' />
+              Get Directions
+            </a>
+          )}
+        </div>
         {sessions.map((option) => {
-          const campus = findCampus(option.campusId);
           const event = buildCalendarEvent(option, campus);
-          const address = campusAddress(campus);
           return (
             <div
               key={option.sessionNumber}
@@ -99,10 +114,6 @@ export const JourneyConfirmation = ({
                   <Icon name='timeFive' size={14} className='text-ocean' />
                   {formatSessionTime(option.startsAt)} ET
                 </p>
-                <p className='flex items-center gap-2'>
-                  <Icon name='map' size={14} className='text-ocean' />
-                  {campus?.name}
-                </p>
                 <div className='mt-1 flex flex-wrap gap-2'>
                   <AddToCalendar
                     googleHref={`${googleCalendarLink(event)}&ctz=America/New_York`}
@@ -111,17 +122,6 @@ export const JourneyConfirmation = ({
                     buttonSize='sm'
                     buttonClassName={SESSION_ACTION_CLASSES}
                   />
-                  {address && (
-                    <a
-                      href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(address)}`}
-                      target='_blank'
-                      rel='noopener noreferrer'
-                      className={SESSION_ACTION_CLASSES}
-                    >
-                      <Icon name='locationArrow' size={16} className='mr-2' />
-                      Get Directions
-                    </a>
-                  )}
                 </div>
               </div>
             </div>

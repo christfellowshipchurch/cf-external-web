@@ -41,6 +41,7 @@ type RockCampus = {
   id: number;
   name: string;
   location?: { street1?: string | null; city?: string | null } | null;
+  attributeValues?: Record<string, RockAttributeValue | undefined>;
 };
 
 type RockGroupMember = {
@@ -208,6 +209,7 @@ async function fetchCampuses(campusIds: number[]): Promise<JourneyCampus[]> {
       queryParams: {
         $filter: 'IsActive eq true',
         $expand: 'Location',
+        loadAttributes: 'simple',
       },
       ttl: TTL.LONG,
     }),
@@ -220,6 +222,7 @@ async function fetchCampuses(campusIds: number[]): Promise<JourneyCampus[]> {
       name: campus.name,
       street1: campus.location?.street1 ?? '',
       city: campus.location?.city ?? '',
+      mapLink: campus.attributeValues?.mapLink?.value?.trim() ?? '',
     }));
 }
 

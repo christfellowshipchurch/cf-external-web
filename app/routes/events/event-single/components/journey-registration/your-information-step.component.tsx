@@ -10,7 +10,6 @@ import {
   radixFormLabelClassName,
   radixRadioClassName,
   radixSelectClassName,
-  radixTextareaClassName,
   renderRadixInputField,
   RadixFormErrorMessage,
   RadixFormSelectShell,
@@ -57,7 +56,6 @@ export type JourneyPersonDetails = {
   email: string;
   atCF: string;
   reason: string;
-  hopeToGet: string;
 };
 
 /** What's on the form when the person goes back, so returning restores it. */
@@ -75,7 +73,6 @@ const readDetails = (formData: FormData): JourneyPersonDetails => {
     email: value('email'),
     atCF: value('atCF'),
     reason: value('reason'),
-    hopeToGet: value('hopeToGet'),
   };
 };
 
@@ -261,22 +258,6 @@ export const YourInformationStep = ({
               <RadixFormErrorMessage match='valueMissing'>
                 {copy.requiredReason}
               </RadixFormErrorMessage>
-            </Form.Field>
-
-            <Form.Field
-              name='hopeToGet'
-              className={cn('mb-4 md:col-span-2', radixFormFieldStackClassName)}
-            >
-              <Form.Label className={radixFormLabelClassName}>
-                {copy.hopeToGet}
-              </Form.Label>
-              <Form.Control asChild>
-                <textarea
-                  rows={3}
-                  defaultValue={defaults?.hopeToGet}
-                  className={radixTextareaClassName}
-                />
-              </Form.Control>
             </Form.Field>
 
             {offersChildcare && (
