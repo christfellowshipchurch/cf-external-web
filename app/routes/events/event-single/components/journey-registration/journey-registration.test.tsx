@@ -45,6 +45,11 @@ const options = [
   opt(2, '2026-10-11T11:00'),
   opt(3, '2026-10-18T09:00'),
   opt(3, '2026-10-25T09:00', { campusId: 14 }),
+  // December-style group: Sessions 2 and 3 back to back on one day.
+  opt(2, '2026-12-13T09:45', { groupGuid: 'dec' }),
+  opt(3, '2026-12-13T10:45', { groupGuid: 'dec' }),
+  // Another group's Session 3 on that day: a coincidence, not back to back.
+  opt(3, '2026-12-13T18:00', { groupGuid: 'other' }),
 ];
 
 const Harness = ({
@@ -137,6 +142,27 @@ describe('PlanYourJourneyStep', () => {
     ).toBeInTheDocument();
     expect(within(column(1)).getByText('Passed')).toBeInTheDocument();
     expect(within(column(1)).getAllByRole('radio')[0]).toBeDisabled();
+  });
+
+  // Tells people a December class runs two sessions in one visit, without
+  // flagging times from different groups that happen to share a date.
+  it('badges sessions that share a day within the same group only', () => {
+    render(<Harness />);
+    const session2Dec = within(column(2))
+      .getByText('9:45 AM')
+      .closest('label')!;
+    const session3Dec = within(column(3))
+      .getByText('10:45 AM')
+      .closest('label')!;
+    const otherGroup = within(column(3)).getByText('6:00 PM').closest('label')!;
+
+    expect(
+      within(session2Dec).getByText('Same day as Session 3'),
+    ).toBeInTheDocument();
+    expect(
+      within(session3Dec).getByText('Same day as Session 2'),
+    ).toBeInTheDocument();
+    expect(within(otherGroup).queryByText(/Same day/)).toBeNull();
   });
 
   it('can clear a selection back to not scheduled', () => {

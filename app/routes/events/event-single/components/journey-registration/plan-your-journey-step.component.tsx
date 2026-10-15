@@ -178,6 +178,19 @@ const SessionColumn = ({
 
   const summary = registered ?? selected;
 
+  // Some groups hold two sessions back to back on one day; only compare within
+  // a group, since mixing groups can land on the same day by coincidence.
+  const sameDaySessions = (option: JourneySessionOption) =>
+    options
+      .filter(
+        (other) =>
+          other.groupGuid === option.groupGuid &&
+          other.sessionNumber !== option.sessionNumber &&
+          getSessionDateKey(other.startsAt) ===
+            getSessionDateKey(option.startsAt),
+      )
+      .map((other) => other.sessionNumber);
+
   return (
     <div className='flex flex-col rounded-lg border border-gray-200 bg-white'>
       <div className='flex flex-col gap-2 border-b border-neutral-lightest p-4'>
@@ -261,11 +274,21 @@ const SessionColumn = ({
                         Passed
                       </span>
                     ) : (
-                      option.isFull && (
-                        <span className='rounded border border-alert px-1 text-[10px] text-alert'>
-                          Full
-                        </span>
-                      )
+                      <>
+                        {option.isFull && (
+                          <span className='rounded border border-alert px-1 text-[10px] text-alert'>
+                            Full
+                          </span>
+                        )}
+                        {sameDaySessions(option).map((n) => (
+                          <span
+                            key={n}
+                            className='rounded border border-ocean px-1 text-[10px] text-ocean'
+                          >
+                            Same day as Session {n}
+                          </span>
+                        ))}
+                      </>
                     )}
                   </label>
                 );
