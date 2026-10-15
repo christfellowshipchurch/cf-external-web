@@ -28,6 +28,13 @@ Hand this to an AI agent with browser access to Rock (Claude in the browser, or 
   - **Changed 2026-10-14:** "Match or Create person record" now sets Mobile Number = `PrimaryPhoneNumber` (Cell Phone). It was blank, as in 1833, so matching used only name and email. The phone now counts as a match, which catches people who sign up with a different email.
   - **Issue (existing behavior):** group type 137 has no `Campus` member attribute, so the "Set Home Campus" actions do nothing. Same in 1833.
   - Not tested: childcare counts, because no upcoming group has `Childcare` = True. Also not tested: an online campus.
+- **Case 6 run 2026-10-15 from the dev server, with page reloads between launches to match a real return visit.** The test person was Anakin Skywalker (394626), using the Dec PBG group (1773603), where he had no membership.
+  - Launch 1 (workflow 6039885, S1 only): one new Active member (9236621) with only `Session1` = True.
+  - Launch 2 (6039887, S2 only): pass. Still one member row and one person record. `Session2` was set to True on the existing member about a minute after `Session1`, and the email lists only Dec 13.
+  - A first attempt on the Nov PBG group (6039881, 6039883) was inconclusive. Anakin was already a member there from 2026-10-14 with `Session1` and `Session2` already True, so nothing new was written. It did confirm there was no duplicate row.
+  - REST launches are queued in Rock: a run can take a minute or more to appear after the website reports success.
+  - Not tested: the inactive-member follow-up, because it needs a member set to Inactive by hand.
+  - Cleanup done 2026-10-15: Anakin's test memberships 9236621 (Dec PBG), 9235006 (Nov PBG) and 9235007 (Oct PBG) were removed in Rock.
   - Cleanup done: 736475 was merged into 27099, and the test memberships were removed on 2026-10-13.
 - Code-editor fields (Lava, email body) are Ace editors. Set them with `ace.edit(el).setValue(v, -1)`, and Rock escapes the hidden textarea automatically.
 - Gotchas found while building:
@@ -123,6 +130,13 @@ Use a test person and test or near-future groups of group type 137.
 | 3   | Only Session 3                                                                  | One membership with `Session3 = True`. The email shows a single date with no "Session" label.                     |
 | 4   | Sessions at a Español campus, `Group` = that group                              | Spanish email only. The workflow completes.                                                                       |
 | 5   | The same person launched twice with different sessions                          | No duplicate person record. The second email lists only the second launch's sessions.                             |
+| 6   | The same person launched twice in the **same group**: Session 1, then Session 2 | One active membership in that group with `Session1` and `Session2` both True. No duplicate member row.            |
+
+Follow-ups from case 6 (decide or test before go-live):
+
+- **Inactive member.** "Add to Group" skips when any membership exists, whatever its status. If the person was set Inactive in that group, they may get the new `SessionN` flag but stay Inactive, which hides them from the capacity count and the roster. If so, add a "Set member status to Active" action after each Add, with the same Run If.
+- **Childcare counts are overwritten.** A count that isn't sent writes a blank, so a later launch for the same group that answers "No" wipes earlier counts. Recommended: add Run If `<count attribute>` Is Not Blank to the 15 childcare actions. AtCF, Reason and Home Campus are also overwritten, which is acceptable.
+- **Changing dates.** Booking Session 1 in one group and later in another leaves both memberships flagged. Ministry decision: staff clean this up by hand, or the workflow clears the old flag.
 
 ## Website follow-up (separate change, not part of the Rock build)
 
