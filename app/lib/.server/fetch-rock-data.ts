@@ -95,6 +95,9 @@ interface RockQueryParams {
 
   /** Value to filter by */
   value?: string;
+
+  /** With `loadAttributes`, limits the returned attribute values to these comma-delimited keys */
+  attributeKeys?: string;
 }
 
 /** Options for fetchRockData beyond query params */

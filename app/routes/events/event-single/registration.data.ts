@@ -80,6 +80,10 @@ export const hasSubGroupTypes = (groupType: string): boolean => {
   return GROUP_TYPES_WITH_SUB_GROUP_TYPES.includes(normalized);
 };
 
+/** Journey uses its own three-session flow (JourneyRegistration) instead of the click-through steps. */
+export const isJourneyGroupType = (groupType: string): boolean =>
+  groupType.replace(/-/g, ' ').trim().toLowerCase() === 'journey';
+
 // Make sure these IDs match the workflow type GUIDs in Rock
 export const GROUP_TYPE_TO_WORKFLOW_TYPE_GUID: Record<string, string> = {
   // Kids Dedication, Starting Line, & Worship use the same workflow type GUID

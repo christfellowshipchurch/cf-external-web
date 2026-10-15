@@ -1,0 +1,284 @@
+<title>Journey Session Sign Up</title>
+<style>
+  /* Layout: one narrow reading column, a compact field table, short numbered asks. */
+  :root {
+    --bg: #fbfbfa;
+    --surface: #ffffff;
+    --fg: #1d2326;
+    --muted: #5d676c;
+    --line: #dfe3e4;
+    --accent: #0a6c8f;
+    --code-bg: #eef3f5;
+    --display: 'Fraunces', Georgia, serif;
+    --body: 'Source Sans 3', 'Segoe UI', system-ui, sans-serif;
+    --mono: 'JetBrains Mono', ui-monospace, Menlo, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme='light']) {
+      --bg: #141819;
+      --surface: #1b2022;
+      --fg: #e6eaeb;
+      --muted: #9aa5aa;
+      --line: #2e3538;
+      --accent: #5cbfe0;
+      --code-bg: #232a2d;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme='dark'] {
+    --bg: #141819;
+    --surface: #1b2022;
+    --fg: #e6eaeb;
+    --muted: #9aa5aa;
+    --line: #2e3538;
+    --accent: #5cbfe0;
+    --code-bg: #232a2d;
+    color-scheme: dark;
+  }
+  body {
+    background: var(--bg);
+    color: var(--fg);
+    font-family: var(--body);
+    font-size: 16px;
+    line-height: 1.55;
+  }
+  main {
+    max-width: 44rem;
+    margin: 0 auto;
+    padding-inline: 16px;
+    padding-block: 2.5rem 4rem;
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+  }
+  header {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    border-bottom: 1px solid var(--line);
+    padding-bottom: 1.25rem;
+  }
+  .eyebrow {
+    font-size: 0.75rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--accent);
+    font-weight: 600;
+  }
+  h1 {
+    font-family: var(--display);
+    font-weight: 600;
+    font-size: 2rem;
+    line-height: 1.15;
+    margin: 0;
+    text-wrap: balance;
+  }
+  h2 {
+    font-family: var(--display);
+    font-weight: 600;
+    font-size: 1.25rem;
+    margin: 0 0 0.5rem;
+    text-wrap: balance;
+  }
+  p,
+  ul,
+  ol {
+    margin: 0;
+  }
+  section {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+  }
+  ul,
+  ol {
+    padding-left: 1.25rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+  }
+  .lede {
+    color: var(--muted);
+  }
+  code {
+    font-family: var(--mono);
+    font-size: 0.85em;
+    background: var(--code-bg);
+    padding: 0.1em 0.35em;
+    border-radius: 4px;
+  }
+  .table-wrap {
+    overflow-x: auto;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    background: var(--surface);
+  }
+  table {
+    border-collapse: collapse;
+    width: 100%;
+    font-size: 0.9rem;
+  }
+  th,
+  td {
+    text-align: left;
+    padding: 0.55rem 0.75rem;
+    border-bottom: 1px solid var(--line);
+    vertical-align: top;
+  }
+  tr:last-child td {
+    border-bottom: 0;
+  }
+  th {
+    font-size: 0.72rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--muted);
+    font-weight: 600;
+  }
+  td:first-child {
+    white-space: nowrap;
+  }
+  .note {
+    font-size: 0.9rem;
+    color: var(--muted);
+  }
+</style>
+<link
+  rel="stylesheet"
+  href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600&family=JetBrains+Mono&family=Source+Sans+3:wght@400;600&display=swap"
+/>
+
+<main>
+  <header>
+    <span class="eyebrow">Web team → Rock team</span>
+    <h1>Journey Session Sign Up</h1>
+    <p class="lede">
+      A proposal for a new Rock workflow to support picking Session 1, 2 and 3
+      separately on the website.
+    </p>
+  </header>
+
+  <section>
+    <h2>What's changing</h2>
+    <p>
+      On the new Journey event page, people choose a date and campus for each of
+      the three sessions. Each session can be a different group, and at a
+      different campus. One submission can include one, two or all three
+      sessions.
+    </p>
+    <p>
+      The current workflows (1833 English, 1835 Spanish) take a single
+      <code>Group</code>, so they can't handle this.
+    </p>
+  </section>
+
+  <section>
+    <h2>Proposal</h2>
+    <ul>
+      <li>
+        <strong>Create one new workflow</strong>, "Journey Session Sign Up", for
+        both English and Spanish. The split existed for the Rock forms, which
+        this flow doesn't use.
+      </li>
+      <li>
+        <strong>Leave 1833 and 1835 untouched.</strong> The existing Journey
+        Finder modal still uses them.
+      </li>
+      <li>
+        For each session sent, <strong>add the person to that group</strong> and
+        set the group member attribute <code>SessionN = True</code>. This flag
+        is how the group knows which session they're attending, and the website
+        uses it to count capacity.
+      </li>
+      <li>
+        <strong>Match or create the person once</strong>, and send
+        <strong>one combined confirmation email</strong> listing every session
+        they picked.
+      </li>
+      <li>
+        The email's campus, sender and language come from the
+        <strong>most-selected campus</strong>. When there's a tie, we use the
+        campus of the earliest session. The website works this out and sends
+        that group as <code>Group</code>, so the existing contact, Spanish and
+        online Lava can keep working.
+      </li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>What the website will send</h2>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Attribute key</th>
+            <th>Value</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>
+              <code>FirstName</code>, <code>LastName</code>,
+              <code>PrimaryPhoneNumber</code>, <code>EmailAddress</code>
+            </td>
+            <td>Same as today</td>
+          </tr>
+          <tr>
+            <td>
+              <code>AtCF</code>, <code>Reason</code>, <code>hopetoget</code>
+            </td>
+            <td>Same as today (<code>hopetoget</code> is optional)</td>
+          </tr>
+          <tr>
+            <td><code>LaunchSource</code></td>
+            <td><code>app</code></td>
+          </tr>
+          <tr>
+            <td><code>Group</code></td>
+            <td>The group used for the email (most-selected campus)</td>
+          </tr>
+          <tr>
+            <td><code>Session1Group</code> – <code>Session3Group</code></td>
+            <td>Group GUID for each selected session</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="note">
+      Sessions the person didn't pick are left out entirely, and the workflow
+      should skip them. The session number comes from the key, so
+      <code>Session2Group</code> means "set <code>Session2 = True</code> on that
+      membership". Session times come from the group's <code>ClassOne</code>,
+      <code>ClassTwo</code> and <code>ClassThree</code> attributes, so the
+      website doesn't send them.
+    </p>
+  </section>
+
+  <section>
+    <h2>Questions for you</h2>
+    <ol>
+      <li>
+        <strong>Childcare.</strong> The website doesn't ask childcare questions
+        today, and the Rock childcare form can't show in an API launch. Should
+        we drop childcare from this workflow, or add the questions to the
+        website and send them once per submission?
+      </li>
+      <li>
+        <strong>Adding sessions later.</strong> After signing up, people can
+        come back and add the sessions they skipped. That launches the workflow
+        again with only the new sessions. We plan for that email to list only
+        the new sessions. Does that work?
+      </li>
+      <li>
+        <strong>Combining English and Spanish.</strong> Are there any
+        Spanish-only steps in 1835 besides the email that we'd lose by
+        combining?
+      </li>
+      <li>
+        <strong>Ownership.</strong> We'd like to build a first version ourselves
+        so we can test end to end. Are you OK reviewing it and taking it over,
+        or would you rather build it?
+      </li>
+    </ol>
+  </section>
+</main>
