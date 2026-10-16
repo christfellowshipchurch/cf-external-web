@@ -353,7 +353,8 @@ export async function fetchVolunteerMissionDetailFromRock(
     (typeof row.description === 'string' ? row.description.trim() : '') ||
     '';
 
-  const whatToKnow = readAttr(attrs, ['EmailInfo']) || '';
+  // Not EmailInfo: that copy is for the sign-up confirmation email only.
+  const whatToKnow = readAttr(attrs, ['WhatToKnow']) || '';
 
   const questionsHtml =
     readAttr(attrs, ['QuestionsHtml', 'ContactIntro', 'Questions']) || '';
