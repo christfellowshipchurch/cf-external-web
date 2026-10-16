@@ -12,10 +12,7 @@ export interface VolunteerMissionDetail {
   coverImageUrl?: string;
   /** Main HTML / text body (“About”). */
   summary: string;
-  /**
-   * “What to know” copy — Rock attrs: WhatToKnow*, AdditionalInfo, NeedToKnow,
-   * or EmailInfo (confirmation / logistics) when dedicated fields are empty.
-   */
+  /** “What to know” copy — Rock group attribute `WhatToKnow`. */
   whatToKnow: string;
   /** Optional HTML shown in Questions before contact line. */
   questionsHtml?: string;
