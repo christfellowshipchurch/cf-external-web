@@ -14,8 +14,10 @@ import type { VolunteerAtChurchResource } from '../types';
 // visible card is never flush against the viewport edge.
 //   sm:  (100% - 1 gap - 24px margin) / 2 visible cards
 //   lg:  (100% - 2 gaps - 40px margin) / 3 visible cards
+// Last card's right margin mirrors the section's left padding (no right padding
+// below lg); Embla counts it, so the scrolled-to-end card isn't flush.
 const SLIDE_CLASS =
-  'pl-0 basis-[82%] sm:basis-[calc((100%-36px)/2)] lg:basis-[calc((100%-64px)/3)] max-w-[405px] w-full';
+  'pl-0 basis-[82%] sm:basis-[calc((100%-36px)/2)] lg:basis-[calc((100%-64px)/3)] max-w-[405px] w-full last:mr-5 md:last:mr-12 lg:last:mr-0';
 
 function VolunteerAtChurchCarouselNav() {
   const {
