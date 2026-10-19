@@ -1,4 +1,4 @@
-import { useLoaderData, useNavigate } from 'react-router';
+import { useLoaderData, useNavigate, useNavigationType } from 'react-router';
 import { useCallback, useEffect, useState } from 'react';
 
 import { useCopyPagePath } from '~/hooks/use-copy-page-path';
@@ -22,6 +22,7 @@ const CHURCH_OPPORTUNITY_OVERRIDES: Record<string, string> = {
 export function ChurchServingAreaPage() {
   const { bucket, roles } = useLoaderData<LoaderReturnType>();
   const navigate = useNavigate();
+  const navigationType = useNavigationType();
   const [isVisible, setIsVisible] = useState(false);
   const [selectedRoleGuid, setSelectedRoleGuid] = useState<string | null>(null);
   const hasSelectedRole = Boolean(selectedRoleGuid?.trim());
@@ -56,6 +57,13 @@ export function ChurchServingAreaPage() {
     });
     navigate(`/rock-page?${searchParams.toString()}`);
   }, [navigate, roles, selectedRoleGuid]);
+
+  // iOS Safari keeps the finder's scroll offset on a click-through, landing at
+  // the bottom of this shorter page. Back/forward (POP) keeps its position.
+  useEffect(() => {
+    if (navigationType !== 'POP') window.scrollTo({ top: 0, behavior: 'auto' });
+    // Mount only: decided once, on arrival.
+  }, []);
 
   useEffect(() => {
     const timer = setTimeout(() => setIsVisible(true), 50);
