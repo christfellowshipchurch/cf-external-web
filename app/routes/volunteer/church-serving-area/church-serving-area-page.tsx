@@ -1,5 +1,5 @@
 import { useLoaderData, useNavigate, useNavigationType } from 'react-router';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useState } from 'react';
 
 import { useCopyPagePath } from '~/hooks/use-copy-page-path';
 
@@ -60,8 +60,11 @@ export function ChurchServingAreaPage() {
 
   // iOS Safari keeps the finder's scroll offset on a click-through, landing at
   // the bottom of this shorter page. Back/forward (POP) keeps its position.
-  useEffect(() => {
-    if (navigationType !== 'POP') window.scrollTo({ top: 0, behavior: 'auto' });
+  // Instant + before paint, so the global smooth scroll doesn't animate it.
+  useLayoutEffect(() => {
+    if (navigationType !== 'POP') {
+      window.scrollTo({ top: 0, behavior: 'instant' });
+    }
     // Mount only: decided once, on arrival.
   }, []);
 
