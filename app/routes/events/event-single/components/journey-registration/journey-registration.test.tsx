@@ -191,6 +191,27 @@ describe('PlanYourJourneyStep', () => {
   });
 });
 
+describe('JourneyRegistration loading', () => {
+  it('shows the campus card skeleton instead of a loading sentence', () => {
+    const router = createMemoryRouter(
+      [
+        { path: '/', element: <JourneyRegistration /> },
+        {
+          path: '/api/journey-sessions',
+          loader: () => new Promise(() => {}),
+        },
+      ],
+      { initialEntries: ['/'] },
+    );
+    render(<RouterProvider router={router} />);
+
+    expect(screen.getByTestId('journey-campus-skeleton')).toBeInTheDocument();
+    expect(
+      screen.queryByText('Loading Journey sessions...'),
+    ).not.toBeInTheDocument();
+  });
+});
+
 describe('JourneyRegistration changing campus', () => {
   const renderFlow = async () => {
     const router = createMemoryRouter(

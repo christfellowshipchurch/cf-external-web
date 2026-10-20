@@ -8,7 +8,10 @@ import {
   type JourneySessionsData,
 } from '~/lib/journey-sessions';
 import { isSpanishCampusLabel } from '../../registration.data';
-import { JourneyCampusStep } from './journey-campus-step.component';
+import {
+  JourneyCampusStep,
+  JourneyCampusStepSkeleton,
+} from './journey-campus-step.component';
 import { PlanYourJourneyStep } from './plan-your-journey-step.component';
 import {
   YourInformationStep,
@@ -101,11 +104,7 @@ export const JourneyRegistration = () => {
       return <p className='text-center text-alert'>{loadError}</p>;
     }
     if (!sessionsData) {
-      return (
-        <p className='text-center text-neutral-default'>
-          Loading Journey sessions...
-        </p>
-      );
+      return <JourneyCampusStepSkeleton />;
     }
     if (sessionsData.campuses.length === 0) {
       return (

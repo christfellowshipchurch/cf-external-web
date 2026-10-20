@@ -12,6 +12,37 @@ const campusOrder = new Map<string, number>(
   RockCampuses.map((campus, index) => [campus.name, index]),
 );
 
+/** Same shape as the campus cards, so the grid doesn't jump in when sessions arrive. */
+export const JourneyCampusStepSkeleton = () => (
+  <div
+    className='flex w-full flex-col items-center gap-6'
+    data-testid='journey-campus-skeleton'
+    aria-busy='true'
+  >
+    <div className='flex flex-col items-center gap-2'>
+      <div className='h-7 w-64 animate-pulse rounded bg-neutral-lighter' />
+      <div className='h-4 w-80 max-w-full animate-pulse rounded bg-neutral-lighter' />
+    </div>
+    <div className='h-10 w-full max-w-[320px] animate-pulse rounded-lg bg-neutral-lighter' />
+    <div className='grid w-full max-w-[820px] grid-cols-1 gap-3 md:grid-cols-3'>
+      {Array.from({ length: 15 }, (_, index) => (
+        <div
+          key={index}
+          className='flex flex-row items-center gap-3 rounded-lg border border-neutral-lighter bg-white px-6 py-4 md:flex-col md:gap-2 md:py-5'
+        >
+          <div className='size-9 shrink-0 animate-pulse rounded-lg bg-neutral-lighter' />
+          <div className='flex w-full flex-col items-start gap-1 md:items-center'>
+            <div className='h-4 w-32 animate-pulse rounded bg-neutral-lighter' />
+            <div className='h-3 w-40 animate-pulse rounded bg-neutral-lighter' />
+            <div className='h-3 w-24 animate-pulse rounded bg-neutral-lighter' />
+          </div>
+        </div>
+      ))}
+    </div>
+    <div className='h-3 w-48 animate-pulse rounded bg-neutral-lighter' />
+  </div>
+);
+
 export const JourneyCampusStep = ({
   campuses,
   onSelect,
