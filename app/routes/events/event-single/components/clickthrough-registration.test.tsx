@@ -1,6 +1,9 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
-import { FormStep } from './clickthrough-registration.component';
+import {
+  FormStep,
+  getRegistrationSearchOutcome,
+} from './clickthrough-registration.component';
 
 vi.mock(
   '~/components/modals/baptism-sign-up/baptism-sign-up-form.component',
@@ -36,6 +39,70 @@ vi.mock('~/components/modals/baptism-sign-up/confirmation.component', () => ({
     </div>
   ),
 }));
+
+describe('getRegistrationSearchOutcome', () => {
+  // Placeholder results already report zero hits. Treating that as "no
+  // sessions" would flash the check-back message before Algolia answers.
+  it('stays loading for placeholder results even when there are no hits', () => {
+    expect(
+      getRegistrationSearchOutcome({
+        isArtificial: true,
+        status: 'idle',
+        nbHits: 0,
+      }),
+    ).toBe('loading');
+  });
+
+  it('stays loading while the search is in flight', () => {
+    expect(
+      getRegistrationSearchOutcome({
+        isArtificial: false,
+        status: 'loading',
+        nbHits: 0,
+      }),
+    ).toBe('loading');
+    expect(
+      getRegistrationSearchOutcome({
+        isArtificial: false,
+        status: 'stalled',
+        nbHits: 0,
+      }),
+    ).toBe('loading');
+  });
+
+  it('opens registration once a real response has sessions', () => {
+    expect(
+      getRegistrationSearchOutcome({
+        isArtificial: false,
+        status: 'idle',
+        nbHits: 3,
+      }),
+    ).toBe('ready');
+  });
+
+  it('shows the empty message when a real response has no sessions', () => {
+    expect(
+      getRegistrationSearchOutcome({
+        isArtificial: false,
+        status: 'idle',
+        nbHits: 0,
+      }),
+    ).toBe('empty');
+  });
+
+  // A failed first request leaves the placeholder results in place. That has
+  // to count as an error, or the skeleton never clears and an outage looks
+  // like there is nothing to register for.
+  it('reports an error when the search fails, even if results are still a placeholder', () => {
+    expect(
+      getRegistrationSearchOutcome({
+        isArtificial: true,
+        status: 'error',
+        nbHits: 0,
+      }),
+    ).toBe('error');
+  });
+});
 
 describe('FormStep', () => {
   it('uses the native Baptism form, shows event details on success, and resets for another registration', () => {
