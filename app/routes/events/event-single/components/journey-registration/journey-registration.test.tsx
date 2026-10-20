@@ -3,10 +3,11 @@ import { useState } from 'react';
 import { createMemoryRouter } from 'react-router';
 import { RouterProvider } from 'react-router/dom';
 import { describe, expect, it, vi } from 'vitest';
-import type {
-  JourneySessionNumber,
-  JourneySessionOption,
-  JourneySessionSelection,
+import {
+  JOURNEY_SESSION_NUMBERS,
+  type JourneySessionNumber,
+  type JourneySessionOption,
+  type JourneySessionSelection,
 } from '~/lib/journey-sessions';
 import { PlanYourJourneyStep } from './plan-your-journey-step.component';
 import { JourneyConfirmation } from './journey-confirmation.component';
@@ -173,6 +174,34 @@ describe('PlanYourJourneyStep', () => {
       within(session3Dec).getByText('Same day as Session 2'),
     ).toBeInTheDocument();
     expect(within(otherGroup).queryByText(/Same day/)).toBeNull();
+  });
+
+  // A one-day Journey reads as one "Same Day" class, not a badge per other session.
+  it('shows a single Same Day badge when all three sessions share a day', () => {
+    const oneDay = [
+      opt(1, '2026-11-14T09:00', { groupGuid: 'one-day' }),
+      opt(2, '2026-11-14T10:00', { groupGuid: 'one-day' }),
+      opt(3, '2026-11-14T11:00', { groupGuid: 'one-day' }),
+    ];
+    render(
+      <PlanYourJourneyStep
+        campuses={campuses}
+        options={oneDay}
+        preferredCampusId={2}
+        selection={{}}
+        registered={{}}
+        onChangePreferredCampus={vi.fn()}
+        onSelect={vi.fn()}
+        onSelectEarliest={vi.fn()}
+        onBack={vi.fn()}
+        onContinue={vi.fn()}
+      />,
+    );
+
+    JOURNEY_SESSION_NUMBERS.forEach((n) => {
+      expect(within(column(n)).getAllByText(/Same day/i)).toHaveLength(1);
+      expect(within(column(n)).getByText('Same Day')).toBeInTheDocument();
+    });
   });
 
   it('can clear a selection back to not scheduled', () => {

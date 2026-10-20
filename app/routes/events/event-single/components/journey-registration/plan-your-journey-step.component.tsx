@@ -191,6 +191,14 @@ const SessionColumn = ({
       )
       .map((other) => other.sessionNumber);
 
+  // All three sessions on one day get a single "Same Day" badge instead of one per session.
+  const sameDayBadges = (option: JourneySessionOption) => {
+    const sessions = sameDaySessions(option);
+    return sessions.length === JOURNEY_SESSION_NUMBERS.length - 1
+      ? ['Same Day']
+      : sessions.map((n) => `Same day as Session ${n}`);
+  };
+
   return (
     <div className='flex flex-col rounded-lg border border-gray-200 bg-white'>
       <div className='flex flex-col gap-2 border-b border-neutral-lightest p-4'>
@@ -280,12 +288,12 @@ const SessionColumn = ({
                             Full
                           </span>
                         )}
-                        {sameDaySessions(option).map((n) => (
+                        {sameDayBadges(option).map((badge) => (
                           <span
-                            key={n}
+                            key={badge}
                             className='rounded border border-ocean px-1 text-[10px] text-ocean'
                           >
-                            Same day as Session {n}
+                            {badge}
                           </span>
                         ))}
                       </>

@@ -10,10 +10,6 @@ import type {
 /** Rock group type "Journey Sign Up Group". */
 export const JOURNEY_GROUP_TYPE_ID = 137;
 
-/** Group attribute `JourneySessions` — only "3 Day" (value 5) groups use the Session 1/2/3 flow. */
-const JOURNEY_SESSIONS_ATTRIBUTE_ID = 88245;
-const THREE_DAY_VALUE = '5';
-
 /** Group attribute `ClassThree` — the last session, used to pre-filter to upcoming groups. */
 const CLASS_THREE_ATTRIBUTE_ID = 225431;
 
@@ -117,36 +113,22 @@ const chunk = <T>(items: T[], size: number): T[][] =>
     items.slice(i * size, i * size + size),
   );
 
-async function fetchUpcomingThreeDayGroups(
+async function fetchUpcomingJourneyGroups(
   now: Date,
   ttl: number,
 ): Promise<RockJourneyGroup[]> {
   const today = toRockDateTimeLiteral(now).slice(0, 10);
-  const [threeDay, upcoming] = await Promise.all([
-    fetchRockData({
-      endpoint: 'AttributeValues',
-      queryParams: {
-        $filter: `AttributeId eq ${JOURNEY_SESSIONS_ATTRIBUTE_ID} and Value eq '${THREE_DAY_VALUE}'`,
-        $select: 'EntityId',
-      },
-      ttl,
-    }),
-    fetchRockData({
-      endpoint: 'AttributeValues',
-      queryParams: {
-        $filter: `AttributeId eq ${CLASS_THREE_ATTRIBUTE_ID} and Value ge '${today}'`,
-        $select: 'EntityId',
-      },
-      ttl,
-    }),
-  ]);
-
-  const threeDayIds = new Set(
-    toArray<{ entityId: number }>(threeDay).map((row) => row.entityId),
+  const upcoming = await fetchRockData({
+    endpoint: 'AttributeValues',
+    queryParams: {
+      $filter: `AttributeId eq ${CLASS_THREE_ATTRIBUTE_ID} and Value ge '${today}'`,
+      $select: 'EntityId',
+    },
+    ttl,
+  });
+  const groupIds = toArray<{ entityId: number }>(upcoming).map(
+    (row) => row.entityId,
   );
-  const groupIds = toArray<{ entityId: number }>(upcoming)
-    .map((row) => row.entityId)
-    .filter((id) => threeDayIds.has(id));
 
   const batches = await Promise.all(
     chunk(groupIds, GROUP_ID_CHUNK_SIZE).map((ids) =>
@@ -238,7 +220,7 @@ export async function getJourneySessionOptions({
 }: { now?: Date; fresh?: boolean } = {}): Promise<JourneySessionsData> {
   // Short TTL: capacity counts change as people register.
   const ttl = fresh ? TTL.NONE : 60;
-  const groups = await fetchUpcomingThreeDayGroups(now, ttl);
+  const groups = await fetchUpcomingJourneyGroups(now, ttl);
   const sessionCounts = await fetchSessionCounts(groups, ttl);
   const options = buildJourneySessionOptions({ groups, sessionCounts, now });
   const campuses = await fetchCampuses([
