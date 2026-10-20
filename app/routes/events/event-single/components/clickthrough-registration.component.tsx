@@ -1,6 +1,11 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
 import { useLoaderData, useRouteLoaderData } from 'react-router';
-import { InstantSearch, Configure, useHits } from 'react-instantsearch';
+import {
+  InstantSearch,
+  Configure,
+  useHits,
+  useInstantSearch,
+} from 'react-instantsearch';
 import { createSearchClient } from '~/lib/create-search-client';
 import Icon from '~/primitives/icon';
 import { RockProxyEmbed } from '~/components/rock-embed';
@@ -83,7 +88,8 @@ export const ClickThroughRegistration = ({
     return actualStep - 1;
   };
 
-  const [hitsReady, setHitsReady] = useState(false);
+  const [searchOutcome, setSearchOutcome] =
+    useState<RegistrationSearchOutcome>('loading');
   const [step, setStep] = useState(1);
   const [selectedCampus, setSelectedCampus] = useState<string>('');
   const [selectedSubGroupType, setSelectedSubGroupType] = useState<string>('');
@@ -216,7 +222,19 @@ export const ClickThroughRegistration = ({
 
   return (
     <>
-      {!hitsReady && <RegistrationSkeleton totalSteps={totalSteps} />}
+      {searchOutcome === 'loading' && (
+        <RegistrationSkeleton totalSteps={totalSteps} />
+      )}
+      {(searchOutcome === 'empty' || searchOutcome === 'error') && (
+        <RegistrationNotice
+          title={title}
+          message={
+            searchOutcome === 'empty'
+              ? NO_SESSIONS_MESSAGE
+              : REGISTRATION_ERROR_MESSAGE
+          }
+        />
+      )}
       <InstantSearch
         indexName={eventFinderIndexName}
         searchClient={searchClient}
@@ -231,8 +249,8 @@ export const ClickThroughRegistration = ({
             way to edit/clear their search. */}
         <Configure filters={buildFilter()} hitsPerPage={1000} />
 
-        <HitsDetector onReady={() => setHitsReady(true)} />
-        {hitsReady && (
+        <SearchOutcomeDetector onOutcome={setSearchOutcome} />
+        {searchOutcome === 'ready' && (
           <section className='flex items-center w-full py-8 md:py-16 content-padding bg-gray'>
             <div className='w-full max-w-3xl flex flex-col gap-13 mx-auto'>
               <div className='flex flex-col gap-4'>
@@ -1104,20 +1122,86 @@ export const FormStep = ({
   );
 };
 
-// Fires onReady once when Algolia returns its first batch of hits
-const HitsDetector = ({ onReady }: { onReady: () => void }) => {
-  const { items } = useHits<EventFinderHit>();
+export type RegistrationSearchStatus = 'idle' | 'loading' | 'stalled' | 'error';
+
+export type RegistrationSearchOutcome = 'loading' | 'ready' | 'empty' | 'error';
+
+const NO_SESSIONS_MESSAGE =
+  'Please check back soon for new opportunities to register.';
+
+const REGISTRATION_ERROR_MESSAGE =
+  "Registration couldn't be loaded. Please try again.";
+
+/**
+ * The skeleton stays up until Algolia returns a real response. Placeholder
+ * results report zero hits, and treating those as empty would flash the
+ * check-back message before sessions load. A failed first request keeps those
+ * placeholder results, so an error has to win or the skeleton never clears.
+ */
+export function getRegistrationSearchOutcome({
+  isArtificial,
+  status,
+  nbHits,
+}: {
+  isArtificial: boolean;
+  status: RegistrationSearchStatus;
+  nbHits: number;
+}): RegistrationSearchOutcome {
+  if (status === 'error') {
+    return 'error';
+  }
+  if (isArtificial || status === 'loading' || status === 'stalled') {
+    return 'loading';
+  }
+  return nbHits > 0 ? 'ready' : 'empty';
+}
+
+// Records only the first settled response. Later campus, date, and time
+// filters must not replace the stepper with the empty message.
+const SearchOutcomeDetector = ({
+  onOutcome,
+}: {
+  onOutcome: (outcome: Exclude<RegistrationSearchOutcome, 'loading'>) => void;
+}) => {
+  const { results, status } = useInstantSearch();
   const calledRef = useRef(false);
 
   useEffect(() => {
-    if (items.length > 0 && !calledRef.current) {
-      calledRef.current = true;
-      onReady();
-    }
-  }, [items.length, onReady]);
+    if (calledRef.current) return;
+
+    const outcome = getRegistrationSearchOutcome({
+      isArtificial: Boolean(results.__isArtificial),
+      status,
+      nbHits: results.nbHits,
+    });
+
+    if (outcome === 'loading') return;
+
+    calledRef.current = true;
+    onOutcome(outcome);
+  }, [results, status, onOutcome]);
 
   return null;
 };
+
+const RegistrationNotice = ({
+  title,
+  message,
+}: {
+  title: string;
+  message: string;
+}) => (
+  <section className='flex items-center w-full py-8 md:py-16 content-padding bg-gray'>
+    <div className='w-full max-w-3xl flex flex-col gap-4 mx-auto'>
+      <h2 className='font-extrabold text-center text-black text-[32px]'>
+        Register for {title}
+      </h2>
+      <p className='text-center text-[#717182] text-lg font-medium md:mx-4'>
+        {message}
+      </p>
+    </div>
+  </section>
+);
 
 const RegistrationSkeleton = ({ totalSteps }: { totalSteps: number }) => (
   <section className='flex items-center w-full py-8 md:py-16 content-padding bg-gray'>
