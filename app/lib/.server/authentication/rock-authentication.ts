@@ -3,7 +3,12 @@
  */
 import { checkUserExists } from '~/routes/auth/userExists';
 import { AuthenticationError, RockAPIError } from '../error-types';
-import { fetchRockData, postRockData, TTL } from '../fetch-rock-data';
+import {
+  buildRockUrl,
+  fetchRockData,
+  postRockData,
+  TTL,
+} from '../fetch-rock-data';
 import { createPerson } from '../rock-person';
 import { RockUserLogin } from './authentication.types';
 import { fieldsAsObject } from '~/lib/utils';
@@ -24,7 +29,7 @@ export const fetchUserCookie = async (
 
   try {
     const response = await fetch(
-      new Request(`${process.env.ROCK_API}/Auth/Login`, {
+      new Request(buildRockUrl('Auth/Login'), {
         method: 'POST',
         body: JSON.stringify({
           Username,
@@ -131,7 +136,7 @@ export const createRockSession = async (
   }
 
   try {
-    const response = await fetch(`${process.env.ROCK_API}InteractionSessions`, {
+    const response = await fetch(buildRockUrl('InteractionSessions'), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
