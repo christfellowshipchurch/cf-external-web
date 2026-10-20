@@ -99,9 +99,11 @@ export const loader = async ({
   const collections = await mapPageBuilderChildItems(children, {
     summaryFallbackToContent: false,
   });
-  // Ensure we only return resource collections
+  // Only resource collections with items left; an empty one would show its title over nothing.
   const resourceCollections = collections.filter(
-    (collection) => collection.type === 'RESOURCE_COLLECTION',
+    (collection) =>
+      collection.type === 'RESOURCE_COLLECTION' &&
+      (collection.collection?.length ?? 0) > 0,
   ) as Array<PageBuilderSection & { type: 'RESOURCE_COLLECTION' }>;
 
   const isPrimaryCta =

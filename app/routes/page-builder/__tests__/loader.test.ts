@@ -544,3 +544,29 @@ describe('mapPageBuilderChildItems – icon section', () => {
     errorSpy.mockRestore();
   });
 });
+
+// ---------------------------------------------------------------------------
+// mapPageBuilderChildItems – section date range
+// ---------------------------------------------------------------------------
+
+describe('mapPageBuilderChildItems – section date range', () => {
+  it('leaves out a section whose start/expire window has passed', async () => {
+    const live = makeSection('live-section');
+    const expired = makeSection('expired-section');
+    mockIsItemInDateRange.mockImplementation(
+      (item: { id: string }) => item.id !== 'expired-section',
+    );
+    mockBuildPodcastRoutingIndex.mockResolvedValueOnce(emptyIndex());
+    mockFetchRockData
+      .mockResolvedValueOnce([{ childContentChannelItemId: 'article-1' }])
+      .mockResolvedValueOnce(
+        makeCollectionItem('article-1', '43', { pathname: '/articles/a' }),
+      );
+
+    const sections = await mapPageBuilderChildItems([live, expired]);
+
+    expect(sections.map((s) => s.id)).toEqual(['live-section']);
+    // The expired section's items are never fetched.
+    expect(mockFetchRockData).toHaveBeenCalledTimes(2);
+  });
+});
