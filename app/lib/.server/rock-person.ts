@@ -1,4 +1,3 @@
-import { createImageUrlFromGuid } from '~/lib/utils';
 import { parseISO, isValid, getMonth, getDate, getYear } from 'date-fns';
 import {
   fetchRockData,
@@ -97,91 +96,6 @@ export const updatePerson = async (
       countryCode,
     });
   }
-};
-
-// Uses the Person Alias GUID to get the Person
-interface PersonData {
-  id: string;
-  firstName: string;
-  lastName: string;
-  email?: string;
-  photo?: {
-    guid: string;
-    path: string;
-  };
-  [key: string]: unknown;
-}
-
-export const getPersonByAliasGuid = async (
-  guid: string,
-  loadAttributes?: boolean,
-): Promise<PersonData | null> => {
-  const getPersonId = async () => {
-    const person = await fetchRockData({
-      endpoint: 'PersonAlias',
-      queryParams: {
-        $filter: `Guid eq guid'${guid}'`,
-      },
-    });
-    return person ? person[0]?.personId : null;
-  };
-  const personId = await getPersonId();
-  // If we have a personAlias, return him.
-  if (personId) {
-    if (loadAttributes) {
-      // If loadAttributes is true, return the person with attributes.
-      return getFromId(personId, true);
-    }
-    return getFromId(personId);
-  }
-  // Otherwise, return null.
-  return null;
-};
-
-// Uses the Person Alias ID to get the Person
-export const getPersonByAliasId = async (
-  id: string,
-): Promise<PersonData | null> => {
-  const personAlias = await fetchRockData({
-    endpoint: `PersonAlias/${id}`,
-    queryParams: {},
-  });
-  return personAlias ? personAlias?.person : null;
-};
-
-// Uses the Person Alias ID to get the Person Alias GUID
-export const getPersonAliasGuid = async (
-  id: string,
-): Promise<string | null> => {
-  const personAlias = await fetchRockData({
-    endpoint: `PersonAlias/${id}`,
-    queryParams: {},
-  });
-  return personAlias?.guid || null;
-};
-
-// Get a person from their ID
-export const getFromId = async (
-  id: string,
-  loadAttributes?: boolean,
-): Promise<PersonData> => {
-  const person = await fetchRockData({
-    endpoint: 'People',
-    queryParams: {
-      $expand: 'Photo',
-      $filter: `Id eq ${id}${loadAttributes ? '&loadAttributes=simple' : ''}`,
-    },
-    ttl: TTL.NONE, //no cache
-  });
-  return person[0];
-};
-
-export const getProfileImage = async (id: string): Promise<string | null> => {
-  const person = await getFromId(id);
-  const { photo } = person;
-  return photo && Object.keys(photo).length !== 0
-    ? createImageUrlFromGuid(photo.guid)
-    : null;
 };
 
 // Update mapGender function

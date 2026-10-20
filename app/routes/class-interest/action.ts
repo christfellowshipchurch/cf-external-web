@@ -1,5 +1,6 @@
 import type { ActionFunction } from 'react-router';
 import {
+  buildRockUrl,
   fetchRockData,
   postRockData,
   TTL,
@@ -59,7 +60,7 @@ async function setGroupMemberClassPreference(
 ): Promise<void> {
   // Rock matches the attribute key case-sensitively; the member attribute's
   // key is `ClassPreference` (PascalCase), not `classPreference`.
-  const url = `${process.env.ROCK_API}GroupMembers/AttributeValue/${memberId}?attributeKey=ClassPreference&attributeValue=${encodeURIComponent(classValueGuid)}`;
+  const url = `${buildRockUrl(`GroupMembers/AttributeValue/${memberId}`)}?attributeKey=ClassPreference&attributeValue=${encodeURIComponent(classValueGuid)}`;
   const response = await fetch(url, {
     method: 'POST',
     headers: { 'Authorization-Token': `${process.env.ROCK_TOKEN}` },

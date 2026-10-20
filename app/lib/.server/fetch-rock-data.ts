@@ -50,6 +50,13 @@ export const getRockApiBaseUrl = (): string => {
 };
 
 /**
+ * Joins ROCK_API and an endpoint with exactly one slash, whether or not the
+ * env value ends in one or the caller's endpoint starts with one.
+ */
+export const buildRockUrl = (endpoint: string): string =>
+  `${getRockApiBaseUrl().replace(/\/+$/, '')}/${endpoint.replace(/^\/+/, '')}`;
+
+/**
  * When true, this deployment shows Pending/unapproved content and skips the
  * shared Redis cache — used by the preview domain (CFDP-4143). Never set on prod.
  */
@@ -362,7 +369,7 @@ export const fetchRockData = async ({
     ) as Record<string, string>;
 
     const queryString = new URLSearchParams(definedQueryParams).toString();
-    const url = `${getRockApiBaseUrl()}${endpoint}?${queryString}`;
+    const url = `${buildRockUrl(endpoint)}?${queryString}`;
 
     const res = await fetch(url, {
       headers: {
@@ -445,7 +452,7 @@ export const fetchRockData = async ({
  */
 export const deleteRockData = async (endpoint: string) => {
   try {
-    const response = await fetch(`${getRockApiBaseUrl()}/${endpoint}`, {
+    const response = await fetch(buildRockUrl(endpoint), {
       method: 'DELETE',
       headers: {
         'Authorization-Token': `${process.env.ROCK_TOKEN}`,
@@ -479,7 +486,7 @@ export const postRockData = async ({
   body,
   contentType = 'application/json',
 }: RockDataRequest) => {
-  const response = await fetch(`${getRockApiBaseUrl()}${endpoint}`, {
+  const response = await fetch(buildRockUrl(endpoint), {
     method: 'POST',
     headers: {
       'Content-Type': contentType,
@@ -510,7 +517,7 @@ export const postRockData = async ({
  * @returns response body as JSON
  */
 export const putRockData = async ({ endpoint, body }: RockDataRequest) => {
-  const response = await fetch(`${getRockApiBaseUrl()}${endpoint}`, {
+  const response = await fetch(buildRockUrl(endpoint), {
     method: 'PUT',
     headers: {
       'Content-Type': 'application/json',
@@ -537,7 +544,7 @@ export const putRockData = async ({ endpoint, body }: RockDataRequest) => {
  * @returns response status code
  */
 export const patchRockData = async ({ endpoint, body }: RockDataRequest) => {
-  const response = await fetch(`${getRockApiBaseUrl()}/${endpoint}`, {
+  const response = await fetch(buildRockUrl(endpoint), {
     method: 'PATCH',
     headers: {
       ...defaultHeaders,
