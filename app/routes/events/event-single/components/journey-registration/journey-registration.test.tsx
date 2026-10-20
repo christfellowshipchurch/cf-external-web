@@ -20,6 +20,7 @@ const campuses = [
     street1: '5343 Northlake Blvd',
     city: 'Palm Beach Gardens',
     mapLink: 'https://maps.example/pbg',
+    url: 'palm-beach-gardens',
   },
   {
     id: 14,
@@ -27,6 +28,7 @@ const campuses = [
     street1: '1200 W Indiantown Rd',
     city: 'Jupiter',
     mapLink: 'https://maps.example/jupiter',
+    url: 'jupiter',
   },
 ];
 
@@ -258,6 +260,11 @@ describe('JourneyRegistration campus links', () => {
     expect(window.location.search).toBe(
       '?utm_source=email&campus=palm-beach-gardens',
     );
+    expect(window.location.hash).toBe('#register');
+
+    // Back on the campus picker, the link must no longer point at a campus.
+    fireEvent.click(screen.getByRole('button', { name: 'Back' }));
+    expect(window.location.search).toBe('?utm_source=email');
     expect(window.location.hash).toBe('#register');
   });
 

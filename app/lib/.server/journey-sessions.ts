@@ -40,6 +40,7 @@ export type RockJourneyGroup = {
 type RockCampus = {
   id: number;
   name: string;
+  url?: string | null;
   location?: { street1?: string | null; city?: string | null } | null;
   attributeValues?: Record<string, RockAttributeValue | undefined>;
 };
@@ -223,6 +224,7 @@ async function fetchCampuses(campusIds: number[]): Promise<JourneyCampus[]> {
       street1: campus.location?.street1 ?? '',
       city: campus.location?.city ?? '',
       mapLink: campus.attributeValues?.mapLink?.value?.trim() ?? '',
+      url: campus.url?.trim().toLowerCase() ?? '',
     }));
 }
 

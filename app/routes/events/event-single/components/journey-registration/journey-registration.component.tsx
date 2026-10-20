@@ -3,7 +3,6 @@ import { useFetcher, useSearchParams } from 'react-router';
 import {
   JOURNEY_SESSION_NUMBERS,
   findJourneyCampusBySlug,
-  getJourneyCampusSlug,
   pickEarliestAvailable,
   type JourneySessionSelection,
   type JourneySessionsData,
@@ -50,9 +49,8 @@ export const JourneyRegistration = () => {
 
   // Keeps the address bar a copyable campus link. replaceState instead of navigate,
   // so the event loader doesn't refetch and the page doesn't jump to the hash.
-  const syncCampusInUrl = (campusName?: string) => {
+  const syncCampusInUrl = (slug?: string) => {
     const url = new URL(window.location.href);
-    const slug = campusName && getJourneyCampusSlug(campusName);
     if (slug) url.searchParams.set('campus', slug);
     else url.searchParams.delete('campus');
     url.hash = 'register';
@@ -68,7 +66,7 @@ export const JourneyRegistration = () => {
     setPreferredCampusId(campusId);
     setStep(2);
     syncCampusInUrl(
-      sessionsData?.campuses.find((campus) => campus.id === campusId)?.name,
+      sessionsData?.campuses.find((campus) => campus.id === campusId)?.url,
     );
   };
 
@@ -83,6 +81,11 @@ export const JourneyRegistration = () => {
     );
     if (linkedCampus) choosePreferredCampus(linkedCampus.id);
   }, [sessionsData]);
+
+  const backToCampusStep = () => {
+    setStep(1);
+    syncCampusInUrl();
+  };
 
   const resetAll = () => {
     setStep(1);
@@ -129,7 +132,7 @@ export const JourneyRegistration = () => {
             preferredCampusId={preferredCampusId}
             selection={selection}
             registered={registered}
-            onChangePreferredCampus={() => setStep(1)}
+            onChangePreferredCampus={backToCampusStep}
             onSelect={(sessionNumber, option) =>
               setSelection((prev) => ({ ...prev, [sessionNumber]: option }))
             }
@@ -142,7 +145,7 @@ export const JourneyRegistration = () => {
                 ),
               )
             }
-            onBack={() => setStep(1)}
+            onBack={backToCampusStep}
             onContinue={() => setStep(3)}
           />
         );

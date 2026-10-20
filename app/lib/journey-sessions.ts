@@ -6,8 +6,6 @@
  * zone — so a browser or server in UTC can't roll a 9 PM session to the next day.
  */
 
-import { RockCampuses } from '~/lib/rock-config';
-
 export type JourneySessionNumber = 1 | 2 | 3;
 
 export const JOURNEY_SESSION_NUMBERS: JourneySessionNumber[] = [1, 2, 3];
@@ -19,6 +17,8 @@ export type JourneyCampus = {
   city: string;
   /** Campus `mapLink` attribute — the same directions link the location pages use. */
   mapLink: string;
+  /** Rock campus `Url`: the location-page slug (e.g. `cf-everywhere`) used by campus links. */
+  url: string;
 };
 
 export type JourneySessionOption = {
@@ -170,10 +170,6 @@ export const pickEarliestAvailable = (
   return {};
 };
 
-/** Location-page slug for a campus name (`RockCampuses[].pathname`, e.g. `port-st-lucie`). */
-export const getJourneyCampusSlug = (campusName: string) =>
-  RockCampuses.find((campus) => campus.name === campusName)?.pathname;
-
 /**
  * Campus for a `?campus=<slug>` link. Undefined when the slug is unknown or
  * that campus has no Journey sessions.
@@ -184,7 +180,5 @@ export const findJourneyCampusBySlug = (
 ): JourneyCampus | undefined => {
   const normalized = slug?.trim().toLowerCase();
   if (!normalized) return undefined;
-  return campuses.find(
-    (campus) => getJourneyCampusSlug(campus.name) === normalized,
-  );
+  return campuses.find((campus) => campus.url === normalized);
 };

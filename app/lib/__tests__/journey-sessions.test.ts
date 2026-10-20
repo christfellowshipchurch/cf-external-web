@@ -113,16 +113,28 @@ describe('pickEarliestAvailable', () => {
 });
 
 describe('findJourneyCampusBySlug', () => {
-  // Staff send campus links built from the location-page slugs, so a slug must
-  // land on the campus Rock returns by name.
+  // Links use Rock's campus Url (the location-page slug), not the display name,
+  // which differs for Online: Rock calls it "Online (CF Everywhere)".
+  const campus = (id: number, name: string, url: string) => ({
+    id,
+    name,
+    url,
+    street1: '',
+    city: '',
+    mapLink: '',
+  });
   const campuses = [
-    { id: 3, name: 'Port St. Lucie', street1: '', city: '', mapLink: '' },
-    { id: 2, name: 'Palm Beach Gardens', street1: '', city: '', mapLink: '' },
+    campus(3, 'Port St. Lucie', 'port-st-lucie'),
+    campus(9, 'Online (CF Everywhere)', 'cf-everywhere'),
   ];
 
   it('maps a location-page slug to that campus', () => {
     expect(findJourneyCampusBySlug(campuses, 'port-st-lucie')?.id).toBe(3);
     expect(findJourneyCampusBySlug(campuses, ' Port-St-Lucie ')?.id).toBe(3);
+  });
+
+  it('finds the online campus by its slug', () => {
+    expect(findJourneyCampusBySlug(campuses, 'cf-everywhere')?.id).toBe(9);
   });
 
   it('returns nothing for a missing, unknown, or session-less campus', () => {
