@@ -1,7 +1,9 @@
-import { useEffect, useState } from 'react';
-import { useFetcher } from 'react-router';
+import { useEffect, useRef, useState } from 'react';
+import { useFetcher, useSearchParams } from 'react-router';
 import {
   JOURNEY_SESSION_NUMBERS,
+  findJourneyCampusBySlug,
+  getJourneyCampusSlug,
   pickEarliestAvailable,
   type JourneySessionSelection,
   type JourneySessionsData,
@@ -21,6 +23,8 @@ type SessionsResponse = JourneySessionsData | { error: string };
 
 export const JourneyRegistration = () => {
   const fetcher = useFetcher<SessionsResponse>();
+  const [searchParams] = useSearchParams();
+  const appliedCampusLink = useRef(false);
   const [step, setStep] = useState<Step>(1);
   const [preferredCampusId, setPreferredCampusId] = useState<number>(0);
   const [selection, setSelection] = useState<JourneySessionSelection>({});
@@ -44,6 +48,17 @@ export const JourneyRegistration = () => {
     (n) => registered[n],
   );
 
+  // Keeps the address bar a copyable campus link. replaceState instead of navigate,
+  // so the event loader doesn't refetch and the page doesn't jump to the hash.
+  const syncCampusInUrl = (campusName?: string) => {
+    const url = new URL(window.location.href);
+    const slug = campusName && getJourneyCampusSlug(campusName);
+    if (slug) url.searchParams.set('campus', slug);
+    else url.searchParams.delete('campus');
+    url.hash = 'register';
+    window.history.replaceState(window.history.state, '', url);
+  };
+
   const choosePreferredCampus = (campusId: number) => {
     // One campus per registration: a new campus starts over, keeping only the person's details.
     if (campusId !== preferredCampusId) {
@@ -52,7 +67,22 @@ export const JourneyRegistration = () => {
     }
     setPreferredCampusId(campusId);
     setStep(2);
+    syncCampusInUrl(
+      sessionsData?.campuses.find((campus) => campus.id === campusId)?.name,
+    );
   };
+
+  // A campus link (`?campus=port-st-lucie#register`) skips step 1. Applied once, so
+  // a later reload of the sessions can't pull the person back to step 2.
+  useEffect(() => {
+    if (!sessionsData || appliedCampusLink.current) return;
+    appliedCampusLink.current = true;
+    const linkedCampus = findJourneyCampusBySlug(
+      sessionsData.campuses,
+      searchParams.get('campus'),
+    );
+    if (linkedCampus) choosePreferredCampus(linkedCampus.id);
+  }, [sessionsData]);
 
   const resetAll = () => {
     setStep(1);
@@ -60,6 +90,7 @@ export const JourneyRegistration = () => {
     setSelection({});
     setRegistered({});
     setPerson(undefined);
+    syncCampusInUrl();
   };
 
   const renderStep = () => {

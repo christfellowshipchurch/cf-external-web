@@ -224,6 +224,53 @@ describe('JourneyRegistration changing campus', () => {
   });
 });
 
+describe('JourneyRegistration campus links', () => {
+  const renderAt = (url: string) => {
+    const router = createMemoryRouter(
+      [
+        { path: '/', element: <JourneyRegistration /> },
+        {
+          path: '/api/journey-sessions',
+          loader: () => ({ campuses, options }),
+        },
+      ],
+      { initialEntries: [url] },
+    );
+    render(<RouterProvider router={router} />);
+  };
+
+  // Connections staff send these links so people skip choosing a campus.
+  it('skips straight to sessions for the linked campus', async () => {
+    renderAt('/?campus=palm-beach-gardens');
+    expect(await screen.findByText('Step 2 of 3')).toBeInTheDocument();
+    expect(
+      screen.queryByRole('heading', { name: 'Choose Your Preferred Campus' }),
+    ).not.toBeInTheDocument();
+  });
+
+  // Staff copy the address bar after picking a campus, so it must be a working link.
+  it('puts the chosen campus and #register in the address bar', async () => {
+    window.history.replaceState(null, '', '/events/journey?utm_source=email');
+    renderAt('/');
+    fireEvent.click(
+      await screen.findByRole('button', { name: /Palm Beach Gardens/ }),
+    );
+    expect(window.location.search).toBe(
+      '?utm_source=email&campus=palm-beach-gardens',
+    );
+    expect(window.location.hash).toBe('#register');
+  });
+
+  it('falls back to the campus picker for an unknown campus', async () => {
+    renderAt('/?campus=not-a-campus');
+    expect(
+      await screen.findByRole('heading', {
+        name: 'Choose Your Preferred Campus',
+      }),
+    ).toBeInTheDocument();
+  });
+});
+
 describe('JourneyConfirmation', () => {
   it('lists each registered session date and time under one campus', () => {
     render(

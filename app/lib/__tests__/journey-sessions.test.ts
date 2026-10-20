@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  findJourneyCampusBySlug,
   formatSessionDateHeading,
   formatSessionShortDate,
   formatSessionTime,
@@ -108,5 +109,25 @@ describe('pickEarliestAvailable', () => {
 
   it('selects nothing when no group at the campus is fully open', () => {
     expect(pickEarliestAvailable(options, 99)).toEqual({});
+  });
+});
+
+describe('findJourneyCampusBySlug', () => {
+  // Staff send campus links built from the location-page slugs, so a slug must
+  // land on the campus Rock returns by name.
+  const campuses = [
+    { id: 3, name: 'Port St. Lucie', street1: '', city: '', mapLink: '' },
+    { id: 2, name: 'Palm Beach Gardens', street1: '', city: '', mapLink: '' },
+  ];
+
+  it('maps a location-page slug to that campus', () => {
+    expect(findJourneyCampusBySlug(campuses, 'port-st-lucie')?.id).toBe(3);
+    expect(findJourneyCampusBySlug(campuses, ' Port-St-Lucie ')?.id).toBe(3);
+  });
+
+  it('returns nothing for a missing, unknown, or session-less campus', () => {
+    expect(findJourneyCampusBySlug(campuses, null)).toBeUndefined();
+    expect(findJourneyCampusBySlug(campuses, 'psl')).toBeUndefined();
+    expect(findJourneyCampusBySlug(campuses, 'jupiter')).toBeUndefined();
   });
 });
