@@ -6,7 +6,10 @@ vi.mock('~/lib/.server/fetch-rock-data', () => ({
 }));
 
 import { fetchRockData } from '~/lib/.server/fetch-rock-data';
-import { fetchVolunteerMissionDetailFromRock } from '../outreach-mission-rock.server';
+import {
+  fetchVolunteerMissionDetailFromRock,
+  missionGroupRequest,
+} from '../outreach-mission-rock.server';
 
 const mockFetchRockData = fetchRockData as ReturnType<typeof vi.fn>;
 
@@ -90,5 +93,22 @@ describe('fetchVolunteerMissionDetailFromRock contact lookup', () => {
 
     expect(detail?.contactName).toBe('Jane Formatted');
     expect(detail?.contactEmail).toBeUndefined();
+  });
+});
+
+describe('fetchVolunteerMissionDetailFromRock Groups request', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('fetches with missionGroupRequest so the admin cache endpoint deletes the key this page reads', async () => {
+    mockRock(person);
+
+    await fetchVolunteerMissionDetailFromRock(GROUP_GUID);
+
+    expect(mockFetchRockData).toHaveBeenCalledWith({
+      ...missionGroupRequest(GROUP_GUID),
+      ttl: 300,
+    });
   });
 });

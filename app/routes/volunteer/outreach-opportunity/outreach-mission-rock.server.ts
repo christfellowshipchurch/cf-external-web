@@ -172,8 +172,24 @@ function resolveImageUrl(raw: string | undefined): string | undefined {
   return createImageUrlFromGuid(t);
 }
 
-const GUID_RE =
+export const GUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * The cached Rock `Groups` request for one mission. Shared with the admin
+ * cache endpoint so invalidation always targets the exact key this fetch uses.
+ */
+export function missionGroupRequest(groupGuid: string) {
+  return {
+    endpoint: 'Groups',
+    queryParams: {
+      $filter: `Guid eq guid'${escapeOData(groupGuid)}'`,
+      $top: '1',
+      $expand: 'Campus,GroupType',
+      loadAttributes: 'expanded' as const,
+    },
+  };
+}
 
 /**
  * Resolves the cover-image fallback from the group's **Event Type** Defined
@@ -298,18 +314,10 @@ export async function fetchVolunteerMissionDetailFromRock(
   const guid = groupGuid.trim();
   if (!guid) return null;
 
-  const filter = `Guid eq guid'${escapeOData(guid)}'`;
-
   let raw: unknown;
   try {
     raw = await fetchRockData({
-      endpoint: 'Groups',
-      queryParams: {
-        $filter: filter,
-        $top: '1',
-        $expand: 'Campus,GroupType',
-        loadAttributes: 'expanded',
-      },
+      ...missionGroupRequest(guid),
       ttl: TTL.SHORT,
     });
   } catch {
