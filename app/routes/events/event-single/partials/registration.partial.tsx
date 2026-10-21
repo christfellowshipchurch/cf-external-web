@@ -2,6 +2,8 @@ import { useLoaderData } from 'react-router';
 import { EventSinglePageType, hasRegistrationContent } from '../types';
 import { SessionRegistration } from '../components/session-registration';
 import { ClickThroughRegistration } from '../components/clickthrough-registration.component';
+import { JourneyRegistration } from '../components/journey-registration/journey-registration.component';
+import { isJourneyGroupType } from '../registration.data';
 
 export function RegistrationSection() {
   const { title, sessionScheduleCards, groupType } =
@@ -20,7 +22,12 @@ export function RegistrationSection() {
       )}
 
       {/* Click Through Registration — only when there are no session cards */}
-      {groupType && <ClickThroughRegistration title={title} />}
+      {groupType &&
+        (isJourneyGroupType(groupType) ? (
+          <JourneyRegistration />
+        ) : (
+          <ClickThroughRegistration title={title} />
+        ))}
     </section>
   );
 }
