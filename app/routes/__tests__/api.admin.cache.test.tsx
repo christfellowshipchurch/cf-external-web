@@ -1,12 +1,16 @@
 import type { ActionFunctionArgs, LoaderFunctionArgs } from 'react-router';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
+import { buildCacheKey } from '~/lib/.server/cache-utils';
 import { action, loader } from '../api.admin.cache';
 
 const mocks = vi.hoisted(() => ({
   invalidateItem: vi.fn(),
   deleteByPrefix: vi.fn(),
   collectItemCacheFootprint: vi.fn(),
-  redis: null as unknown as { pipeline: ReturnType<typeof vi.fn> } | null,
+  redis: null as unknown as {
+    pipeline: ReturnType<typeof vi.fn>;
+    del?: ReturnType<typeof vi.fn>;
+  } | null,
 }));
 
 vi.mock('~/lib/.server/redis-config', () => ({
@@ -14,7 +18,10 @@ vi.mock('~/lib/.server/redis-config', () => ({
     return mocks.redis;
   },
 }));
-vi.mock('~/lib/.server/cache-utils', () => ({
+// Real buildCacheKey/TTL: the volunteer-opportunity target must delete the
+// exact key fetchRockData writes, so the key builder itself is not mocked.
+vi.mock('~/lib/.server/cache-utils', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('~/lib/.server/cache-utils')>()),
   invalidateItem: mocks.invalidateItem,
   deleteByPrefix: mocks.deleteByPrefix,
   collectItemCacheFootprint: mocks.collectItemCacheFootprint,
@@ -204,6 +211,175 @@ describe('admin cache invalidation (POST target=attribute-matrices)', () => {
     mocks.deleteByPrefix.mockRejectedValue(new Error('redis blip'));
 
     const response = await action(matrixArgs());
+
+    expect(readStatus(response)).toBe(500);
+    expect(readData(response)).toEqual({
+      success: false,
+      error: 'internal_error',
+    });
+  });
+});
+
+describe('admin cache invalidation (POST target=volunteer-opportunity)', () => {
+  const GUID = 'AAAAAAAA-BBBB-CCCC-DDDD-EEEEEEEEEEEE';
+  const OTHER_GUID = '11111111-2222-3333-4444-555555555555';
+
+  // Written from the spec, not from missionGroupRequest: if the page's Groups
+  // query drifts, this key stops matching and the test fails.
+  const groupsKey = (guid: string) =>
+    buildCacheKey('Groups', {
+      $filter: `Guid eq guid'${guid}'`,
+      $top: '1',
+      $expand: 'Campus,GroupType',
+      loadAttributes: 'expanded',
+    });
+
+  const volunteerArgs = (search: string, secret = 'test-secret') =>
+    createArgs(secret, { search });
+
+  /** Fake Redis holding real keys, so we can see what survives a delete. */
+  const seedRedis = (keys: string[]) => {
+    const store = new Set(keys);
+    const del = vi.fn(async (...toDelete: string[]) =>
+      toDelete.reduce((n, k) => n + (store.delete(k) ? 1 : 0), 0),
+    );
+    mocks.redis = { pipeline: vi.fn(), del };
+    return { store, del };
+  };
+
+  beforeEach(() => {
+    process.env.CACHE_INVALIDATION_SECRET = 'test-secret';
+  });
+
+  it('deletes the exact Groups key the opportunity page reads, so WhatToKnow edits show on the next view', async () => {
+    const { store, del } = seedRedis([groupsKey(GUID)]);
+
+    const response = await action(
+      volunteerArgs(`?target=volunteer-opportunity&groupGuid=${GUID}`),
+    );
+
+    expect(del).toHaveBeenCalledWith(groupsKey(GUID));
+    expect(store.has(groupsKey(GUID))).toBe(false);
+    expect(readData(response)).toEqual({
+      success: true,
+      target: 'volunteer-opportunity',
+      groupGuid: GUID,
+      deletedKeys: 1,
+    });
+  });
+
+  it('uppercases a lowercase GUID — the page loader caches under the uppercase key', async () => {
+    const { store } = seedRedis([groupsKey(GUID)]);
+
+    const response = await action(
+      volunteerArgs(
+        `?target=volunteer-opportunity&groupGuid=${GUID.toLowerCase()}`,
+      ),
+    );
+
+    expect(store.has(groupsKey(GUID))).toBe(false);
+    expect(readData(response)).toMatchObject({
+      groupGuid: GUID,
+      deletedKeys: 1,
+    });
+  });
+
+  it('leaves other opportunities and unrelated Groups entries cached', async () => {
+    const unrelatedGroupsKey = buildCacheKey('Groups', { $top: '50' });
+    const { store, del } = seedRedis([
+      groupsKey(GUID),
+      groupsKey(OTHER_GUID),
+      unrelatedGroupsKey,
+    ]);
+
+    await action(
+      volunteerArgs(`?target=volunteer-opportunity&groupGuid=${GUID}`),
+    );
+
+    expect(del).toHaveBeenCalledTimes(1);
+    expect(store.has(groupsKey(OTHER_GUID))).toBe(true);
+    expect(store.has(unrelatedGroupsKey)).toBe(true);
+    expect(mocks.deleteByPrefix).not.toHaveBeenCalled();
+    expect(mocks.invalidateItem).not.toHaveBeenCalled();
+  });
+
+  it('reports deletedKeys 0 when the opportunity was not cached', async () => {
+    seedRedis([]);
+
+    const response = await action(
+      volunteerArgs(`?target=volunteer-opportunity&groupGuid=${GUID}`),
+    );
+
+    expect(readData(response)).toMatchObject({ success: true, deletedKeys: 0 });
+  });
+
+  it.each([
+    ['missing', '?target=volunteer-opportunity'],
+    ['blank', '?target=volunteer-opportunity&groupGuid='],
+    ['not a GUID', '?target=volunteer-opportunity&groupGuid=abc'],
+    [
+      'truncated GUID',
+      '?target=volunteer-opportunity&groupGuid=AAAAAAAA-BBBB-CCCC-DDDD',
+    ],
+  ])(
+    'returns 400 and deletes nothing when groupGuid is %s',
+    async (_, search) => {
+      const { del } = seedRedis([groupsKey(GUID)]);
+
+      const response = await action(volunteerArgs(search));
+
+      expect(readStatus(response)).toBe(400);
+      expect(del).not.toHaveBeenCalled();
+    },
+  );
+
+  it('rejects target together with id — callers must pick one', async () => {
+    const { del } = seedRedis([groupsKey(GUID)]);
+
+    const response = await action(
+      volunteerArgs(`?id=10&target=volunteer-opportunity&groupGuid=${GUID}`),
+    );
+
+    expect(readStatus(response)).toBe(400);
+    expect(del).not.toHaveBeenCalled();
+    expect(mocks.invalidateItem).not.toHaveBeenCalled();
+  });
+
+  it('returns 401 before any Redis call on a bad secret', async () => {
+    const { del } = seedRedis([groupsKey(GUID)]);
+
+    const response = await action(
+      volunteerArgs(
+        `?target=volunteer-opportunity&groupGuid=${GUID}`,
+        'wrong-secret',
+      ),
+    );
+
+    expect(readStatus(response)).toBe(401);
+    expect(del).not.toHaveBeenCalled();
+  });
+
+  it('returns 503 instead of reporting success when Redis is unavailable', async () => {
+    const response = await action(
+      volunteerArgs(`?target=volunteer-opportunity&groupGuid=${GUID}`),
+    );
+
+    expect(readStatus(response)).toBe(503);
+    expect(readData(response)).toEqual({
+      success: false,
+      error: 'cache_unavailable',
+    });
+  });
+
+  it('returns a JSON 500 when the Redis delete throws', async () => {
+    mocks.redis = {
+      pipeline: vi.fn(),
+      del: vi.fn().mockRejectedValue(new Error('redis blip')),
+    };
+
+    const response = await action(
+      volunteerArgs(`?target=volunteer-opportunity&groupGuid=${GUID}`),
+    );
 
     expect(readStatus(response)).toBe(500);
     expect(readData(response)).toEqual({

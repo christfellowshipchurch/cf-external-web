@@ -1,10 +1,15 @@
 import { type ActionFunction, type LoaderFunction, data } from 'react-router';
 import redis from '~/lib/.server/redis-config';
 import {
+  buildCacheKey,
   collectItemCacheFootprint,
   deleteByPrefix,
   invalidateItem,
 } from '~/lib/.server/cache-utils';
+import {
+  GUID_RE,
+  missionGroupRequest,
+} from '~/routes/volunteer/outreach-opportunity/outreach-mission-rock.server';
 
 const MAX_RETURNED_CACHE_KEYS = 100;
 
@@ -35,6 +40,11 @@ function isAuthorized(request: Request): boolean {
  *   locations (During the Week), events, page-builder, ministry-builder and
  *   studies. Cannot be combined with `id`; a blank `target=` is ignored.
  *   Responds `{ success, target, deletedKeys }`.
+ *
+ * POST /api/admin/cache?target=volunteer-opportunity&groupGuid=<GUID>
+ *   Deletes only the cached Rock `Groups` response behind one volunteer
+ *   opportunity page (e.g. after a `WhatToKnow` edit); the next page view
+ *   repopulates it from Rock. Responds `{ success, target, groupGuid, deletedKeys }`.
  */
 export const action: ActionFunction = async ({ request }) => {
   if (request.method !== 'POST') {
@@ -56,6 +66,32 @@ export const action: ActionFunction = async ({ request }) => {
         { error: 'Provide either id or target, not both' },
         { status: 400 },
       );
+    }
+    if (target === 'volunteer-opportunity') {
+      const rawGuid = url.searchParams.get('groupGuid')?.trim();
+      if (!rawGuid || !GUID_RE.test(rawGuid)) {
+        return data({ error: 'Missing or invalid groupGuid' }, { status: 400 });
+      }
+      // Uppercase to match the volunteer route loader, which builds the key.
+      const groupGuid = rawGuid.toUpperCase();
+      if (!redis) {
+        return data(
+          { success: false, error: 'cache_unavailable' },
+          { status: 503 },
+        );
+      }
+      try {
+        const { endpoint, queryParams } = missionGroupRequest(groupGuid);
+        const deletedKeys = await redis.del(
+          buildCacheKey(endpoint, queryParams),
+        );
+        return data({ success: true, target, groupGuid, deletedKeys });
+      } catch {
+        return data(
+          { success: false, error: 'internal_error' },
+          { status: 500 },
+        );
+      }
     }
     if (target !== 'attribute-matrices') {
       return data({ error: 'Invalid target' }, { status: 400 });
