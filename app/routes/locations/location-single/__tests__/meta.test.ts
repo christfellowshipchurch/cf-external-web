@@ -6,8 +6,12 @@ import type { LoaderReturnType } from '../loader';
  * SEO copy is approved marketing content (CFDP-4199) — the exact strings matter,
  * and the city must follow whichever campus is being rendered.
  */
-function metaFor(campusUrl: string, campusName: string) {
-  const data = { campusUrl, campusName } as LoaderReturnType;
+function metaFor(
+  campusUrl: string,
+  campusName: string,
+  seo: { seoTitle?: string; seoDescription?: string } = {},
+) {
+  const data = { campusUrl, campusName, ...seo } as LoaderReturnType;
   const descriptors = (
     meta as unknown as (args: {
       loaderData: LoaderReturnType;
@@ -71,5 +75,26 @@ describe('location single meta', () => {
     expect(title).toContain(
       'Christ Fellowship Español en Palm Beach Gardens, FL',
     );
+  });
+
+  // Short city names leave the template under SEO length targets, so marketing
+  // sets per-campus copy in Rock; it must replace the template, not be ignored.
+  it('uses the Rock campus SEO title and description when marketing sets them', () => {
+    const { title, description } = metaFor('stuart', 'Stuart', {
+      seoTitle: 'Church in Stuart, FL | Christ Fellowship Church',
+      seoDescription: 'A longer, hand-written description for Stuart.',
+    });
+
+    expect(title).toBe('Church in Stuart, FL | Christ Fellowship Church');
+    expect(description).toBe('A longer, hand-written description for Stuart.');
+  });
+
+  it('falls back to the city template when the Rock SEO fields are empty', () => {
+    const { title } = metaFor('stuart', 'Stuart', {
+      seoTitle: '',
+      seoDescription: '',
+    });
+
+    expect(title).toBe('Christ Fellowship Church | Stuart, FL');
   });
 });
