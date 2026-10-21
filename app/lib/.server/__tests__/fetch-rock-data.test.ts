@@ -16,6 +16,7 @@ import {
   patchRockData,
   deleteCacheKey,
   getRockApiBaseUrl,
+  buildRockUrl,
   isItemInDateRange,
   TTL,
 } from '../fetch-rock-data';
@@ -371,6 +372,51 @@ describe('getRockApiBaseUrl', () => {
   it('returns the configured base URL', () => {
     process.env.ROCK_API = 'https://rock.example.com/api/';
     expect(getRockApiBaseUrl()).toBe('https://rock.example.com/api/');
+  });
+});
+
+/**
+ * Helpers used to join base and endpoint differently, so delete/patch and the
+ * `/Lava/RenderTemplate` callers sent `api//Entity`. Rock tolerates that today;
+ * the v2 helper will share this join, so it must be one slash for every helper
+ * whatever ROCK_API and the endpoint look like.
+ */
+describe('buildRockUrl', () => {
+  it.each([
+    ['https://rock.example.com/api/', 'People'],
+    ['https://rock.example.com/api', 'People'],
+    ['https://rock.example.com/api/', '/People'],
+    ['https://rock.example.com/api//', '//People'],
+  ])('joins %s and %s with one slash', (base, endpoint) => {
+    process.env.ROCK_API = base;
+    expect(buildRockUrl(endpoint)).toBe('https://rock.example.com/api/People');
+  });
+
+  it.each([
+    [
+      'fetchRockData',
+      () => fetchRockData({ endpoint: '/Lava/RenderTemplate' }),
+    ],
+    ['deleteRockData', () => deleteRockData('People/1')],
+    [
+      'postRockData',
+      () => postRockData({ endpoint: '/Lava/RenderTemplate', body: '' }),
+    ],
+    ['putRockData', () => putRockData({ endpoint: 'People/1', body: {} })],
+    ['patchRockData', () => patchRockData({ endpoint: 'People/1', body: {} })],
+  ])('%s requests a URL with no double slash', async (_name, call) => {
+    (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: async () => ({}),
+      text: async () => '',
+    });
+
+    await call();
+
+    const calledUrl = (global.fetch as ReturnType<typeof vi.fn>).mock
+      .calls[0][0] as string;
+    expect(calledUrl.replace('https://', '')).not.toContain('//');
   });
 });
 

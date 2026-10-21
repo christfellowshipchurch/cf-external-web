@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import { cn } from '~/lib/utils';
 import Icon from '~/primitives/icon';
@@ -17,6 +17,20 @@ export function ChurchRoleCard({
 }) {
   const [expanded, setExpanded] = useState(false);
   const hasDescription = Boolean(role.description.trim());
+  // "Read more" only when the one-line clamp actually hides something.
+  const [isTruncated, setIsTruncated] = useState(false);
+  const descriptionRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const clamped = descriptionRef.current?.firstElementChild;
+    if (!clamped || expanded) return;
+
+    const measure = () =>
+      setIsTruncated(clamped.scrollHeight > clamped.clientHeight);
+    measure();
+    window.addEventListener('resize', measure);
+    return () => window.removeEventListener('resize', measure);
+  }, [expanded, role.description]);
 
   return (
     <div
@@ -48,20 +62,22 @@ export function ChurchRoleCard({
             {role.title}
           </p>
           {hasDescription && (
-            <HTMLRenderer
-              html={role.description}
-              className={cn(
-                'mt-1 min-w-0 text-sm text-text-secondary leading-relaxed',
-                !expanded && [
-                  'line-clamp-1',
-                  // line-clamp applies per block; CMS <p> tags must flow inline for one-line ellipsis
-                  '[&_p]:m-0',
-                  '[&_p]:inline',
-                  '[&_p+_p]:pl-1',
-                ],
-              )}
-              stripFormattingTags={!expanded}
-            />
+            <div ref={descriptionRef}>
+              <HTMLRenderer
+                html={role.description}
+                className={cn(
+                  'mt-1 min-w-0 text-sm text-text-secondary leading-relaxed',
+                  !expanded && [
+                    'line-clamp-1',
+                    // line-clamp applies per block; CMS <p> tags must flow inline for one-line ellipsis
+                    '[&_p]:m-0',
+                    '[&_p]:inline',
+                    '[&_p+_p]:pl-1',
+                  ],
+                )}
+                stripFormattingTags={!expanded}
+              />
+            </div>
           )}
         </div>
 
@@ -78,7 +94,7 @@ export function ChurchRoleCard({
         </div>
       </div>
 
-      {hasDescription && (
+      {(isTruncated || expanded) && (
         <button
           type='button'
           onClick={(e) => {

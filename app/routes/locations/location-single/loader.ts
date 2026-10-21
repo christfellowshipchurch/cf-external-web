@@ -18,6 +18,9 @@ export type LoaderReturnType = {
   campusUrl: string;
   campusName: string;
   campusImage: string;
+  /** Optional per-campus SEO overrides, edited by marketing on the Rock campus. */
+  seoTitle: string;
+  seoDescription: string;
   location: LocationViewModel;
   campusAmenities: CampusAmenity[];
   upcomingEvents: PageBuilderSection & { type: 'EVENT_COLLECTION' };
@@ -156,6 +159,10 @@ export const loader: LoaderFunction = async ({ params }) => {
     campusUrl: location.campusUrl ?? campusUrl,
     campusName: location.campusName,
     campusImage: location.campusImage,
+    seoTitle: String(campus.attributeValues?.seoTitle?.value ?? '').trim(),
+    seoDescription: String(
+      campus.attributeValues?.seoDescription?.value ?? '',
+    ).trim(),
     location,
     campusAmenities,
     upcomingEvents,
