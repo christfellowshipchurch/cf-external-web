@@ -66,9 +66,11 @@ export const meta: MetaFunction<typeof loader> = ({ loaderData: data }) => {
 
   const campusImage = locationData.campusImage?.trim();
 
+  // Rock campus SEO attributes win; the templates below are the fallback.
   return createMeta({
-    title: getLocationTitle(locationData),
-    description: getLocationDescription(locationData),
+    title: locationData.seoTitle || getLocationTitle(locationData),
+    description:
+      locationData.seoDescription || getLocationDescription(locationData),
     keywords,
     path: `/locations/${locationData.campusUrl}`,
     image: campusImage || undefined,

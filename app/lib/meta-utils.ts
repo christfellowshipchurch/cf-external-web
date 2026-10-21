@@ -25,7 +25,10 @@ function getOrigin(): string {
   }
   const env = (import.meta as { env?: Record<string, unknown> }).env;
   const envOrigin = env?.VITE_PUBLIC_ORIGIN;
-  return typeof envOrigin === 'string' ? envOrigin : '';
+  // A trailing slash in the env value would produce "//" paths in canonical URLs.
+  return typeof envOrigin === 'string'
+    ? envOrigin.trim().replace(/\/+$/, '')
+    : '';
 }
 
 export type CreateMetaOptions = {
