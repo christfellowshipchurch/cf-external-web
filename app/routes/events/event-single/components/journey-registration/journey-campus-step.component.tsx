@@ -76,8 +76,7 @@ export const JourneyCampusStep = ({
           Choose Your Preferred Campus
         </h3>
         <p className='max-w-[360px] text-sm text-neutral-default'>
-          We&apos;ll show this campus first for every session. You can change it
-          for any individual session.
+          You&apos;ll choose all of your sessions at this campus.
         </p>
       </div>
 

@@ -14,19 +14,12 @@ const JOURNEY_SESSION_WORKFLOW_TYPE_ID = '1968';
 
 /**
  * The workflow's `Group` drives the email, contact, Spanish and online logic.
- * Use the campus with the most selected sessions; on a tie, the campus of the
- * earliest session. Its earliest selected group is the primary.
+ * Registrations are one campus, so the earliest selected session's group is
+ * the primary.
  */
-const pickPrimaryGroupGuid = (selected: JourneySessionOption[]) => {
-  const byStart = [...selected].sort((a, b) =>
-    a.startsAt.localeCompare(b.startsAt),
-  );
-  const countFor = (campusId: number) =>
-    selected.filter((option) => option.campusId === campusId).length;
-  const topCount = Math.max(...selected.map((o) => countFor(o.campusId)));
-  return byStart.find((option) => countFor(option.campusId) === topCount)
+const pickPrimaryGroupGuid = (selected: JourneySessionOption[]) =>
+  [...selected].sort((a, b) => a.startsAt.localeCompare(b.startsAt))[0]
     ?.groupGuid;
-};
 
 /**
  * Journey "Plan Your Journey" sign-up. Each selected session is sent as
@@ -46,7 +39,6 @@ export const action: ActionFunction = async ({ request }) => {
     const email = field('email');
     const atCF = field('atCF');
     const reason = field('reason');
-    const hopeToGet = field('hopeToGet');
 
     if (!firstName || !lastName || !phone || !email || !atCF || !reason) {
       return data({ error: 'Missing required fields' }, { status: 400 });
@@ -98,6 +90,15 @@ export const action: ActionFunction = async ({ request }) => {
       selectedOptions.push(option);
     }
 
+    // The form keeps a registration to one campus; the confirmation email
+    // lists one campus and location, so reject a mix.
+    if (new Set(selectedOptions.map((option) => option.campusId)).size > 1) {
+      return data(
+        { error: 'Please choose all sessions at the same campus.' },
+        { status: 400 },
+      );
+    }
+
     // Childcare need is inferred from which counts are sent: only ranges with
     // 1–8 children, and only when a selected session's group offers childcare.
     const offersChildcare = selectedOptions.some(
@@ -132,7 +133,6 @@ export const action: ActionFunction = async ({ request }) => {
         AtCF: atCF,
         Reason: reason,
         LaunchSource: 'app',
-        ...(hopeToGet ? { hopetoget: hopeToGet } : {}),
         Group: pickPrimaryGroupGuid(selectedOptions) ?? '',
         ...sessionFields,
         ...childcareFields,
