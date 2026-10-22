@@ -23,6 +23,17 @@ describe('createMeta', () => {
     expect(titleEntry).toEqual({ title: `About | ${SITE_NAME}` });
   });
 
+  it('leaves the title as given when exactTitle is set', () => {
+    const meta = createMeta({
+      title: 'Christ Fellowship Español en Stuart, FL',
+      exactTitle: true,
+      description: 'Test',
+    });
+    expect(meta.find((m) => 'title' in m)).toEqual({
+      title: 'Christ Fellowship Español en Stuart, FL',
+    });
+  });
+
   it('includes description in meta and OG tags', () => {
     const meta = createMeta({ title: 'Test', description: 'Test description' });
     const descMeta = meta.find((m) => 'name' in m && m.name === 'description');
