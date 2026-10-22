@@ -33,6 +33,8 @@ function getOrigin(): string {
 
 export type CreateMetaOptions = {
   title: string;
+  /** If true, use the title exactly as given, without the site-name suffix. */
+  exactTitle?: boolean;
   description: string;
   /** Override OG/twitter image (use absolute URL for best compatibility). */
   image?: string;
@@ -63,6 +65,7 @@ type MetaDescriptor =
  */
 export function createMeta({
   title,
+  exactTitle,
   description,
   image,
   path,
@@ -73,9 +76,8 @@ export function createMeta({
   author,
   type,
 }: CreateMetaOptions): MetaDescriptor[] {
-  const fullTitle = title.includes(SITE_NAME)
-    ? title
-    : `${title} | ${SITE_NAME}`;
+  const fullTitle =
+    exactTitle || title.includes(SITE_NAME) ? title : `${title} | ${SITE_NAME}`;
   const origin = getOrigin();
   const imagePath = image ?? DEFAULT_META_IMAGE;
   const ogImage =
