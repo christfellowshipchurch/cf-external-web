@@ -36,6 +36,11 @@ Hand this to an AI agent with browser access to Rock (Claude in the browser, or 
   - Not tested: the inactive-member follow-up, because it needs a member set to Inactive by hand.
   - Cleanup done 2026-10-15: Anakin's test memberships 9236621 (Dec PBG), 9235006 (Nov PBG) and 9235007 (Oct PBG) were removed in Rock.
   - Cleanup done: 736475 was merged into 27099, and the test memberships were removed on 2026-10-13.
+- **Email formatting fixed 2026-10-22.** Registrations are now one campus (website commit 1c3754d2), so the session lines no longer repeat campus and room, which the emails already print. A pre-fix backup of the Lava was kept outside the repo.
+  - Both "Set Class Schedule…" actions now output one `<li>` per sent session with only "Session N:" / "Sesión N:" and the date and time plus "EST". The label always shows, even for one session.
+  - In the three Send actions, the Class Details "Campus" line now prints the `Group` campus. It used to print the workflow `Campus` attribute, which "Set Person Campus" sets to the person's home campus when they match an existing record. The Location line was missing `</li>`. The sender (`ConnectionsStaff` of the workflow `Campus`) is unchanged and still follows the home campus; that's a ministry decision.
+  - Checked with Rock's Lava render API against workflows 6060319, 6059217, 6060840 (online) and 6034171 (Spanish).
+  - Website side: `api.journey-sign-up.tsx` sends `Group` = the earliest selected session's group, rejects sessions at more than one campus with a 400, and no longer sends `hopetoget`.
 - Code-editor fields (Lava, email body) are Ace editors. Set them with `ace.edit(el).setValue(v, -1)`, and Rock escapes the hidden textarea automatically.
 - Gotchas found while building:
   - An action's Value field (text or attribute) only saves after focusout. Setting it from script needs `.trigger('focusout')`, or it's silently dropped on the next postback or save.
@@ -70,7 +75,7 @@ The website sends one REST launch (`Workflows/LaunchWorkflow/0?workflowTypeId=<n
 | Key                                                           | Type to create    | Notes                                                                                                                                    |
 | ------------------------------------------------------------- | ----------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
 | `FirstName`, `LastName`, `PrimaryPhoneNumber`, `EmailAddress` | (existing)        |                                                                                                                                          |
-| `AtCF`, `Reason`, `hopetoget`                                 | (existing)        | `hopetoget` is optional                                                                                                                  |
+| `AtCF`, `Reason`, `hopetoget`                                 | (existing)        | `hopetoget` is no longer sent (removed from the form 2026-10-15)                                                                         |
 | `LaunchSource`                                                | (existing)        | Always `app`                                                                                                                             |
 | `Group`                                                       | (existing, Group) | The "primary" group: most-selected campus, tie goes to the earliest session. Used only for the email, contact, Spanish and online logic. |
 | `Session1Group`, `Session2Group`, `Session3Group`             | **new**, Group    | Blank when that session wasn't picked. The number in the key is the session, so no separate `SessionN` boolean is sent.                  |

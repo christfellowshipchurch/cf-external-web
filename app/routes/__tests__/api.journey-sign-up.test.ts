@@ -250,28 +250,27 @@ describe('journey sign up action', () => {
     },
   );
 
-  // `Group` picks the confirmation email's language, contact and campus, so it
-  // must follow where most of the person's sessions are.
+  // `Group` picks the confirmation email's language, contact and campus. A
+  // registration is one campus, so the earliest session's group is primary.
   it.each([
     [
-      'all at one campus: the earliest session',
+      'the earliest session',
       { session1Group: 'oct', session3Group: 'nov' },
       'oct',
-    ],
-    [
-      'the campus with the most sessions, even if not the earliest',
-      { session1Group: 'oct', session2Group: 'esp', session3Group: 'esp' },
-      'esp',
-    ],
-    [
-      'a tie goes to the earliest session',
-      { session2Group: 'esp', session3Group: 'nov' },
-      'esp',
     ],
     ['a single session: that group', { session3Group: 'nov' }, 'nov'],
   ])('sends the primary Group: %s', async (_case, sessions, expected) => {
     await submit(sessions);
 
     expect(sentBody()?.Group).toBe(expected);
+  });
+
+  // The email prints one campus and one location, so sessions at two campuses
+  // would send a confirmation with the wrong place for some of them.
+  it('rejects sessions at more than one campus', async () => {
+    const result = await submit({ session1Group: 'oct', session2Group: 'esp' });
+
+    expect(statusOf(result)).toBe(400);
+    expect(postRockWorkflowLaunchWithApiInitiator).not.toHaveBeenCalled();
   });
 });
