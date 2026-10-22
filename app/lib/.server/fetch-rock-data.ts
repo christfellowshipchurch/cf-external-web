@@ -120,6 +120,8 @@ interface FetchRockDataOptions {
   filterByDateRange?: boolean;
   /** When true, merge $filter with Status eq 'Approved' */
   filterByStatusApproved?: boolean;
+  /** Logs raw and parsed date boundaries for diagnosing Rock timezone issues. */
+  debugDateRange?: boolean;
 }
 
 /**
@@ -284,6 +286,52 @@ const applyDateRangeFilter = <T>(data: T, now: Date): T | [] => {
   return data;
 };
 
+const toValidIsoString = (value: string | undefined): string | null => {
+  if (!value) return null;
+
+  const parsedDate = parseRockDateTime(value);
+  return isNaN(parsedDate.getTime()) ? null : parsedDate.toISOString();
+};
+
+const logDateRangeDebug = (
+  data: unknown,
+  now: Date,
+  source: 'cache' | 'rock',
+  queryParams: RockQueryParams,
+): void => {
+  const items = Array.isArray(data) ? data : [data];
+
+  console.warn('[ROCK-DATE-RANGE]', {
+    source,
+    attributeKey: queryParams.attributeKey,
+    lookupValue: queryParams.value,
+    processTimeZone: process.env.TZ,
+    resolvedTimeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+    serverNow: now.toISOString(),
+    rockNow: toRockDateTimeLiteral(now),
+    items: items.slice(0, 5).map((item) => {
+      const rockItem = item as ItemWithDateRange & {
+        id?: number;
+        Id?: number;
+        title?: string;
+        Title?: string;
+      };
+      const startDateTime = rockItem.startDateTime ?? rockItem.StartDateTime;
+      const expireDateTime = rockItem.expireDateTime ?? rockItem.ExpireDateTime;
+
+      return {
+        id: rockItem.id ?? rockItem.Id,
+        title: rockItem.title ?? rockItem.Title,
+        startDateTime,
+        parsedStartDateTime: toValidIsoString(startDateTime),
+        expireDateTime,
+        parsedExpireDateTime: toValidIsoString(expireDateTime),
+        isInDateRange: isItemInDateRange(rockItem, now),
+      };
+    }),
+  });
+};
+
 export const fetchRockData = async ({
   endpoint,
   queryParams = {},
@@ -292,6 +340,7 @@ export const fetchRockData = async ({
   ttl,
   filterByDateRange = false,
   filterByStatusApproved = false,
+  debugDateRange = false,
 }: FetchRockDataOptions) => {
   assertByIdEndpointHasNoIgnoredParams(endpoint, queryParams);
 
@@ -346,8 +395,12 @@ export const fetchRockData = async ({
       const cachedData = await redis.get(cacheKey);
       if (cachedData) {
         const parsedData = JSON.parse(cachedData);
+        const now = new Date();
+        if (debugDateRange && shouldFilterDateRangeInMemory) {
+          logDateRangeDebug(parsedData, now, 'cache', queryParams);
+        }
         return shouldFilterDateRangeInMemory
-          ? applyDateRangeFilter(parsedData, new Date())
+          ? applyDateRangeFilter(parsedData, now)
           : parsedData;
       }
     } catch {
@@ -391,6 +444,11 @@ export const fetchRockData = async ({
       .then((data: unknown) =>
         Array.isArray(data) && data?.length === 1 ? data[0] : data,
       );
+
+    const now = new Date();
+    if (debugDateRange && shouldFilterDateRangeInMemory) {
+      logDateRangeDebug(data, now, 'rock', queryParams);
+    }
 
     // Cache the response if Redis is available and TTL > 0
     if (redis && effectiveTtl > 0) {
@@ -437,7 +495,7 @@ export const fetchRockData = async ({
     }
 
     return shouldFilterDateRangeInMemory
-      ? applyDateRangeFilter(data, new Date())
+      ? applyDateRangeFilter(data, now)
       : data;
   } catch (error) {
     console.error('Error fetching rock data:', error);

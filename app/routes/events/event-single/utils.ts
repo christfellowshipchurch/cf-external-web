@@ -14,6 +14,7 @@ export const fetchEventData = async (eventPath: string) => {
       loadAttributes: 'simple',
     },
     filterByDateRange: true,
+    debugDateRange: true,
   });
 
   if (!rockData || rockData.length === 0) {
