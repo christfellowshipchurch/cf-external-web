@@ -89,6 +89,18 @@ describe('location single meta', () => {
     expect(description).toBe('A longer, hand-written description for Stuart.');
   });
 
+  // CFE titles say "Christ Fellowship Español", not the site name, so they used
+  // to get " | Christ Fellowship Church" appended past marketing's length target.
+  it('uses a Rock SEO title verbatim, with no site-name suffix', () => {
+    const { title } = metaFor(
+      'iglesia-palm-beach-gardens',
+      'Christ Fellowship Español Palm Beach Gardens',
+      { seoTitle: 'Christ Fellowship Español en Palm Beach Gardens, FL' },
+    );
+
+    expect(title).toBe('Christ Fellowship Español en Palm Beach Gardens, FL');
+  });
+
   it('falls back to the city template when the Rock SEO fields are empty', () => {
     const { title } = metaFor('stuart', 'Stuart', {
       seoTitle: '',
