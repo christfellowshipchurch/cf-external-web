@@ -12,7 +12,12 @@ vi.mock('../redis-config', () => ({
   },
 }));
 
-import { buildV2SearchBody, fetchRockV2, toV1Shape } from '../fetch-rock-v2';
+import {
+  buildV2SearchBody,
+  fetchRockV2,
+  requestRockV2,
+  toV1Shape,
+} from '../fetch-rock-v2';
 import redis from '../redis-config';
 
 const CAMPUS_GUID = '1b5c2e3d-4f5a-6b7c-8d9e-0f1a2b3c4d5e';
@@ -124,6 +129,65 @@ describe('ROCK_V2_ENABLED on', () => {
  * on. v2 accepts a Guid or IdKey, so a number ID in a v2 path is a bug to
  * catch in development, not a request to send.
  */
+/**
+ * A read can span several v2 calls (search, then attribute values). A failed
+ * follow-up must send the whole read to v1, never mix v1 and v2 data.
+ */
+describe('multi-call v2 reads', () => {
+  it('falls back to v1 when a follow-up call inside map fails', async () => {
+    fetchMock()
+      .mockResolvedValueOnce(okResponse({ items: [{ guid: CAMPUS_GUID }] }))
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 401,
+        json: async () => ({}),
+        text: async () => 'Unauthorized',
+      });
+    const fallback = vi.fn(async () => 'from v1');
+
+    const result = await fetchRockV2({
+      path: 'campuses/search/campus-by-url',
+      method: 'POST',
+      body: { where: 'Url == "jupiter"' },
+      map: async () => {
+        await requestRockV2({
+          path: `campuses/${CAMPUS_GUID}/attributevalues`,
+        });
+        return 'from v2';
+      },
+      fallback,
+    });
+
+    expect(result).toBe('from v1');
+    expect(global.fetch).toHaveBeenCalledTimes(2);
+  });
+});
+
+/**
+ * The prototype is checked by reading the dev server's console, so in
+ * development every v2 read is compared with v1, and the page still gets v2.
+ */
+describe('v1 comparison in development', () => {
+  it('logs the fields where v2 differs from v1 and returns the v2 result', async () => {
+    vi.stubEnv('NODE_ENV', 'development');
+    fetchMock().mockResolvedValueOnce(
+      okResponse({ name: 'Jupiter', phoneNumber: '561' }),
+    );
+
+    const result = await fetchRockV2({
+      path: `campuses/${CAMPUS_GUID}`,
+      map: (data) => data,
+      fallback: async () => ({ name: 'Jupiter', phoneNumber: '562', id: 7 }),
+    });
+
+    expect(result).toEqual({ name: 'Jupiter', phoneNumber: '561' });
+    const output = String(warnSpy.mock.calls[0][0]);
+    expect(output).toContain('1 differences');
+    expect(output).toContain('phoneNumber: v1="562" v2="561"');
+    expect(output).toContain('Only in v1: id');
+  });
+});
+
 describe('number IDs in v2 paths', () => {
   it('throws outside production without calling Rock', async () => {
     await expect(
