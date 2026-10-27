@@ -15,6 +15,7 @@ import {
 import { useFetcher } from 'react-router';
 import { ContactUsLoaderReturnType } from '~/routes/contact-us/types';
 import { pushFormEvent } from '~/lib/gtm';
+import { HoneypotFields } from '~/primitives/inputs/honeypot-fields';
 
 interface ContactUsFormProps {
   onSuccess: () => void;
@@ -28,6 +29,7 @@ const ContactUsForm: React.FC<ContactUsFormProps> = ({ onSuccess }) => {
   const [campuses, setCampuses] = useState<
     ContactUsLoaderReturnType['campuses']
   >([]);
+  const [formStartedAt, setFormStartedAt] = useState<number>();
 
   useEffect(() => {
     fetcher.load('/contact-us');
@@ -38,7 +40,9 @@ const ContactUsForm: React.FC<ContactUsFormProps> = ({ onSuccess }) => {
       setLoading(false);
 
       if ('campuses' in fetcher.data) {
-        setCampuses((fetcher.data as ContactUsLoaderReturnType).campuses);
+        const loaderData = fetcher.data as ContactUsLoaderReturnType;
+        setCampuses(loaderData.campuses);
+        setFormStartedAt(loaderData.formStartedAt);
       } else if ('error' in fetcher.data) {
         setError(fetcher.data.error || 'An unexpected error occurred');
       } else {
@@ -259,6 +263,8 @@ const ContactUsForm: React.FC<ContactUsFormProps> = ({ onSuccess }) => {
             You must agree to continue
           </RadixFormErrorMessage>
         </Form.Field>
+
+        <HoneypotFields startedAt={formStartedAt} />
 
         {error && <p className='text-alert col-span-2 text-center'>{error}</p>}
 
