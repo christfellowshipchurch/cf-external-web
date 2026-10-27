@@ -11,4 +11,5 @@ export type ContactFormType = {
 
 export type ContactUsLoaderReturnType = {
   campuses: { guid: string; name: string }[];
+  formStartedAt: number;
 };

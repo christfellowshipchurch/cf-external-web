@@ -12,7 +12,10 @@ export const loader: LoaderFunction = async () => {
     },
   });
 
-  const data: ContactUsLoaderReturnType = { campuses };
+  const data: ContactUsLoaderReturnType = {
+    campuses,
+    formStartedAt: Date.now(),
+  };
 
   return <ContactUsLoaderReturnType>data;
 };
