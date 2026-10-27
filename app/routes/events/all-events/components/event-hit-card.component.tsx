@@ -11,6 +11,7 @@ function getEventHitLocation(
   hit: ContentItemHit,
   multipleLabel = 'Multiple Locations',
 ) {
+  if (hit.isOffsite) return 'Off-site';
   return hit.eventLocations && hit.eventLocations.length > 1
     ? multipleLabel
     : hit.eventLocations?.[0] ||

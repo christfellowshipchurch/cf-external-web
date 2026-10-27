@@ -54,6 +54,7 @@ export const FeaturedEventCard = ({ card }: { card: ContentItemHit }) => {
     eventCardDescription,
     eventsFeaturedCardSubtitle,
     eventLocations,
+    isOffsite,
     locations,
     summary,
     url,
@@ -68,8 +69,9 @@ export const FeaturedEventCard = ({ card }: { card: ContentItemHit }) => {
       : '';
   const description =
     eventsFeaturedCardSubtitle || eventCardDescription || summary;
-  const campus =
-    eventLocations && eventLocations.length > 1
+  const campus = isOffsite
+    ? 'Off-site'
+    : eventLocations && eventLocations.length > 1
       ? 'Multiple Locations'
       : eventLocations?.[0] ||
         (locations && locations.length > 1
