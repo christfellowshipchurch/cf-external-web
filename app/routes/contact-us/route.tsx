@@ -14,7 +14,13 @@ export default function ContactUsPage() {
       {isSuccess ? (
         <ContactUsConfirmation />
       ) : (
-        <ContactUsForm onSuccess={() => setIsSuccess(true)} />
+        <ContactUsForm
+          onSuccess={() => {
+            setIsSuccess(true);
+            // The confirmation is much shorter than the form, so bring it into view.
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+          }}
+        />
       )}
     </div>
   );
