@@ -11,8 +11,8 @@ import { buildRockUrl, isPreviewMode } from './fetch-rock-data';
  * v2 call fails, so turning v2 on can never take a page down.
  */
 
-// TODO: temporary for local testing; restore the ROCK_V2_ENABLED check before merging.
-export const isRockV2Enabled = (): boolean => true;
+export const isRockV2Enabled = (): boolean =>
+  process.env.ROCK_V2_ENABLED === 'true';
 
 /** One attribute as v2's `/{id}/attributevalues` returns it. */
 export interface RockV2AttributeValue {
