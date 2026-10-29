@@ -54,6 +54,7 @@ export function FeaturedEventsFromHits({ hits }: { hits: ContentItemHit[] }) {
 }
 
 function getFeaturedEventLocation(hit: ContentItemHit) {
+  if (hit.isOffsite) return 'Off-site';
   return hit.eventLocations && hit.eventLocations.length > 1
     ? 'Multiple Locations'
     : hit.eventLocations?.[0] ||

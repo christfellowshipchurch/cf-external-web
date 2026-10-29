@@ -4,7 +4,7 @@ What changed and why.
 
 ## Ticket
 
-CFDP-____ (or N/A)
+CFDP-XXXX (or N/A)
 
 ## Risk tier
 
