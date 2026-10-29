@@ -40,6 +40,7 @@ export interface ContentItemHit {
   eventCardDescription?: string;
   eventsFeaturedCardSubtitle?: string;
   eventIsFeatured?: boolean;
+  isOffsite?: boolean;
   locations?: {
     name: string;
   }[];
