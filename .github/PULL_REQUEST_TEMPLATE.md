@@ -1,49 +1,47 @@
 ## Summary
 
-Provide a summary of the changes. Why are these changes necessary?
+What changed and why.
 
-## Screenshots
+## Ticket
 
-[Paste your screenshots here]
+CFDP-XXXX (or N/A)
+
+## Risk tier
+
+<!-- Low: copy, styles, docs, component-only. Medium: most loader, action and UI feature work. High: Rock writes or workflow launches, auth and sessions, cache invalidation, search index config, env files or task definitions, CI workflows. -->
+
+- [ ] Low
+- [ ] Medium
+- [ ] High
+
+Why (which files put it in this tier):
+
+## For the reviewer
+
+A short explainer of the change: where to start reading and anything that isn't obvious from the diff.
 
 ## Testing
 
-- [ ] What steps can someone follow to verify functionality? (Write out checklist of steps to test)
-- [ ] Was any new linter/type/test errors/warnings(run `pnpm check` for linter/type/prettier check and `pnpm test` for running tests)?
+Steps for a reviewer who hasn't seen the change, each with its expected result:
 
-## Tickets
+1.
 
-[insert Jira ticket reference here]
+Not tested, and why:
 
-## Changes Made
+Check output (`pnpm check`, `pnpm test`):
 
-### New Components Added
+```
+paste here
+```
 
-- List any new React components created
-- Include file paths and brief descriptions
+## How to revert
 
-### New Utilities
+<!-- Usually "revert this PR". Say if it also needs data, config or env changes undone (Rock records, workflows, env vars). -->
 
-- List any new utility functions or helper components
-- Include file paths and descriptions
+## Known gaps / follow-ups
 
-### New Assets
+- Anything not done, not verified, or waiting on someone else
 
-- List any new images, animations, or other static assets
-- Include file paths and descriptions
+## Screenshots
 
-### Dependencies
-
-- List any new dependencies added to package.json
-- Include version numbers
-
-### Route Implementation
-
-- List any new routes or route modifications
-- Include file paths and descriptions
-
-### Key Features
-
-- Highlight the main features implemented
-- Focus on user-facing functionality
-- Include any performance optimizations or accessibility improvements
+<!-- For UI changes. Delete if none. -->
