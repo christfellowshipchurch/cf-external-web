@@ -66,17 +66,17 @@ describe('buildJourneySessionOptions', () => {
   });
 
   // Production runs in UTC. At 11:30 PM ET it is already the next day in UTC;
-  // reading Rock's offset-less values as UTC would lock a session that is
-  // still 15 minutes away, or offer one that started 15 minutes ago.
-  // Past sessions stay in the list so a group's dates still line up by month.
+  // reading Rock's offset-less values as UTC would close the walk-in window
+  // on a session that is still 15 minutes away. Past sessions stay in the
+  // list so a group's dates still line up by month.
   it('judges past sessions in Eastern time across the midnight-UTC rollover', () => {
     const now = new Date('2026-10-13T03:30:00Z'); // Oct 12, 11:30 PM EDT
     const options = buildJourneySessionOptions({
       groups: [
         makeGroup({
-          classOne: '2026-10-12T23:15:00', // started 15 min ago (ET)
-          classTwo: '2026-10-12T23:45:00', // 15 min from now (ET)
-          classThree: '2026-10-19T09:00:00',
+          classOne: '2026-10-12T20:00:00', // 3.5 hours ago (ET) — window closed
+          classTwo: '2026-10-12T23:15:00', // 15 min ago (ET) — still open
+          classThree: '2026-10-12T23:45:00', // 15 min from now (ET)
         }),
       ],
       sessionCounts: noCounts,
@@ -90,24 +90,40 @@ describe('buildJourneySessionOptions', () => {
     ]);
   });
 
+  // A walk-in who shows up after the session starts still needs to register.
+  // The option stays selectable until 3 hours after the Eastern start, then
+  // closes. The sign-up action uses the same flag, so the form and the
+  // submit check agree (CFDP-4514).
+  it('keeps a session selectable until 3 hours after it starts', () => {
+    const groups = [makeGroup({ classOne: '2026-10-12T09:45:00' })];
+    const isPast = (iso: string) =>
+      buildJourneySessionOptions({
+        groups,
+        sessionCounts: noCounts,
+        now: new Date(iso),
+      }).find((option) => option.sessionNumber === 1)?.isPast;
+
+    // 9:45 AM EDT = 13:45 UTC. Still open one minute before the window closes.
+    expect(isPast('2026-10-12T16:44:00Z')).toBe(false);
+    // Closed once 3 hours have passed (12:45 PM EDT).
+    expect(isPast('2026-10-12T16:45:00Z')).toBe(true);
+  });
+
   it('uses the standard-time offset after the November DST change', () => {
     // Nov 1 2026 is the fall-back date; 9:45 AM EST = 14:45 UTC.
+    // The walk-in window ends at 12:45 PM EST = 17:45 UTC. Reading that
+    // wall-clock as EDT would close it an hour early, at 16:45 UTC.
     const groups = [makeGroup({ classOne: '2026-11-01T09:45:00' })];
-    const justBefore = buildJourneySessionOptions({
-      groups,
-      sessionCounts: noCounts,
-      now: new Date('2026-11-01T14:44:00Z'),
-    });
-    const justAfter = buildJourneySessionOptions({
-      groups,
-      sessionCounts: noCounts,
-      now: new Date('2026-11-01T14:46:00Z'),
-    });
+    const isPast = (iso: string) =>
+      buildJourneySessionOptions({
+        groups,
+        sessionCounts: noCounts,
+        now: new Date(iso),
+      }).find((option) => option.sessionNumber === 1)?.isPast;
 
-    const session1 = (opts: typeof justBefore) =>
-      opts.find((o) => o.sessionNumber === 1)?.isPast;
-    expect(session1(justBefore)).toBe(false);
-    expect(session1(justAfter)).toBe(true);
+    expect(isPast('2026-11-01T14:44:00Z')).toBe(false);
+    expect(isPast('2026-11-01T16:50:00Z')).toBe(false);
+    expect(isPast('2026-11-01T17:46:00Z')).toBe(true);
   });
 
   it('respects the finder display window', () => {
