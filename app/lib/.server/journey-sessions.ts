@@ -13,6 +13,12 @@ export const JOURNEY_GROUP_TYPE_ID = 137;
 /** Group attribute `ClassThree` — the last session, used to pre-filter to upcoming groups. */
 const CLASS_THREE_ATTRIBUTE_ID = 225431;
 
+/**
+ * Walk-ins can still register until this long after the session starts
+ * (CFDP-4514). Same-day Journeys were closing the moment they began.
+ */
+const WALK_IN_GRACE_MS = 3 * 60 * 60 * 1000;
+
 /** Group attributes holding each session's Eastern wall-clock start. */
 const SESSION_ATTRIBUTE_KEYS: Record<JourneySessionNumber, string> = {
   1: 'classOne',
@@ -60,10 +66,10 @@ const attr = (
 const toWallClockMinutes = (value: string) => value.slice(0, 16);
 
 /**
- * Pure transform from Rock groups to session options. Flags sessions that have
- * already started as `isPast` and drops groups outside their finder display
- * window, both judged in Eastern time so a UTC server can't shift the boundary
- * (CFDP-4377).
+ * Pure transform from Rock groups to session options. Flags a session `isPast`
+ * once it started more than 3 hours ago, and drops groups
+ * outside their finder display window. Both are judged in Eastern time so a
+ * UTC server can't shift the boundary (CFDP-4377).
  */
 export function buildJourneySessionOptions({
   groups,
@@ -99,7 +105,8 @@ export function buildJourneySessionOptions({
         startsAt: toWallClockMinutes(raw),
         // Full stays off until Rock admins set a capacity on the group.
         isFull: capacity != null && capacity > 0 && taken >= capacity,
-        isPast: parseRockDateTime(raw) <= now,
+        isPast:
+          parseRockDateTime(raw).getTime() + WALK_IN_GRACE_MS <= now.getTime(),
         offersChildcare: attr(group, 'childcare').toLowerCase() === 'true',
       });
     }
@@ -117,11 +124,14 @@ async function fetchUpcomingJourneyGroups(
   now: Date,
   ttl: number,
 ): Promise<RockJourneyGroup[]> {
-  const today = toRockDateTimeLiteral(now).slice(0, 10);
+  // Date-only `ge today` drops a group at midnight even when its last session
+  // is still inside the walk-in window. Use the Eastern date of (now − grace).
+  const lookback = new Date(now.getTime() - WALK_IN_GRACE_MS);
+  const earliestClassThree = toRockDateTimeLiteral(lookback).slice(0, 10);
   const upcoming = await fetchRockData({
     endpoint: 'AttributeValues',
     queryParams: {
-      $filter: `AttributeId eq ${CLASS_THREE_ATTRIBUTE_ID} and Value ge '${today}'`,
+      $filter: `AttributeId eq ${CLASS_THREE_ATTRIBUTE_ID} and Value ge '${earliestClassThree}'`,
       $select: 'EntityId',
     },
     ttl,
