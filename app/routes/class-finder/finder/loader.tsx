@@ -3,7 +3,7 @@ import type { LoaderFunctionArgs } from 'react-router';
 import { AuthenticationError } from '~/lib/.server/error-types';
 import { createAuditedServerAlgoliaClient } from '~/lib/.server/algolia-request-audit.server';
 import { getServerAlgoliaIndexes } from '~/lib/.server/algolia-indexes.server';
-import { fetchRockData } from '~/lib/.server/fetch-rock-data';
+import { fetchDefinedValues } from '~/lib/.server/rock-defined-values';
 import type { RockContentChannelItem } from '~/lib/types/rock-types';
 import { createImageUrlFromGuid } from '~/lib/utils';
 import type { AlgoliaIndexMap } from '~/lib/algolia-indexes';
@@ -38,17 +38,13 @@ function rockAttr(item: RockClassDefinedValue, key: string): string {
 
 async function fetchRockClassDefinedValues(): Promise<RockClassDefinedValue[]> {
   try {
-    const result = (await fetchRockData({
-      endpoint: 'DefinedValues',
-      queryParams: {
-        $filter: `DefinedTypeId eq ${CLASSES_DEFINED_TYPE_ID} and IsActive eq true`,
-        $orderby: 'Order',
-        loadAttributes: 'expanded',
-      },
+    return (await fetchDefinedValues({
+      definedTypeId: CLASSES_DEFINED_TYPE_ID,
+      activeOnly: true,
+      orderBy: 'Order',
+      attributes: 'expanded',
       ttl: 300, // 5 min — admin toggles should propagate quickly
-    })) as RockClassDefinedValue[] | RockClassDefinedValue | undefined;
-
-    return Array.isArray(result) ? result : result ? [result] : [];
+    })) as RockClassDefinedValue[];
   } catch (error) {
     console.error('[class-finder] Rock defined values fetch failed', error);
     return [];

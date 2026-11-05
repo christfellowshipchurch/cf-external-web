@@ -1,4 +1,5 @@
 import { fetchRockData } from '~/lib/.server/fetch-rock-data';
+import { fetchRockEntityByGuid } from '~/lib/.server/fetch-rock-v2';
 
 /**
  * The Rock CMS ContentChannel ID that holds all podcast show items.
@@ -29,11 +30,6 @@ interface RockShowItem {
     url?: { value: string };
     showChannel?: { value: string };
   };
-}
-
-function toFirst<T>(value: T | T[] | null | undefined): T | undefined {
-  if (!value) return undefined;
-  return Array.isArray(value) ? value[0] : value;
 }
 
 /**
@@ -84,16 +80,14 @@ export async function buildPodcastRoutingIndex(): Promise<PodcastRoutingIndex> {
       }
 
       try {
-        const channelRaw = await fetchRockData({
-          endpoint: 'ContentChannels',
-          queryParams: {
-            $filter: `Guid eq guid'${episodeChannelGuid}'`,
-            $select: 'Id,Name',
-          },
+        const channelData = await fetchRockEntityByGuid<{
+          id: string | number;
+        }>({
+          v1Endpoint: 'ContentChannels',
+          v2Model: 'contentchannels',
+          guid: episodeChannelGuid,
+          select: 'Id,Name',
         });
-        const channelData = toFirst(channelRaw) as
-          | { id: string | number }
-          | undefined;
 
         if (!channelData?.id) {
           console.warn(

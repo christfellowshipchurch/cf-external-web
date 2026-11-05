@@ -160,8 +160,8 @@ describe('connect card prefill API', () => {
       endpoint: 'Campuses',
       queryParams: {
         $filter: 'IsActive eq true',
+        $select: 'Id, Name, Guid',
         $orderby: 'Order',
-        $select: 'Id,Name,Guid',
       },
       ttl: 0,
     });

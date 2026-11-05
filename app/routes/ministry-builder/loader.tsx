@@ -1,4 +1,5 @@
 import { fetchRockData } from '~/lib/.server/fetch-rock-data';
+import { fetchCampusesWithDetails } from '~/lib/.server/rock-campuses';
 import { createImageUrlFromGuid, parseRockKeyValueList } from '~/lib/utils';
 import {
   fetchChildItems,
@@ -8,22 +9,13 @@ import {
 import { MinistryService, PageBuilderLoader } from '../page-builder/types';
 import { RockCampus, RockCampuses } from '~/lib/rock-config';
 import { getAttributeMatrixItems } from '~/lib/.server/rock-utils';
-import {
-  AttributeMatrixItem,
-  RockContentChannelItem,
-} from '~/lib/types/rock-types';
+import { AttributeMatrixItem } from '~/lib/types/rock-types';
 
 export const fetchMinistryServices = async () => {
-  const allCampuses = await fetchRockData({
-    endpoint: 'Campuses',
-    queryParams: {
-      $filter: 'IsActive eq true',
-      loadAttributes: 'simple',
-    },
-  });
+  const allCampuses = await fetchCampusesWithDetails({ active: true });
 
   const campusServicesGuids = allCampuses
-    .map((campus: RockContentChannelItem) => {
+    .map((campus) => {
       return {
         name: campus.name,
         servicesGuid:

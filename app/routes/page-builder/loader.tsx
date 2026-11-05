@@ -3,11 +3,8 @@ import {
   fetchRockData,
   isItemInDateRange,
 } from '~/lib/.server/fetch-rock-data';
-import {
-  createImageUrlFromGuid,
-  getIdentifierType,
-  parseRockKeyValueList,
-} from '~/lib/utils';
+import { fetchDefinedValueByGuid } from '~/lib/.server/rock-defined-values';
+import { createImageUrlFromGuid, parseRockKeyValueList } from '~/lib/utils';
 import {
   getContentType,
   getPathname,
@@ -87,19 +84,6 @@ interface RockContentItem {
   attributeValues?: RockAttributeValues;
 }
 
-interface RockAttributeMatrixItem {
-  id: string;
-  attributeValues: {
-    header?: RockAttributeValue;
-    content?: RockAttributeValue;
-    image?: RockAttributeValue;
-    title?: RockAttributeValue;
-    summary?: RockAttributeValue;
-    cardTitle?: RockAttributeValue;
-    cardSummary?: RockAttributeValue;
-  };
-}
-
 export const fetchChildItems = async (
   id: string,
 ): Promise<RockContentItem[]> => {
@@ -135,34 +119,22 @@ export const fetchChildItems = async (
 };
 
 export const fetchDefinedValue = async (guid: string) => {
-  const definedValue = await fetchRockData({
-    endpoint: `DefinedValues/`,
-    queryParams: {
-      $filter: `Guid eq guid'${guid}'`,
-    },
-  });
+  const definedValue = await fetchDefinedValueByGuid(guid);
 
   if (!definedValue) {
     throw new Error(`Defined value not found for GUID: ${guid}`);
   }
 
-  // ensure definedValue is an array
-  const definedValueArray = Array.isArray(definedValue)
-    ? definedValue
-    : [definedValue];
-
-  if (definedValueArray.length > 0) {
-    return definedValueArray[0].value;
-  } else {
-    return '';
-  }
+  return definedValue.value ?? '';
 };
 
-const getLinkTreeLayout = async (attributeValues: RockAttributeValues) => {
+const getLinkTreeLayout = async (
+  attributeValues: RockAttributeValues,
+): Promise<PageBuilderSection['linkTreeLayout']> => {
   if (attributeValues?.linkTreeLayout) {
-    return await fetchDefinedValue(
+    return (await fetchDefinedValue(
       getStringValue(attributeValues.linkTreeLayout.value),
-    );
+    )) as PageBuilderSection['linkTreeLayout'];
   }
   return undefined;
 };
@@ -508,23 +480,8 @@ export const mapPageBuilderChildItems = async (
       }
 
       if (sectionType === 'FAQs') {
-        const { id: matrixId } = await fetchRockData({
-          endpoint: `AttributeMatrices`,
-          queryParams: {
-            $filter: `Guid eq guid'${getStringValue(
-              attributeValues?.faqs || '',
-            )}'`,
-            $select: 'Id',
-          },
-        });
-
-        const faqs = await fetchRockData({
-          endpoint: `AttributeMatrixItems`,
-          queryParams: {
-            $filter: `AttributeMatrix/${getIdentifierType(matrixId).query}`,
-            $orderby: 'Order',
-            loadAttributes: 'simple',
-          },
+        const faqs = await getAttributeMatrixItems({
+          attributeMatrixGuid: getStringValue(attributeValues?.faqs || ''),
         });
 
         return {
@@ -532,10 +489,10 @@ export const mapPageBuilderChildItems = async (
           stillHaveQuestionsLink: getStringValue(
             attributeValues?.stillHaveQuestionsLink || '',
           ),
-          faqs: faqs.map((faq: RockAttributeMatrixItem) => ({
+          faqs: faqs.map((faq) => ({
             id: faq.id,
-            question: getStringValue(faq.attributeValues.header?.value ?? ''),
-            answer: getStringValue(faq.attributeValues.content?.value ?? ''),
+            question: getStringValue(faq.attributeValues?.header?.value ?? ''),
+            answer: getStringValue(faq.attributeValues?.content?.value ?? ''),
           })),
         };
       }

@@ -1,34 +1,12 @@
 import { fetchRockData } from '~/lib/.server/fetch-rock-data';
 import { fetchWistiaDataFromRock } from '~/lib/.server/fetch-wistia-data';
 import { getAttributeMatrixItems } from '~/lib/.server/rock-utils';
+import type { RockCampus } from '~/lib/.server/rock-campuses';
 import { createImageUrlFromGuid } from '~/lib/utils';
 import type { AttributeMatrixItem } from '~/lib/types/rock-types';
 import type { LocationViewModel } from './types';
 
-type RockAttribute = {
-  value?: string | null;
-  valueFormatted?: string | null;
-};
-
-export type RockCampus = {
-  id: number;
-  guid: string;
-  leaderPersonAliasId?: number | null;
-  name: string;
-  url: string;
-  phoneNumber?: string | null;
-  serviceTimes?: string | null;
-  location?: {
-    street1?: string | null;
-    street2?: string | null;
-    city?: string | null;
-    state?: string | null;
-    postalCode?: string | null;
-    latitude?: number | null;
-    longitude?: number | null;
-  } | null;
-  attributeValues?: Record<string, RockAttribute | undefined>;
-};
+export type { RockCampus };
 
 const value = (campus: RockCampus, key: string): string =>
   String(campus.attributeValues?.[key]?.value ?? '').trim();
