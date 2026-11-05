@@ -1,6 +1,7 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 
-vi.mock('~/lib/.server/fetch-rock-data', () => ({
+vi.mock('~/lib/.server/fetch-rock-data', async (importOriginal) => ({
+  ...(await importOriginal<object>()),
   fetchRockData: vi.fn(),
 }));
 
@@ -32,7 +33,7 @@ describe('buildPodcastRoutingIndex', () => {
           title: 'Crew Cast',
           attributeValues: {
             url: { value: 'crew-cast' },
-            showChannel: { value: 'guid-crew-cast' },
+            showChannel: { value: '00000000-0000-4000-8000-000000000001' },
           },
         },
         {
@@ -40,7 +41,7 @@ describe('buildPodcastRoutingIndex', () => {
           title: 'Young + Adulting',
           attributeValues: {
             url: { value: 'young-adulting' },
-            showChannel: { value: 'guid-young-adulting' },
+            showChannel: { value: '00000000-0000-4000-8000-000000000003' },
           },
         },
       ])
@@ -69,7 +70,7 @@ describe('buildPodcastRoutingIndex', () => {
           title: 'So Good Sisterhood',
           attributeValues: {
             url: { value: '/so-good-sisterhood' },
-            showChannel: { value: 'guid-sisterhood' },
+            showChannel: { value: '00000000-0000-4000-8000-000000000002' },
           },
         },
       ])
@@ -90,7 +91,7 @@ describe('buildPodcastRoutingIndex', () => {
         id: '10',
         title: 'Broken Show',
         attributeValues: {
-          showChannel: { value: 'some-guid' },
+          showChannel: { value: '00000000-0000-4000-8000-000000000006' },
           // url is absent
         },
       },
@@ -138,7 +139,7 @@ describe('buildPodcastRoutingIndex', () => {
           title: 'Unresolvable Show',
           attributeValues: {
             url: { value: 'my-show' },
-            showChannel: { value: 'dead-guid' },
+            showChannel: { value: '00000000-0000-4000-8000-000000000000' },
           },
         },
       ])
@@ -164,7 +165,7 @@ describe('buildPodcastRoutingIndex', () => {
           title: 'First Show',
           attributeValues: {
             url: { value: 'first-show' },
-            showChannel: { value: 'shared-guid' },
+            showChannel: { value: '00000000-0000-4000-8000-000000000005' },
           },
         },
         {
@@ -172,7 +173,7 @@ describe('buildPodcastRoutingIndex', () => {
           title: 'Second Show',
           attributeValues: {
             url: { value: 'second-show' },
-            showChannel: { value: 'shared-guid' },
+            showChannel: { value: '00000000-0000-4000-8000-000000000005' },
           },
         },
       ])
@@ -221,7 +222,7 @@ describe('buildPodcastRoutingIndex', () => {
           title: 'New Brand Show',
           attributeValues: {
             url: { value: 'new-brand-show' },
-            showChannel: { value: 'new-brand-guid' },
+            showChannel: { value: '00000000-0000-4000-8000-000000000004' },
           },
         },
       ])

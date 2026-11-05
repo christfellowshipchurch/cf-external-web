@@ -1,6 +1,7 @@
 import { parse, format } from 'date-fns';
 import { AttributeMatrixItem } from '~/lib/types/rock-types';
 import { fetchRockData } from '~/lib/.server/fetch-rock-data';
+import { fetchCampusWithDetails } from '~/lib/.server/rock-campuses';
 import { SessionRegistrationCardType } from './types';
 import { icons } from '~/lib/icons';
 
@@ -39,13 +40,8 @@ export const mapSessionScheduleCards = async (
   return await Promise.all(
     sessionScheduleCardsRockItems.map(
       async (item): Promise<SessionRegistrationCardType> => {
-        const rockCampus = await fetchRockData({
-          endpoint: 'Campuses',
-          queryParams: {
-            $filter: `Guid eq guid'${item.attributeValues?.campus?.value}'`,
-            loadAttributes: 'simple',
-            $expand: 'Location',
-          },
+        const rockCampus = await fetchCampusWithDetails({
+          guid: String(item.attributeValues?.campus?.value ?? ''),
         });
 
         if (!rockCampus) {
@@ -55,13 +51,13 @@ export const mapSessionScheduleCards = async (
         }
 
         const campusAddress =
-          rockCampus.location.street1 +
+          rockCampus.location?.street1 +
           ' ' +
-          rockCampus.location.city +
+          rockCampus.location?.city +
           ' ' +
-          rockCampus.location.state +
+          rockCampus.location?.state +
           ' ' +
-          String(rockCampus.location.postalCode ?? '').substring(0, 5);
+          String(rockCampus.location?.postalCode ?? '').substring(0, 5);
 
         let title = rockCampus.name;
         let description = campusAddress;

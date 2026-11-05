@@ -1,7 +1,7 @@
 import { ActionFunction, data } from 'react-router';
 import { SetAReminderType } from './types';
-import { fetchRockData, postRockData } from '~/lib/.server/fetch-rock-data';
-import { escapeOData } from '~/lib/.server/rock-utils';
+import { postRockData } from '~/lib/.server/fetch-rock-data';
+import { fetchCampuses } from '~/lib/.server/rock-campuses';
 
 export const action: ActionFunction = async ({ request }) => {
   try {
@@ -13,13 +13,10 @@ export const action: ActionFunction = async ({ request }) => {
     const beenToCFB =
       typeof beenToCF === 'string' && beenToCF.toLowerCase() === 'true';
 
-    const getCampusGuid: { guid: string } = await fetchRockData({
-      endpoint: 'Campuses',
-      queryParams: {
-        $filter: `Name eq '${escapeOData(campus as string)}'`,
-        $select: 'Guid',
-      },
-    });
+    const [getCampusGuid] = await fetchCampuses<{ guid: string }>(
+      { name: String(campus ?? '') },
+      ['Guid'],
+    );
 
     const formSubmission: SetAReminderType = {
       FirstName: firstName as string,

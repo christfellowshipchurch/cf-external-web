@@ -1,4 +1,5 @@
 import { fetchRockData, TTL } from './fetch-rock-data';
+import { fetchCampusesWithDetails } from './rock-campuses';
 import { parseRockDateTime, toRockDateTimeLiteral } from './rock-datetime';
 import type {
   JourneyCampus,
@@ -196,17 +197,10 @@ async function fetchSessionCounts(
 
 async function fetchCampuses(campusIds: number[]): Promise<JourneyCampus[]> {
   if (campusIds.length === 0) return [];
-  const campuses = toArray<RockCampus>(
-    await fetchRockData({
-      endpoint: 'Campuses',
-      queryParams: {
-        $filter: 'IsActive eq true',
-        $expand: 'Location',
-        loadAttributes: 'simple',
-      },
-      ttl: TTL.LONG,
-    }),
-  );
+  const campuses = (await fetchCampusesWithDetails(
+    { active: true },
+    TTL.LONG,
+  )) as RockCampus[];
   const ids = new Set(campusIds);
   return campuses
     .filter((campus) => ids.has(campus.id))

@@ -234,6 +234,49 @@ Read and inherits the controller's grant.
 `ContentChannelItemAttributeValues` or `PersonAttributeValues`. Check the
 collection's exact name in **Admin Tools › Settings › Model Map**.
 
+## Step 1 (CFDP-4478): simple cached reads
+
+Every Campus, Defined Value, Content Channel, Media Element and Attribute
+Matrix read on the site now goes through one shared helper with its v1 call
+as the fallback:
+
+| Helper                                      | File                     | v2 calls                                                                                                        |
+| ------------------------------------------- | ------------------------ | --------------------------------------------------------------------------------------------------------------- |
+| `fetchCampuses` (dropdowns, Guid/Name → Id) | `rock-campuses.ts`       | search `cf-web-campuses`                                                                                        |
+| `fetchCampusesWithDetails` / `…WithDetails` | `rock-campuses.ts`       | search, then `/attributevalues` and `locations/{guid}` per campus                                               |
+| `fetchDefinedValues` / `…ByGuid`            | `rock-defined-values.ts` | `GET definedvalues/{guid}`, or search `cf-web-defined-values`; `/attributevalues` when attributes are asked for |
+| `fetchRockEntityByGuid` (channels, media)   | `fetch-rock-v2.ts`       | `GET contentchannels/{guid}`, `GET mediaelements/{guid}`                                                        |
+| `getAttributeMatrixItems`                   | `rock-utils.ts`          | search `cf-web-attribute-matrix-items`, then `/attributevalues` per item                                        |
+
+Malformed Guids now return nothing without calling Rock, on v1 and v2.
+
+**Rock setup still to do** (none of it exists yet, so every read below falls
+back to v1 until it does):
+
+| Where                                                                                                  | Permission for apollos                         |
+| ------------------------------------------------------------------------------------------------------ | ---------------------------------------------- |
+| Entity Search `cf-web-campuses` (Campus, refinement on, max 50, all sections off)                      | Execute › Allow                                |
+| Entity Search `cf-web-defined-values` (Defined Value, refinement on, max 100, all sections off)        | Execute › Allow                                |
+| Entity Search `cf-web-attribute-matrix-items` (Attribute Matrix Item, refinement on, max 200, all off) | Execute › Allow                                |
+| v2 DefinedValues, ContentChannels, MediaElements, AttributeMatrixItems controllers                     | Execute Read › Allow                           |
+| `GET …/{id}/attributevalues` on DefinedValues and AttributeMatrixItems                                 | Check the action's own dialog, as for Campuses |
+
+`cf-web-campus-by-url` is no longer called (the location page uses
+`cf-web-campuses`). Delete it once this ships.
+
+**To confirm on the first run:**
+
+- `Guid == "…"` in a search `where` (string to Guid comparison).
+- `AttributeMatrix.Guid == "…"` (navigation property in a `where`).
+- `limit` (hero actions ask for 2) and `sort: "Order desc"`. This is the first
+  read that pages, so it settles `V2_PAGING_FIELDS`.
+- Calls per page: a details read is 1 + 2 per campus (about 30 for the active
+  list), a matrix is 1 + 1 per item. All are cached, but the dream team
+  buckets read uses `TTL.NONE`, so it runs 1 + N v2 calls per request.
+
+The admin `target=attribute-matrices` flush also clears
+`v2/models/attributematrixitems/*`.
+
 ## Expected differences between v1 and v2
 
 These showed up on both pages. None affected what the pages display.

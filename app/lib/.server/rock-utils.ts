@@ -3,8 +3,18 @@ import {
   attributeProps,
   attributeValuesProps,
 } from '../types/rock-types';
-import { createImageUrlFromGuid } from '~/lib/utils';
+import { createImageUrlFromGuid, normalize } from '~/lib/utils';
 import { fetchRockData } from './fetch-rock-data';
+import {
+  buildV2SearchBody,
+  escapeDynamicLinq,
+  fetchRockV2,
+  getSearchItems,
+  isRockGuid,
+  requestRockV2,
+  toV1Shape,
+  type RockV2AttributeValue,
+} from './fetch-rock-v2';
 import { AttributeMatrix } from '../types/rock-types';
 
 /**
@@ -52,11 +62,57 @@ export const getImages = ({
  */
 const MATRIX_ITEM_BATCH_SIZE = 20;
 
+/** Entity Search: Attribute Matrix Item, refinement allowed, max 200, no fixed Where. */
+export const MATRIX_ITEMS_SEARCH_KEY = 'cf-web-attribute-matrix-items';
+
+/**
+ * v2 read of a matrix's items: search by the matrix Guid, then each item's
+ * attribute values (1 + N calls, cached).
+ */
+export const matrixItemsV2Read = (attributeMatrixGuid: string) => ({
+  path: `attributematrixitems/search/${MATRIX_ITEMS_SEARCH_KEY}`,
+  method: 'POST' as const,
+  body: buildV2SearchBody({
+    where: `AttributeMatrix.Guid == "${escapeDynamicLinq(attributeMatrixGuid)}"`,
+    select: 'new (Id, Guid, Order)',
+    sort: 'Order',
+  }),
+  map: (data: unknown): Promise<AttributeMatrixItem[]> =>
+    Promise.all(
+      getSearchItems(data).map(async (item) => {
+        const { guid } = normalize(item) as { guid: string };
+        const attributeValues = await requestRockV2({
+          path: `attributematrixitems/${guid}/attributevalues`,
+        });
+        return toV1Shape(
+          item,
+          attributeValues as Record<string, RockV2AttributeValue>,
+        ) as unknown as AttributeMatrixItem;
+      }),
+    ),
+});
+
+/** A matrix's items with attribute values, in matrix Order. Empty on any failure. */
 export const getAttributeMatrixItems = async ({
   attributeMatrixGuid,
 }: {
   attributeMatrixGuid: string;
 }): Promise<AttributeMatrixItem[]> => {
+  const guid = attributeMatrixGuid.trim();
+  if (!isRockGuid(guid)) {
+    console.warn(`Attribute matrix guid is malformed: ${guid}`);
+    return [];
+  }
+
+  return fetchRockV2({
+    ...matrixItemsV2Read(guid),
+    fallback: () => getAttributeMatrixItemsV1(guid),
+  });
+};
+
+const getAttributeMatrixItemsV1 = async (
+  attributeMatrixGuid: string,
+): Promise<AttributeMatrixItem[]> => {
   try {
     const attributeMatrix: AttributeMatrix = await fetchRockData({
       endpoint: `AttributeMatrices`,

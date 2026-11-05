@@ -1,4 +1,5 @@
 import { fetchRockData } from '~/lib/.server/fetch-rock-data';
+import { fetchDefinedValues } from '~/lib/.server/rock-defined-values';
 import { LoaderFunctionArgs } from 'react-router';
 import { createImageUrlFromGuid, ensureArray } from '~/lib/utils';
 import { mapRockDataToMessage } from '../messages/message-single/loader';
@@ -36,13 +37,7 @@ const getAttrValue = (
 
 const getSeries = async (seriesPath: string) => {
   const fetchSeries = isGuid(seriesPath)
-    ? await fetchRockData({
-        endpoint: 'DefinedValues',
-        queryParams: {
-          $filter: `Guid eq guid'${seriesPath}'`,
-          loadAttributes: 'simple',
-        },
-      })
+    ? await fetchDefinedValues({ guid: seriesPath, attributes: 'simple' })
     : await fetchRockData({
         endpoint: 'DefinedValues/GetByAttributeValue',
         queryParams: {

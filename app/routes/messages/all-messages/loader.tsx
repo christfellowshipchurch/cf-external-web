@@ -3,7 +3,7 @@ import type { LoaderFunctionArgs } from 'react-router';
 import { createAuditedServerAlgoliaClient } from '~/lib/.server/algolia-request-audit.server';
 import { getServerAlgoliaIndexes } from '~/lib/.server/algolia-indexes.server';
 import { AuthenticationError } from '~/lib/.server/error-types';
-import { fetchRockData } from '~/lib/.server/fetch-rock-data';
+import { fetchDefinedValueByGuid } from '~/lib/.server/rock-defined-values';
 import type { AlgoliaIndexMap } from '~/lib/algolia-indexes';
 import type { ContentItemHit } from '~/routes/search/types';
 
@@ -72,13 +72,10 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         : null;
 
     if (currentSeriesHit?.sermonSeriesGuid) {
-      const seriesData = await fetchRockData({
-        endpoint: `DefinedValues/`,
-        queryParams: {
-          $filter: `Guid eq guid'${currentSeriesHit.sermonSeriesGuid}'`,
-          loadAttributes: 'simple',
-        },
-      });
+      const seriesData = await fetchDefinedValueByGuid(
+        currentSeriesHit.sermonSeriesGuid,
+        { attributes: 'simple' },
+      );
       currentSeriesUrl = seriesData?.attributeValues?.url?.value || '';
     }
   } catch (error) {

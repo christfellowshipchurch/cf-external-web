@@ -13,6 +13,7 @@ import {
   parsePhoneNumberUtil,
 } from './authentication/sms-authentication';
 import { updatePerson } from './rock-person';
+import { fetchCampuses } from './rock-campuses';
 import { escapeOData } from './rock-utils';
 
 export interface SignupPersonInput {
@@ -173,19 +174,14 @@ export const updateRockPersonCampusForSignup = async (
   personId: string,
   campusIdentifier: string,
 ): Promise<void> => {
-  const campusFilter = ROCK_GUID_RE.test(campusIdentifier)
-    ? `Guid eq guid'${escapeOData(campusIdentifier)}'`
-    : `Name eq '${escapeOData(campusIdentifier)}'`;
-
   const [campusResult, personResult] = await Promise.all([
-    fetchRockData({
-      endpoint: 'Campuses',
-      queryParams: {
-        $filter: campusFilter,
-        $select: 'Id',
-      },
-      ttl: TTL.NONE,
-    }),
+    fetchCampuses<{ id?: number }>(
+      ROCK_GUID_RE.test(campusIdentifier)
+        ? { guid: campusIdentifier }
+        : { name: campusIdentifier },
+      ['Id'],
+      TTL.NONE,
+    ),
     fetchRockData({
       endpoint: 'People',
       queryParams: {
@@ -195,7 +191,7 @@ export const updateRockPersonCampusForSignup = async (
       ttl: TTL.NONE,
     }),
   ]);
-  const campus = Array.isArray(campusResult) ? campusResult[0] : campusResult;
+  const [campus] = campusResult;
   const person = Array.isArray(personResult) ? personResult[0] : personResult;
 
   if (!campus?.id) {
@@ -312,16 +308,11 @@ export const launchGroupSignupWorkflow = async (
 const resolveRockCampusGuidByName = async (
   campusName: string,
 ): Promise<string> => {
-  const result = await fetchRockData({
-    endpoint: 'Campuses',
-    queryParams: {
-      $filter: `Name eq '${escapeOData(campusName)}'`,
-      $select: 'Guid',
-    },
-    ttl: TTL.NONE,
-  });
-
-  const record = Array.isArray(result) ? result[0] : result;
+  const [record] = await fetchCampuses<{ guid?: unknown }>(
+    { name: campusName },
+    ['Guid'],
+    TTL.NONE,
+  );
   if (!record?.guid || typeof record.guid !== 'string') {
     throw new Error(`Campus not found in Rock: "${campusName}"`);
   }

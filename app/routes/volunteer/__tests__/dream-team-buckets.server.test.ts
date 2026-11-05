@@ -5,7 +5,8 @@ vi.mock('~/lib/.server/fetch-rock-data', () => ({
   TTL: { DEFAULT: 3600, SHORT: 600, LONG: 86400, NONE: 0 },
 }));
 
-vi.mock('~/lib/utils', () => ({
+vi.mock('~/lib/utils', async (importOriginal) => ({
+  ...(await importOriginal<object>()),
   createImageUrlFromGuid: (guid: string) =>
     `https://cdn.example.com/GetImage.ashx?guid=${guid}`,
 }));

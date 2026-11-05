@@ -6,7 +6,7 @@ import {
   TTL,
 } from '~/lib/.server/fetch-rock-data';
 import { findOrCreateRockPersonForSignup } from '~/lib/.server/rock-signup';
-import { escapeOData } from '~/lib/.server/rock-utils';
+import { fetchCampuses } from '~/lib/.server/rock-campuses';
 
 const GROUP_ROLE_ID = 379;
 const PENDING_GROUP_MEMBER_STATUS = 2;
@@ -92,15 +92,11 @@ export const action: ActionFunction = async ({ request }) => {
       );
     }
 
-    const campusResult = await fetchRockData({
-      endpoint: 'Campuses',
-      queryParams: {
-        $filter: `Guid eq guid'${escapeOData(Campus)}'`,
-        $select: 'Id',
-      },
-      ttl: TTL.NONE,
-    });
-    const campus = getFirstRecord<CampusLookupResult>(campusResult);
+    const [campus] = await fetchCampuses<CampusLookupResult>(
+      { guid: Campus },
+      ['Id'],
+      TTL.NONE,
+    );
 
     if (!campus?.id) {
       return Response.json(

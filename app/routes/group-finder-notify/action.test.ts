@@ -29,7 +29,7 @@ const createRequest = ({
   lastName = 'Person',
   email = 'test@example.com',
   phone = '5555555555',
-  campus = 'campus-guid-10',
+  campus = '0f3a9c2e-1b4d-4e5f-8a6b-7c8d9e0f1a2b',
 }: {
   firstName?: string;
   lastName?: string;
@@ -90,6 +90,17 @@ describe('group finder notify action', () => {
     expect(mockPostRockData).not.toHaveBeenCalled();
   });
 
+  it('never sends a malformed campus guid to Rock', async () => {
+    mockFetchRockData.mockReset();
+
+    const response = (await action({
+      request: createRequest({ campus: "x' or 1 eq 1" }),
+    } as ActionFunctionArgs)) as Response;
+
+    expect(response.status).toBe(400);
+    expect(mockFetchRockData).not.toHaveBeenCalled();
+  });
+
   it('rejects unmapped campus ids', async () => {
     mockFetchRockData.mockReset();
     mockFetchRockData.mockResolvedValueOnce({ id: 999 });
@@ -140,7 +151,7 @@ describe('group finder notify action', () => {
     expect(mockFetchRockData).toHaveBeenNthCalledWith(1, {
       endpoint: 'Campuses',
       queryParams: {
-        $filter: "Guid eq guid'campus-guid-10'",
+        $filter: "Guid eq guid'0f3a9c2e-1b4d-4e5f-8a6b-7c8d9e0f1a2b'",
         $select: 'Id',
       },
       ttl: 0,

@@ -1,6 +1,7 @@
 import { LoaderFunctionArgs } from 'react-router';
 import { PodcastEpisode, PodcastShow, RockChannelItem } from '../types';
 import { fetchRockData } from '~/lib/.server/fetch-rock-data';
+import { fetchRockEntityByGuid } from '~/lib/.server/fetch-rock-v2';
 import { toRockDateTimeLiteral } from '~/lib/.server/rock-datetime';
 import { createImageUrlFromGuid } from '~/lib/utils';
 import {
@@ -25,19 +26,18 @@ export type LoaderReturnType = {
 export async function getChannelIdByGuid(channelGuid: string) {
   let channel;
   try {
-    channel = await fetchRockData({
-      endpoint: 'ContentChannels',
-      queryParams: {
-        $filter: `Guid eq guid'${channelGuid}'`,
-        $select: 'Id',
-      },
+    channel = await fetchRockEntityByGuid<{ id: number }>({
+      v1Endpoint: 'ContentChannels',
+      v2Model: 'contentchannels',
+      guid: channelGuid,
+      select: 'Id',
     });
   } catch {
     throw new Error('Error fetching channel from Rock');
   }
 
-  if (Array.isArray(channel)) {
-    channel = channel[0];
+  if (!channel) {
+    throw new Error('Error fetching channel from Rock');
   }
 
   return channel.id;

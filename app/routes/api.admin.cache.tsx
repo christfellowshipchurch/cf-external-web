@@ -35,8 +35,8 @@ function isAuthorized(request: Request): boolean {
  * Channel id is not required — Rock ContentChannelItem ids are globally unique.
  *
  * POST /api/admin/cache?target=attribute-matrices
- *   Flushes every cached Attribute Matrix (`AttributeMatrices` and
- *   `AttributeMatrixItems`). Site-wide: this also clears matrix data used by
+ *   Flushes every cached Attribute Matrix (`AttributeMatrices`,
+ *   `AttributeMatrixItems` and their Rock v2 reads). Site-wide: this also clears matrix data used by
  *   locations (During the Week), events, page-builder, ministry-builder and
  *   studies. Cannot be combined with `id`; a blank `target=` is ignored.
  *   Responds `{ success, target, deletedKeys }`.
@@ -103,11 +103,13 @@ export const action: ActionFunction = async ({ request }) => {
       );
     }
     try {
-      // Both prefixes: the parent `$expand` lists which item ids exist, the
+      // Both v1 prefixes: the parent `$expand` lists which item ids exist, the
       // items carry the values — flushing only one leaves add/remove stale.
+      // v2 keys sit under per-item paths, so they're matched with a glob.
       const deletedKeys =
         (await deleteByPrefix(redis, 'AttributeMatrices')) +
-        (await deleteByPrefix(redis, 'AttributeMatrixItems'));
+        (await deleteByPrefix(redis, 'AttributeMatrixItems')) +
+        (await deleteByPrefix(redis, 'v2/models/attributematrixitems/*'));
       return data({ success: true, target, deletedKeys });
     } catch {
       return data({ success: false, error: 'internal_error' }, { status: 500 });

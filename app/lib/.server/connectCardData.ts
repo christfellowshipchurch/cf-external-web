@@ -1,4 +1,5 @@
-import { fetchRockData } from '~/lib/.server/fetch-rock-data';
+import { fetchCampuses } from '~/lib/.server/rock-campuses';
+import { fetchDefinedValues } from '~/lib/.server/rock-defined-values';
 
 export type ConnectCardDataType = {
   campuses: string[];
@@ -7,22 +8,16 @@ export type ConnectCardDataType = {
 
 export const fetchConnectCardData = async () => {
   const ALL_THAT_APPLIES_ID = 389; //Rock Define Type ID
-  const rockDefineTypes = await fetchRockData({
-    endpoint: 'DefinedValues',
-    queryParams: {
-      $filter: `DefinedTypeId eq ${ALL_THAT_APPLIES_ID}`,
-      $select: 'Guid, Value',
-    },
+  const rockDefineTypes = await fetchDefinedValues<
+    ConnectCardDataType['allThatApplies'][number]
+  >({
+    definedTypeId: ALL_THAT_APPLIES_ID,
+    fields: ['Guid', 'Value'],
   });
 
-  const campuses = await fetchRockData({
-    endpoint: 'Campuses',
-    queryParams: {
-      $filter: 'IsActive eq true',
-      $orderby: 'Order',
-      $select: 'Name',
-    },
-  });
+  const campuses = await fetchCampuses<{ name: string }>({ active: true }, [
+    'Name',
+  ]);
 
   const formData: ConnectCardDataType = {
     campuses: campuses.map((campus: { name: string }) => campus.name),

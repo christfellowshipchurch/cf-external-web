@@ -3,7 +3,7 @@ import mapValues from 'lodash/mapValues';
 import { normalize } from '~/lib/utils';
 import redis from './redis-config';
 import { buildCacheKey, TTL, type TTLValue } from './cache-utils';
-import { buildRockUrl, isPreviewMode } from './fetch-rock-data';
+import { buildRockUrl, fetchRockData, isPreviewMode } from './fetch-rock-data';
 
 /**
  * Rock REST v2 (`/api/v2/models/...`) reads, run beside the v1 helpers.
@@ -238,4 +238,53 @@ export const fetchRockV2 = async <T>({
     console.error('⚠️ Rock v2 request failed, using v1 fallback:', error);
     return fallback();
   }
+};
+
+const ROCK_GUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** Guids go into v2 paths and `where` strings, so check the format first. */
+export const isRockGuid = (value: string): boolean => ROCK_GUID_RE.test(value);
+
+interface EntityByGuidOptions {
+  /** v1 endpoint, e.g. `ContentChannels` */
+  v1Endpoint: string;
+  /** v2 model path, e.g. `contentchannels` */
+  v2Model: string;
+  guid: string;
+  /** v1 `$select`; v2 GETs always return every field. */
+  select?: string;
+  ttl?: TTLValue;
+}
+
+/**
+ * One record by Guid: v2 `GET {model}/{guid}`, falling back to v1's
+ * `$filter=Guid eq guid'…'`. Null when the Guid is malformed or nothing matches.
+ */
+export const fetchRockEntityByGuid = async <T = Record<string, unknown>>({
+  v1Endpoint,
+  v2Model,
+  guid,
+  select,
+  ttl,
+}: EntityByGuidOptions): Promise<T | null> => {
+  const trimmed = guid.trim();
+  if (!isRockGuid(trimmed)) return null;
+
+  return fetchRockV2<T | null>({
+    path: `${v2Model}/${trimmed}`,
+    ttl,
+    map: (data) => toV1Shape(data as Record<string, unknown>) as T,
+    fallback: async () => {
+      const result = await fetchRockData({
+        endpoint: v1Endpoint,
+        queryParams: {
+          $filter: `Guid eq guid'${trimmed}'`,
+          ...(select && { $select: select }),
+        },
+        ttl,
+      });
+      return ((Array.isArray(result) ? result[0] : result) ?? null) as T | null;
+    },
+  });
 };

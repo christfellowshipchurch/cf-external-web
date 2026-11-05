@@ -1,27 +1,26 @@
 import { LoaderFunction } from 'react-router';
-import { fetchRockData } from '~/lib/.server/fetch-rock-data';
+import { fetchCampuses, type CampusOption } from '~/lib/.server/rock-campuses';
+import { fetchDefinedValues } from '~/lib/.server/rock-defined-values';
 import { ConnectCardLoaderReturnType } from './types';
 
 export const loader: LoaderFunction = async () => {
   // All That Applies Checkboxes
   const ALL_THAT_APPLIES_ID = 389; //Rock Define Type ID
-  const rockDefineTypes = await fetchRockData({
-    endpoint: 'DefinedValues',
-    queryParams: {
-      $filter: `DefinedTypeId eq ${ALL_THAT_APPLIES_ID} and IsActive eq true`,
-      $select: 'Guid, Value',
-    },
+  const rockDefineTypes = await fetchDefinedValues<{
+    guid: string;
+    value: string;
+  }>({
+    definedTypeId: ALL_THAT_APPLIES_ID,
+    activeOnly: true,
+    fields: ['Guid', 'Value'],
   });
 
   // Campuses
-  const campuses = await fetchRockData({
-    endpoint: 'Campuses',
-    queryParams: {
-      $filter: 'IsActive eq true',
-      $orderby: 'Order',
-      $select: 'Name, Guid, Url',
-    },
-  });
+  const campuses = await fetchCampuses<CampusOption>({ active: true }, [
+    'Name',
+    'Guid',
+    'Url',
+  ]);
 
   const data: ConnectCardLoaderReturnType = {
     campuses: campuses,
