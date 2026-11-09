@@ -1,6 +1,14 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 const redisStore = vi.hoisted(() => new Map<string, string>());
+const rockV2 = vi.hoisted(() => ({ enabled: true }));
+
+vi.mock('~/lib/rock-config', async (importOriginal) => ({
+  ...(await importOriginal<object>()),
+  get ROCK_V2_ENABLED() {
+    return rockV2.enabled;
+  },
+}));
 
 vi.mock('../redis-config', () => ({
   default: {
@@ -39,7 +47,7 @@ beforeEach(() => {
   redisStore.clear();
   process.env.ROCK_API = 'https://rock.example.com/api/';
   process.env.ROCK_TOKEN = 'test-token';
-  process.env.ROCK_V2_ENABLED = 'true';
+  rockV2.enabled = true;
   vi.stubEnv('NODE_ENV', 'test');
   global.fetch = vi.fn();
   errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
@@ -56,9 +64,9 @@ afterEach(() => {
  * v2 ships dark: with the flag off, a page must behave exactly as it does on
  * v1 today, never touching the v2 endpoints.
  */
-describe('ROCK_V2_ENABLED off', () => {
+describe('Rock v2 off', () => {
   it('runs only the v1 fallback and never calls Rock v2', async () => {
-    process.env.ROCK_V2_ENABLED = 'false';
+    rockV2.enabled = false;
     const fallback = vi.fn(async () => ({ name: 'from v1' }));
 
     const result = await fetchRockV2({
@@ -73,7 +81,7 @@ describe('ROCK_V2_ENABLED off', () => {
   });
 });
 
-describe('ROCK_V2_ENABLED on', () => {
+describe('Rock v2 on', () => {
   it('reads /api/v2/models with the REST key and returns the mapped result', async () => {
     fetchMock().mockResolvedValueOnce(
       okResponse({ name: 'Palm Beach Gardens' }),

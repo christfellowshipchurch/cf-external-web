@@ -105,11 +105,14 @@ export const action: ActionFunction = async ({ request }) => {
     try {
       // Both v1 prefixes: the parent `$expand` lists which item ids exist, the
       // items carry the values — flushing only one leaves add/remove stale.
-      // v2 keys sit under per-item paths, so they're matched with a glob.
+      // The v2 read is one saved search, so one endpoint covers it.
       const deletedKeys =
         (await deleteByPrefix(redis, 'AttributeMatrices')) +
         (await deleteByPrefix(redis, 'AttributeMatrixItems')) +
-        (await deleteByPrefix(redis, 'v2/models/attributematrixitems/*'));
+        (await deleteByPrefix(
+          redis,
+          'v2/models/attributematricesitem/search/attributematricesitem',
+        ));
       return data({ success: true, target, deletedKeys });
     } catch {
       return data({ success: false, error: 'internal_error' }, { status: 500 });

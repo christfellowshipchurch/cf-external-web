@@ -3,7 +3,7 @@ import {
   attributeProps,
   attributeValuesProps,
 } from '../types/rock-types';
-import { createImageUrlFromGuid, normalize } from '~/lib/utils';
+import { createImageUrlFromGuid } from '~/lib/utils';
 import { fetchRockData } from './fetch-rock-data';
 import {
   buildV2SearchBody,
@@ -11,9 +11,9 @@ import {
   fetchRockV2,
   getSearchItems,
   isRockGuid,
-  requestRockV2,
-  toV1Shape,
-  type RockV2AttributeValue,
+  projectedToV1Shape,
+  searchPath,
+  selectAttributeValues,
 } from './fetch-rock-v2';
 import { AttributeMatrix } from '../types/rock-types';
 
@@ -62,34 +62,30 @@ export const getImages = ({
  */
 const MATRIX_ITEM_BATCH_SIZE = 20;
 
-/** Entity Search: Attribute Matrix Item, refinement allowed, max 200, no fixed Where. */
-export const MATRIX_ITEMS_SEARCH_KEY = 'cf-web-attribute-matrix-items';
+/** Rock's v2 route name for AttributeMatrixItem (and its saved search's key). */
+export const MATRIX_ITEMS_V2_MODEL = 'attributematricesitem';
 
-/**
- * v2 read of a matrix's items: search by the matrix Guid, then each item's
- * attribute values (1 + N calls, cached).
- */
+/** v2 read of a matrix's items with their attribute values, in one search. */
 export const matrixItemsV2Read = (attributeMatrixGuid: string) => ({
-  path: `attributematrixitems/search/${MATRIX_ITEMS_SEARCH_KEY}`,
+  path: searchPath(MATRIX_ITEMS_V2_MODEL),
   method: 'POST' as const,
   body: buildV2SearchBody({
     where: `AttributeMatrix.Guid == "${escapeDynamicLinq(attributeMatrixGuid)}"`,
-    select: 'new (Id, Guid, Order)',
-    sort: 'Order',
+    select: `new (Id, Guid, Order, AttributeMatrix.Guid as MatrixGuid, ${selectAttributeValues('AttributeMatrixItem')})`,
+    sort: 'Order, Id',
   }),
-  map: (data: unknown): Promise<AttributeMatrixItem[]> =>
-    Promise.all(
-      getSearchItems(data).map(async (item) => {
-        const { guid } = normalize(item) as { guid: string };
-        const attributeValues = await requestRockV2({
-          path: `attributematrixitems/${guid}/attributevalues`,
-        });
-        return toV1Shape(
-          item,
-          attributeValues as Record<string, RockV2AttributeValue>,
-        ) as unknown as AttributeMatrixItem;
-      }),
-    ),
+  map: (data: unknown): AttributeMatrixItem[] => {
+    const rows = getSearchItems(data).map((row) =>
+      projectedToV1Shape<AttributeMatrixItem & { matrixGuid?: string }>(row),
+    );
+    // A search whose `where` Rock ignored returns other matrices' items:
+    // send the read to v1 rather than show another matrix's content.
+    const wanted = attributeMatrixGuid.toLowerCase();
+    if (rows.some((row) => String(row.matrixGuid).toLowerCase() !== wanted)) {
+      throw new Error('Matrix item search returned items of another matrix');
+    }
+    return rows.map(({ matrixGuid: _matrixGuid, ...row }) => row);
+  },
 });
 
 /** A matrix's items with attribute values, in matrix Order. Empty on any failure. */

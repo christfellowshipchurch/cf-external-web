@@ -7,6 +7,14 @@ import {
   fetchCampusesWithDetails,
 } from '../rock-campuses';
 
+const rockV2 = vi.hoisted(() => ({ enabled: false }));
+
+vi.mock('~/lib/rock-config', async (importOriginal) => ({
+  ...(await importOriginal<object>()),
+  get ROCK_V2_ENABLED() {
+    return rockV2.enabled;
+  },
+}));
 vi.mock('../redis-config', () => ({ default: null }));
 vi.mock('../fetch-rock-data', async (importOriginal) => ({
   ...(await importOriginal<object>()),
@@ -22,6 +30,7 @@ const LOCATION_GUID = 'location-guid';
 
 beforeEach(() => {
   vi.clearAllMocks();
+  rockV2.enabled = false;
   vi.spyOn(console, 'error').mockImplementation(() => {});
 });
 
@@ -32,7 +41,7 @@ afterEach(() => {
 
 /** fetchRockV2 calls its own requestRockV2, so v2-on tests stub fetch itself. */
 const stubRockV2Fetch = (fetchMock: ReturnType<typeof vi.fn>) => {
-  vi.stubEnv('ROCK_V2_ENABLED', 'true');
+  rockV2.enabled = true;
   vi.stubEnv('NODE_ENV', 'test');
   vi.stubEnv('ROCK_API', 'https://rock.example.com/api/');
   vi.stubGlobal('fetch', fetchMock);
@@ -44,14 +53,14 @@ const stubRockV2Fetch = (fetchMock: ReturnType<typeof vi.fn>) => {
  */
 describe('campusDetailsV2Read', () => {
   beforeEach(() => {
-    vi.mocked(requestRockV2).mockImplementation(async ({ path }) =>
-      path === `campuses/${CAMPUS_GUID}/attributevalues`
-        ? { MapLink: { value: 'https://maps.example', textValue: 'Map' } }
-        : { Street1: '5343 Northlake Blvd', Latitude: 26.8, Longitude: -80.1 },
-    );
+    vi.mocked(requestRockV2).mockResolvedValue({
+      Street1: '5343 Northlake Blvd',
+      Latitude: 26.8,
+      Longitude: -80.1,
+    });
   });
 
-  it('combines the search hit, attribute values and Location into the v1 shape', async () => {
+  it('combines the search hit, its projected attribute values and Location into the v1 shape', async () => {
     const [campus] = await campusDetailsV2Read({ url: 'jupiter' }).map({
       count: 1,
       items: [
@@ -61,13 +70,23 @@ describe('campusDetailsV2Read', () => {
           Name: 'Jupiter',
           Url: 'jupiter',
           LocationGuid: LOCATION_GUID,
+          AttributeValues: [
+            {
+              Key: 'MapLink',
+              Value: 'https://maps.example',
+              TextValue: 'Map',
+            },
+          ],
         },
       ],
     });
 
+    // Attribute values ride in the search; Location is the only follow-up.
+    expect(requestRockV2).toHaveBeenCalledTimes(1);
     expect(requestRockV2).toHaveBeenCalledWith({
       path: `locations/${LOCATION_GUID}`,
     });
+    expect(campus).not.toHaveProperty('locationGuid');
     expect(campus).toMatchObject({
       id: 7,
       guid: CAMPUS_GUID,
@@ -100,6 +119,12 @@ describe('campusDetailsV2Read', () => {
     );
     expect(campusDetailsV2Read({ name: 'a"b' }).body.where).toBe(
       'Name == "a\\"b"',
+    );
+  });
+
+  it('projects Campus attribute values into the search select', () => {
+    expect(campusDetailsV2Read({ url: 'jupiter' }).body.select).toContain(
+      'CampusAttributeValues.Select(',
     );
   });
 
@@ -160,7 +185,7 @@ describe('fetchCampuses', () => {
     ).resolves.toEqual([{ name: 'Jupiter', guid: CAMPUS_GUID }]);
     const [url, init] = vi.mocked(global.fetch).mock.calls[0];
     expect(url).toBe(
-      'https://rock.example.com/api/v2/models/campuses/search/cf-web-campuses',
+      'https://rock.example.com/api/v2/models/campuses/search/campuses',
     );
     expect(JSON.parse(String(init?.body))).toEqual({
       where: 'IsActive == true',

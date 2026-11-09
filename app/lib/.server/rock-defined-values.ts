@@ -1,4 +1,4 @@
-import { ensureArray, normalize } from '~/lib/utils';
+import { ensureArray } from '~/lib/utils';
 import type { TTLValue } from './cache-utils';
 import { fetchRockData } from './fetch-rock-data';
 import {
@@ -7,9 +7,9 @@ import {
   fetchRockV2,
   getSearchItems,
   isRockGuid,
-  requestRockV2,
-  toV1Shape,
-  type RockV2AttributeValue,
+  projectedToV1Shape,
+  searchPath,
+  selectAttributeValues,
 } from './fetch-rock-v2';
 import { escapeOData } from './rock-utils';
 
@@ -17,9 +17,6 @@ import { escapeOData } from './rock-utils';
  * Defined Value reads for the whole site. Each runs on Rock v2 with the v1
  * call it replaced as the fallback (see docs/architecture/rock-v2-setup.md).
  */
-
-/** Entity Search: Defined Value, refinement allowed, max 100, no fixed Where. */
-export const DEFINED_VALUES_SEARCH_KEY = 'cf-web-defined-values';
 
 /** Fields a read can select. Add one here before selecting it. */
 export type DefinedValueField =
@@ -112,55 +109,30 @@ const fetchV1 = async (query: DefinedValueQuery) =>
     }),
   ).filter(Boolean) as RockDefinedValue[];
 
-const withAttributeValues = async (
-  entity: Record<string, unknown>,
-  query: DefinedValueQuery,
-): Promise<RockDefinedValue> => {
-  if (!query.attributes) return toV1Shape(entity) as RockDefinedValue;
-
-  const { guid } = normalize(entity) as { guid: string };
-  const attributeValues = await requestRockV2({
-    path: `definedvalues/${guid}/attributevalues`,
-    ttl: query.ttl,
-  });
-  return toV1Shape(
-    entity,
-    attributeValues as Record<string, RockV2AttributeValue>,
-  ) as RockDefinedValue;
-};
-
-/**
- * A lone Guid lookup is a plain GET; anything that filters by type or
- * active state goes through the Entity Search.
- */
+/** Every read is one `definedvalues` search, attribute values included. */
 export const definedValuesV2Read = (query: DefinedValueQuery) => {
-  const isGuidOnly =
-    !!query.guid && query.definedTypeId === undefined && !query.activeOnly;
-
-  if (isGuidOnly) {
-    return {
-      path: `definedvalues/${query.guid}`,
-      ttl: query.ttl,
-      map: async (data: unknown) => [
-        await withAttributeValues(data as Record<string, unknown>, query),
-      ],
-    };
-  }
+  const fields = (query.fields ?? ALL_FIELDS).join(', ');
 
   return {
-    path: `definedvalues/search/${DEFINED_VALUES_SEARCH_KEY}`,
+    path: searchPath('definedvalues'),
     method: 'POST' as const,
     body: buildV2SearchBody({
       where: toV2Where(query),
-      select: `new (${(query.fields ?? ALL_FIELDS).join(', ')})`,
+      select: query.attributes
+        ? `new (${fields}, ${selectAttributeValues('DefinedValue')})`
+        : `new (${fields})`,
       ...(query.orderBy && { sort: query.orderBy }),
       ...(query.limit !== undefined && { limit: query.limit }),
     }),
     ttl: query.ttl,
-    map: (data: unknown) =>
-      Promise.all(
-        getSearchItems(data).map((item) => withAttributeValues(item, query)),
-      ),
+    map: (data: unknown): RockDefinedValue[] => {
+      const items = getSearchItems(data);
+      // A Guid lookup that misses goes to v1 rather than hiding a value that exists.
+      if (query.guid && !items.length) {
+        throw new Error(`No defined value matched ${query.guid}`);
+      }
+      return items.map((item) => projectedToV1Shape<RockDefinedValue>(item));
+    },
   };
 };
 

@@ -7,9 +7,11 @@ import {
   fetchRockV2,
   getSearchItems,
   isRockGuid,
+  projectedToV1Shape,
   requestRockV2,
+  searchPath,
+  selectAttributeValues,
   toV1Shape,
-  type RockV2AttributeValue,
 } from './fetch-rock-v2';
 import { escapeOData } from './rock-utils';
 
@@ -17,9 +19,6 @@ import { escapeOData } from './rock-utils';
  * Campus reads for the whole site. Each runs on Rock v2 with the v1 call it
  * replaced as the fallback (see docs/architecture/rock-v2-setup.md).
  */
-
-/** Entity Search: Campus, refinement allowed, max 50, no fixed Where. */
-export const CAMPUSES_SEARCH_KEY = 'cf-web-campuses';
 
 export type CampusFilter =
   | { active: true }
@@ -91,7 +90,7 @@ export const fetchCampuses = async <T = Record<string, unknown>>(
   if (isUnmatchable(filter)) return [];
 
   return fetchRockV2<T[]>({
-    path: `campuses/search/${CAMPUSES_SEARCH_KEY}`,
+    path: searchPath('campuses'),
     method: 'POST',
     body: buildV2SearchBody({
       where: toV2Where(filter),
@@ -116,15 +115,14 @@ export const fetchCampuses = async <T = Record<string, unknown>>(
 };
 
 /**
- * IdKey and Location.Latitude are computed, not columns, so the search selects
- * Guids and the follow-up GETs return attribute values and the full Location.
+ * Attribute values come in the search itself. Location.Latitude is computed,
+ * not a column, so the Location comes from a follow-up GET by Guid.
  */
-const CAMPUS_DETAILS_SELECT =
-  'new (Id, Guid, Name, Url, PhoneNumber, ServiceTimes, LeaderPersonAliasId, Location.Guid as LocationGuid)';
+const CAMPUS_DETAILS_SELECT = `new (Id, Guid, Name, Url, PhoneNumber, ServiceTimes, LeaderPersonAliasId, Location.Guid as LocationGuid, ${selectAttributeValues('Campus')})`;
 
-/** v2 read of campuses with attribute values and Location (1 + 2 calls each). */
+/** v2 read of campuses with attribute values and Location (1 + 1 call each). */
 export const campusDetailsV2Read = (filter: CampusFilter, ttl?: TTLValue) => ({
-  path: `campuses/search/${CAMPUSES_SEARCH_KEY}`,
+  path: searchPath('campuses'),
   method: 'POST' as const,
   body: buildV2SearchBody({
     where: toV2Where(filter),
@@ -142,22 +140,15 @@ export const campusDetailsV2Read = (filter: CampusFilter, ttl?: TTLValue) => ({
 
     return Promise.all(
       items.map(async (found) => {
-        const { guid, locationGuid } = normalize(found) as {
-          guid: string;
-          locationGuid?: string;
-        };
-        const [attributeValues, location] = await Promise.all([
-          requestRockV2({ path: `campuses/${guid}/attributevalues`, ttl }),
-          locationGuid
-            ? requestRockV2({ path: `locations/${locationGuid}`, ttl })
-            : Promise.resolve(null),
-        ]);
+        const { locationGuid, ...campus } = projectedToV1Shape<
+          RockCampus & { locationGuid?: string }
+        >(found);
+        const location = locationGuid
+          ? await requestRockV2({ path: `locations/${locationGuid}`, ttl })
+          : null;
 
         return {
-          ...toV1Shape(
-            found,
-            attributeValues as Record<string, RockV2AttributeValue>,
-          ),
+          ...campus,
           location: location ? normalize(location) : null,
         } as RockCampus;
       }),

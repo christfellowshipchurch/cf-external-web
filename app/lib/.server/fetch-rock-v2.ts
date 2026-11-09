@@ -1,5 +1,6 @@
 import isEqual from 'lodash/isEqual';
 import mapValues from 'lodash/mapValues';
+import { ROCK_V2_ENABLED } from '~/lib/rock-config';
 import { normalize } from '~/lib/utils';
 import redis from './redis-config';
 import { buildCacheKey, TTL, type TTLValue } from './cache-utils';
@@ -7,12 +8,12 @@ import { buildRockUrl, fetchRockData, isPreviewMode } from './fetch-rock-data';
 
 /**
  * Rock REST v2 (`/api/v2/models/...`) reads, run beside the v1 helpers.
- * Every call carries a v1 fallback: it runs when ROCK_V2_ENABLED is off or the
+ * Every call carries a v1 fallback: it runs when `ROCK_V2_ENABLED` (in
+ * `rock-config.ts`) is off or the
  * v2 call fails, so turning v2 on can never take a page down.
  */
 
-export const isRockV2Enabled = (): boolean =>
-  process.env.ROCK_V2_ENABLED === 'true';
+export const isRockV2Enabled = (): boolean => ROCK_V2_ENABLED;
 
 /** One attribute as v2's `/{id}/attributevalues` returns it. */
 export interface RockV2AttributeValue {
@@ -67,6 +68,35 @@ export const toV1Shape = (
     ),
   }),
 });
+
+/**
+ * One saved Entity Search per entity, keyed by its v2 route name, with query
+ * refinement on so the caller owns the `where`. Shared with My Groups.
+ */
+export const searchPath = (model: string): string => `${model}/search/${model}`;
+
+/**
+ * Selects an entity's attribute values inside a search, so reads need no
+ * per-record `/attributevalues` call (or its Unrestricted Read grant).
+ * `entityName` is the C# name, e.g. `Campus`, `DefinedValue`.
+ */
+export const selectAttributeValues = (entityName: string): string =>
+  `${entityName}AttributeValues.Select(av => new (av.Key, av.Value, av.PersistedTextValue as TextValue)) as AttributeValues`;
+
+/** Converts a search row that selected `selectAttributeValues` to the v1 shape. */
+export const projectedToV1Shape = <T = Record<string, unknown>>(
+  row: Record<string, unknown>,
+): T => {
+  const { attributeValues, ...entity } = normalize(row) as {
+    attributeValues?: (RockV2AttributeValue & { key: string })[];
+  };
+  return toV1Shape(
+    entity,
+    Object.fromEntries(
+      (attributeValues ?? []).map(({ key, ...value }) => [key, value]),
+    ),
+  ) as T;
+};
 
 /** Escapes a value for a double-quoted string in an Entity Search `where`. */
 export const escapeDynamicLinq = (value: string): string =>
@@ -249,17 +279,21 @@ export const isRockGuid = (value: string): boolean => ROCK_GUID_RE.test(value);
 interface EntityByGuidOptions {
   /** v1 endpoint, e.g. `ContentChannels` */
   v1Endpoint: string;
-  /** v2 model path, e.g. `contentchannels` */
+  /** v2 route name, e.g. `contentchannels` */
   v2Model: string;
   guid: string;
-  /** v1 `$select`; v2 GETs always return every field. */
+  /**
+   * Fields to read, e.g. `Id, Name`. Given, v2 reads through the entity's
+   * saved search (for controllers granted only `search/{searchKey}`); omitted,
+   * it's a plain `GET {model}/{guid}` returning every field.
+   */
   select?: string;
   ttl?: TTLValue;
 }
 
 /**
- * One record by Guid: v2 `GET {model}/{guid}`, falling back to v1's
- * `$filter=Guid eq guid'…'`. Null when the Guid is malformed or nothing matches.
+ * One record by Guid, falling back to v1's `$filter=Guid eq guid'…'`. Null
+ * when the Guid is malformed or nothing matches.
  */
 export const fetchRockEntityByGuid = async <T = Record<string, unknown>>({
   v1Endpoint,
@@ -271,10 +305,29 @@ export const fetchRockEntityByGuid = async <T = Record<string, unknown>>({
   const trimmed = guid.trim();
   if (!isRockGuid(trimmed)) return null;
 
+  const v2Read = select
+    ? {
+        path: searchPath(v2Model),
+        method: 'POST' as const,
+        body: buildV2SearchBody({
+          where: `Guid == "${trimmed}"`,
+          select: `new (${select})`,
+        }),
+        map: (data: unknown) => {
+          const [found] = getSearchItems(data);
+          // A miss goes to v1 rather than hiding a record that exists.
+          if (!found) throw new Error(`No ${v2Model} matched ${trimmed}`);
+          return toV1Shape(found) as T;
+        },
+      }
+    : {
+        path: `${v2Model}/${trimmed}`,
+        map: (data: unknown) => toV1Shape(data as Record<string, unknown>) as T,
+      };
+
   return fetchRockV2<T | null>({
-    path: `${v2Model}/${trimmed}`,
+    ...v2Read,
     ttl,
-    map: (data) => toV1Shape(data as Record<string, unknown>) as T,
     fallback: async () => {
       const result = await fetchRockData({
         endpoint: v1Endpoint,

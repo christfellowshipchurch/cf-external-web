@@ -6,6 +6,14 @@ import {
   fetchDefinedValues,
 } from '../rock-defined-values';
 
+const rockV2 = vi.hoisted(() => ({ enabled: false }));
+
+vi.mock('~/lib/rock-config', async (importOriginal) => ({
+  ...(await importOriginal<object>()),
+  get ROCK_V2_ENABLED() {
+    return rockV2.enabled;
+  },
+}));
 vi.mock('../redis-config', () => ({ default: null }));
 vi.mock('../fetch-rock-data', async (importOriginal) => ({
   ...(await importOriginal<object>()),
@@ -22,6 +30,7 @@ const jsonResponse = (data: unknown) => ({
 
 beforeEach(() => {
   vi.clearAllMocks();
+  rockV2.enabled = false;
   vi.spyOn(console, 'error').mockImplementation(() => {});
 });
 
@@ -31,17 +40,25 @@ afterEach(() => {
 });
 
 const stubRockV2Fetch = (fetchMock: ReturnType<typeof vi.fn>) => {
-  vi.stubEnv('ROCK_V2_ENABLED', 'true');
+  rockV2.enabled = true;
   vi.stubEnv('NODE_ENV', 'test');
   vi.stubEnv('ROCK_API', 'https://rock.example.com/api/');
   vi.stubGlobal('fetch', fetchMock);
 };
 
 describe('definedValuesV2Read', () => {
-  it('reads a lone Guid with a plain GET, no Entity Search', () => {
-    expect(definedValuesV2Read({ guid: GUID }).path).toBe(
-      `definedvalues/${GUID}`,
-    );
+  it('reads a lone Guid through the shared definedvalues search', () => {
+    const read = definedValuesV2Read({ guid: GUID });
+
+    expect(read.path).toBe('definedvalues/search/definedvalues');
+    expect(read.body.where).toBe(`Guid == "${GUID}"`);
+  });
+
+  // fetchRockV2 turns the throw into a v1 read.
+  it('throws when a Guid lookup misses', () => {
+    expect(() =>
+      definedValuesV2Read({ guid: GUID }).map({ count: 0, items: [] }),
+    ).toThrow(/No defined value matched/);
   });
 
   it('searches by type, active state and Guid together', () => {
@@ -54,7 +71,7 @@ describe('definedValuesV2Read', () => {
       fields: ['Guid', 'Value'],
     });
 
-    expect(read.path).toBe('definedvalues/search/cf-web-defined-values');
+    expect(read.path).toBe('definedvalues/search/definedvalues');
     expect(read.body).toEqual({
       where: `DefinedTypeId == 631 && IsActive == true && Guid == "${GUID}"`,
       select: 'new (Guid, Value)',
@@ -103,14 +120,22 @@ describe('fetchDefinedValues', () => {
     expect(fetchRockData).not.toHaveBeenCalled();
   });
 
-  it('adds v2 attribute values in the v1 shape', async () => {
+  it('reads attribute values in the same search, in the v1 shape', async () => {
     stubRockV2Fetch(
-      vi
-        .fn()
-        .mockResolvedValueOnce(jsonResponse({ Guid: GUID, Value: 'Series' }))
-        .mockResolvedValueOnce(
-          jsonResponse({ Url: { value: 'series-url', textValue: 'x' } }),
-        ),
+      vi.fn().mockResolvedValueOnce(
+        jsonResponse({
+          count: 1,
+          items: [
+            {
+              Guid: GUID,
+              Value: 'Series',
+              AttributeValues: [
+                { Key: 'Url', Value: 'series-url', TextValue: 'x' },
+              ],
+            },
+          ],
+        }),
+      ),
     );
 
     await expect(
@@ -120,9 +145,10 @@ describe('fetchDefinedValues', () => {
       value: 'Series',
       attributeValues: { url: { value: 'series-url', valueFormatted: 'x' } },
     });
-    expect(vi.mocked(global.fetch).mock.calls[1][0]).toBe(
-      `https://rock.example.com/api/v2/models/definedvalues/${GUID}/attributevalues`,
-    );
+    expect(global.fetch).toHaveBeenCalledTimes(1);
+    expect(
+      JSON.parse(String(vi.mocked(global.fetch).mock.calls[0][1]?.body)).select,
+    ).toContain('DefinedValueAttributeValues.Select(');
     expect(fetchRockData).not.toHaveBeenCalled();
   });
 

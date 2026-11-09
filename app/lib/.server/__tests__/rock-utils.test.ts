@@ -5,6 +5,14 @@ import {
   getAttributeMatrixItems,
 } from '../rock-utils';
 
+const rockV2 = vi.hoisted(() => ({ enabled: false }));
+
+vi.mock('~/lib/rock-config', async (importOriginal) => ({
+  ...(await importOriginal<object>()),
+  get ROCK_V2_ENABLED() {
+    return rockV2.enabled;
+  },
+}));
 vi.mock('../redis-config', () => ({ default: null }));
 vi.mock('../fetch-rock-data', async (importOriginal) => ({
   ...(await importOriginal<object>()),
@@ -258,42 +266,46 @@ describe('getAttributeMatrixItems on Rock v2', () => {
 
   beforeEach(() => {
     mockFetch.mockReset();
-    vi.stubEnv('ROCK_V2_ENABLED', 'true');
+    rockV2.enabled = true;
     vi.stubEnv('NODE_ENV', 'test');
     vi.stubEnv('ROCK_API', 'https://rock.example.com/api/');
   });
 
   afterEach(() => {
+    rockV2.enabled = false;
     vi.unstubAllEnvs();
     vi.unstubAllGlobals();
   });
 
-  it("searches items by matrix Guid in Order, then reads each one's values", async () => {
-    const fetchMock = vi
-      .fn()
-      .mockResolvedValueOnce(
-        jsonResponse({
-          count: 1,
-          items: [{ Id: 5, Guid: 'item-guid', Order: 0 }],
-        }),
-      )
-      .mockResolvedValueOnce(
-        jsonResponse({ Header: { value: 'Q?', textValue: 'Q?' } }),
-      );
+  const matrixRow = (matrixGuid: string) => ({
+    Id: 5,
+    Guid: 'item-guid',
+    Order: 0,
+    MatrixGuid: matrixGuid,
+    AttributeValues: [{ Key: 'Header', Value: 'Q?', TextValue: 'Q?' }],
+  });
+
+  it('reads the items and their values in one attributematricesitem search', async () => {
+    const fetchMock = vi.fn().mockResolvedValueOnce(
+      jsonResponse({
+        count: 1,
+        items: [matrixRow(MATRIX_GUID.toUpperCase())],
+      }),
+    );
     vi.stubGlobal('fetch', fetchMock);
 
     const items = await getAttributeMatrixItems({
       attributeMatrixGuid: MATRIX_GUID,
     });
 
-    expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual({
-      where: `AttributeMatrix.Guid == "${MATRIX_GUID}"`,
-      select: 'new (Id, Guid, Order)',
-      sort: 'Order',
-    });
-    expect(fetchMock.mock.calls[1][0]).toBe(
-      'https://rock.example.com/api/v2/models/attributematrixitems/item-guid/attributevalues',
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock.mock.calls[0][0]).toBe(
+      'https://rock.example.com/api/v2/models/attributematricesitem/search/attributematricesitem',
     );
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body);
+    expect(body.where).toBe(`AttributeMatrix.Guid == "${MATRIX_GUID}"`);
+    expect(body.select).toContain('AttributeMatrixItemAttributeValues.Select(');
+    expect(body.sort).toBe('Order, Id');
     expect(items).toEqual([
       {
         id: 5,
@@ -303,6 +315,29 @@ describe('getAttributeMatrixItems on Rock v2', () => {
       },
     ]);
     expect(mockFetch).not.toHaveBeenCalled();
+  });
+
+  // Showing another matrix's rows would put the wrong content on a page.
+  it('falls back to v1 when the search returns items of another matrix', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValueOnce(
+        jsonResponse({
+          count: 1,
+          items: [matrixRow('99999999-9999-4999-8999-999999999999')],
+        }),
+      ),
+    );
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    mockFetch.mockResolvedValueOnce(null);
+
+    await expect(
+      getAttributeMatrixItems({ attributeMatrixGuid: MATRIX_GUID }),
+    ).resolves.toEqual([]);
+    expect(mockFetch).toHaveBeenCalledWith(
+      expect.objectContaining({ endpoint: 'AttributeMatrices' }),
+    );
   });
 
   // Matrix Guids come from CMS attributes; a malformed one never reaches Rock.
