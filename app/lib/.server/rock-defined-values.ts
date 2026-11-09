@@ -7,6 +7,7 @@ import {
   fetchRockV2,
   getSearchItems,
   isRockGuid,
+  keepMatchingRows,
   projectedToV1Shape,
   searchPath,
   selectAttributeValues,
@@ -47,9 +48,9 @@ export type DefinedValueQuery = {
   activeOnly?: boolean;
   orderBy?: 'Order' | 'Order desc';
   limit?: number;
-  /** Omit for whole records. v1 only returns these; v2 GETs return all fields. */
+  /** Omit for whole records (`ALL_FIELDS` on v2). */
   fields?: DefinedValueField[];
-  /** v1's `loadAttributes`; v2 reads `/attributevalues` (values only, no definitions). */
+  /** v1's `loadAttributes`; v2 selects the values in the search (no definitions). */
   attributes?: 'simple' | 'expanded';
   ttl?: TTLValue;
 };
@@ -111,7 +112,13 @@ const fetchV1 = async (query: DefinedValueQuery) =>
 
 /** Every read is one `definedvalues` search, attribute values included. */
 export const definedValuesV2Read = (query: DefinedValueQuery) => {
-  const fields = (query.fields ?? ALL_FIELDS).join(', ');
+  const requested = query.fields ?? ALL_FIELDS;
+  // A Guid lookup always selects Guid, so the v2 rows can be checked.
+  const fields = (
+    query.guid && !requested.includes('Guid')
+      ? [...requested, 'Guid']
+      : requested
+  ).join(', ');
 
   return {
     path: searchPath('definedvalues'),
@@ -126,12 +133,17 @@ export const definedValuesV2Read = (query: DefinedValueQuery) => {
     }),
     ttl: query.ttl,
     map: (data: unknown): RockDefinedValue[] => {
-      const items = getSearchItems(data);
+      const items = query.guid
+        ? keepMatchingRows(getSearchItems(data), 'Guid', query.guid)
+        : getSearchItems(data);
       // A Guid lookup that misses goes to v1 rather than hiding a value that exists.
       if (query.guid && !items.length) {
         throw new Error(`No defined value matched ${query.guid}`);
       }
-      return items.map((item) => projectedToV1Shape<RockDefinedValue>(item));
+      // Paging field names are unconfirmed, so cap here too, as v1's `$top` did.
+      return items
+        .slice(0, query.limit)
+        .map((item) => projectedToV1Shape<RockDefinedValue>(item));
     },
   };
 };

@@ -7,6 +7,7 @@ import {
   fetchRockV2,
   getSearchItems,
   isRockGuid,
+  keepMatchingRows,
   projectedToV1Shape,
   requestRockV2,
   searchPath,
@@ -71,6 +72,21 @@ const toV2Where = (filter: CampusFilter): string => {
   return `Url == "${escapeDynamicLinq(filter.url)}"`;
 };
 
+/** The field and value a single-campus lookup must match, checked on v2 rows. */
+const lookupKey = (filter: CampusFilter): [CampusField, string] | null => {
+  if ('guid' in filter) return ['Guid', filter.guid];
+  if ('name' in filter) return ['Name', filter.name];
+  if ('url' in filter) return ['Url', filter.url];
+  return null;
+};
+
+/** Search rows for this filter, minus any row Rock returned by ignoring `where`. */
+const searchRows = (data: unknown, filter: CampusFilter) => {
+  const rows = getSearchItems(data);
+  const key = lookupKey(filter);
+  return key ? keepMatchingRows(rows, key[0], key[1]) : rows;
+};
+
 /** A malformed Guid can't match a campus; skip Rock rather than send it. */
 const isUnmatchable = (filter: CampusFilter): boolean =>
   'guid' in filter && !isRockGuid(filter.guid);
@@ -89,16 +105,21 @@ export const fetchCampuses = async <T = Record<string, unknown>>(
 ): Promise<T[]> => {
   if (isUnmatchable(filter)) return [];
 
+  // The looked-up field is always selected, so the v2 rows can be checked.
+  const key = lookupKey(filter);
+  const v2Fields =
+    key && !fields.includes(key[0]) ? [...fields, key[0]] : fields;
+
   return fetchRockV2<T[]>({
     path: searchPath('campuses'),
     method: 'POST',
     body: buildV2SearchBody({
       where: toV2Where(filter),
-      select: `new (${fields.join(', ')})`,
+      select: `new (${v2Fields.join(', ')})`,
       ...(isOrdered(filter) && { sort: 'Order' }),
     }),
     ttl,
-    map: (data) => getSearchItems(data).map((item) => toV1Shape(item) as T),
+    map: (data) => searchRows(data, filter).map((item) => toV1Shape(item) as T),
     fallback: async () =>
       ensureArray(
         await fetchRockData({
@@ -131,7 +152,7 @@ export const campusDetailsV2Read = (filter: CampusFilter, ttl?: TTLValue) => ({
   }),
   ttl,
   map: async (data: unknown): Promise<RockCampus[]> => {
-    const items = getSearchItems(data);
+    const items = searchRows(data, filter);
     // A lookup that should hit one campus throws on a miss, so a bad search
     // falls back to v1 instead of 404ing a campus that exists.
     if (!items.length && !('active' in filter)) {

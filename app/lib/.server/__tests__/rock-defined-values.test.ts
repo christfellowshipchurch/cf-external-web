@@ -82,6 +82,38 @@ describe('definedValuesV2Read', () => {
 });
 
 describe('fetchDefinedValues', () => {
+  // Rock's paging field names are unconfirmed; the hero must still show only 2.
+  it('caps v2 results at the limit even if Rock ignores it', async () => {
+    stubRockV2Fetch(
+      vi.fn().mockResolvedValueOnce(
+        jsonResponse({
+          count: 3,
+          items: [{ Value: 'a' }, { Value: 'b' }, { Value: 'c' }],
+        }),
+      ),
+    );
+
+    await expect(
+      fetchDefinedValues({ definedTypeId: 631, limit: 2, fields: ['Value'] }),
+    ).resolves.toEqual([{ value: 'a' }, { value: 'b' }]);
+  });
+
+  it('falls back to v1 when a Guid search returns another value', async () => {
+    stubRockV2Fetch(
+      vi.fn().mockResolvedValueOnce(
+        jsonResponse({
+          count: 1,
+          items: [{ Guid: '99999999-9999-4999-8999-999999999999', Value: 'x' }],
+        }),
+      ),
+    );
+    vi.mocked(fetchRockData).mockResolvedValue([{ value: 'Grid' }]);
+
+    await expect(fetchDefinedValueByGuid(GUID)).resolves.toEqual({
+      value: 'Grid',
+    });
+  });
+
   it('sends v1 the same filter, order, top, select and attributes', async () => {
     vi.mocked(fetchRockData).mockResolvedValue([]);
 

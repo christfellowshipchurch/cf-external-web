@@ -23,6 +23,8 @@ vi.mock('../redis-config', () => ({
 import {
   buildV2SearchBody,
   fetchRockV2,
+  keepMatchingRows,
+  projectedToV1Shape,
   requestRockV2,
   toV1Shape,
 } from '../fetch-rock-v2';
@@ -308,6 +310,44 @@ describe('toV1Shape', () => {
 
   it('leaves attributeValues off when none were loaded', () => {
     expect(toV1Shape({ id: 1 })).not.toHaveProperty('attributeValues');
+  });
+});
+
+describe('projectedToV1Shape', () => {
+  it('maps projected attribute values to v1 `attributeValues`', () => {
+    expect(
+      projectedToV1Shape({
+        Guid: CAMPUS_GUID,
+        AttributeValues: [{ Key: 'MapLink', Value: 'm', TextValue: 'Map' }],
+      }),
+    ).toEqual({
+      guid: CAMPUS_GUID,
+      attributeValues: { mapLink: { value: 'm', valueFormatted: 'Map' } },
+    });
+  });
+
+  // v1 rows read without attributes have no `attributeValues` key either.
+  it('adds no attributeValues when the search selected none', () => {
+    expect(projectedToV1Shape({ Value: 'Grid' })).toEqual({ value: 'Grid' });
+  });
+});
+
+describe('keepMatchingRows', () => {
+  it('keeps rows that match, ignoring case', () => {
+    const rows = [{ Guid: CAMPUS_GUID.toUpperCase() }];
+    expect(keepMatchingRows(rows, 'Guid', CAMPUS_GUID)).toEqual(rows);
+  });
+
+  // A search that ignored its `where` returns other records; the read must
+  // fall back to v1 rather than use one of them.
+  it('throws when any row belongs to another record', () => {
+    expect(() =>
+      keepMatchingRows(
+        [{ Guid: CAMPUS_GUID }, { Guid: 'other' }],
+        'Guid',
+        CAMPUS_GUID,
+      ),
+    ).toThrow(/isn't/);
   });
 });
 

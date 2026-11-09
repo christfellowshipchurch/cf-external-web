@@ -137,6 +137,33 @@ describe('campusDetailsV2Read', () => {
 });
 
 describe('fetchCampuses', () => {
+  // A search that ignored its `where` must not hand an action another
+  // campus's Id (it would sign people up to, or move a family to, the wrong campus).
+  it('falls back to v1 when the v2 search returns a different campus', async () => {
+    stubRockV2Fetch(
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          count: 2,
+          items: [
+            { Id: 1, Guid: '99999999-9999-4999-8999-999999999999' },
+            { Id: 7, Guid: CAMPUS_GUID },
+          ],
+        }),
+      }),
+    );
+    vi.mocked(fetchRockData).mockResolvedValue({ id: 7 });
+
+    await expect(fetchCampuses({ guid: CAMPUS_GUID }, ['Id'])).resolves.toEqual(
+      [{ id: 7 }],
+    );
+    expect(fetchRockData).toHaveBeenCalled();
+    const body = JSON.parse(
+      String(vi.mocked(global.fetch).mock.calls[0][1]?.body),
+    );
+    expect(body.select).toBe('new (Id, Guid)');
+  });
+
   it('returns an array even when v1 unwraps a single match', async () => {
     vi.mocked(fetchRockData).mockResolvedValue({ id: 7 });
 

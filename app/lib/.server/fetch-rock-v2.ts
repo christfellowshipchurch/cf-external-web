@@ -83,7 +83,10 @@ export const searchPath = (model: string): string => `${model}/search/${model}`;
 export const selectAttributeValues = (entityName: string): string =>
   `${entityName}AttributeValues.Select(av => new (av.Key, av.Value, av.PersistedTextValue as TextValue)) as AttributeValues`;
 
-/** Converts a search row that selected `selectAttributeValues` to the v1 shape. */
+/**
+ * Converts a search row to the v1 shape. Rows that selected
+ * `selectAttributeValues` get `attributeValues`; others get none, as on v1.
+ */
 export const projectedToV1Shape = <T = Record<string, unknown>>(
   row: Record<string, unknown>,
 ): T => {
@@ -92,10 +95,33 @@ export const projectedToV1Shape = <T = Record<string, unknown>>(
   };
   return toV1Shape(
     entity,
-    Object.fromEntries(
-      (attributeValues ?? []).map(({ key, ...value }) => [key, value]),
-    ),
+    attributeValues &&
+      Object.fromEntries(
+        attributeValues.map(({ key, ...value }) => [key, value]),
+      ),
   ) as T;
+};
+
+/**
+ * Search rows whose `field` equals `expected` (case-insensitive). If Rock
+ * ignored the refinement `where`, a search returns unrelated rows; throwing
+ * then sends the read to v1 instead of using the wrong record.
+ */
+export const keepMatchingRows = (
+  rows: Record<string, unknown>[],
+  field: string,
+  expected: string,
+): Record<string, unknown>[] => {
+  const wanted = expected.toLowerCase();
+  const matching = rows.filter(
+    (row) => String(row[field] ?? '').toLowerCase() === wanted,
+  );
+  if (matching.length !== rows.length) {
+    throw new Error(
+      `Rock v2 search returned rows whose ${field} isn't "${expected}"`,
+    );
+  }
+  return matching;
 };
 
 /** Escapes a value for a double-quoted string in an Entity Search `where`. */
@@ -311,10 +337,14 @@ export const fetchRockEntityByGuid = async <T = Record<string, unknown>>({
         method: 'POST' as const,
         body: buildV2SearchBody({
           where: `Guid == "${trimmed}"`,
-          select: `new (${select})`,
+          select: `new (Guid, ${select})`,
         }),
         map: (data: unknown) => {
-          const [found] = getSearchItems(data);
+          const [found] = keepMatchingRows(
+            getSearchItems(data),
+            'Guid',
+            trimmed,
+          );
           // A miss goes to v1 rather than hiding a record that exists.
           if (!found) throw new Error(`No ${v2Model} matched ${trimmed}`);
           return toV1Shape(found) as T;
