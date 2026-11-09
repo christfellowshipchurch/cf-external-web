@@ -6,6 +6,7 @@ import { LoaderReturnType } from '../loader';
 import { CardCarousel } from '~/components/resource-carousel';
 import {
   GroupLanguage,
+  GroupTopic,
   GroupType,
   splitGroupTopics,
 } from '~/routes/group-finder/types';
@@ -13,6 +14,33 @@ import { createSearchClient } from '~/lib/create-search-client';
 import { escapeAlgoliaFilterString } from '~/components/finders/finder-algolia.utils';
 import { CollectionItem } from '~/routes/page-builder/types';
 import { GetHits } from '~/components/get-hits';
+
+const WATCH_PARTY_TOPIC: GroupTopic = 'Watch Party';
+
+/**
+ * Algolia filter for Related Groups. Watch Party groups only match other Watch
+ * Party groups (no language or other topics); every other group matches on its
+ * first topic and, when set, its language.
+ */
+export function buildRelatedGroupsFilters(
+  topics: GroupType['topics'],
+  language?: GroupLanguage | '',
+): string | undefined {
+  const topicTags = splitGroupTopics(topics);
+
+  if (topicTags.includes(WATCH_PARTY_TOPIC)) {
+    return `topics:"${WATCH_PARTY_TOPIC}"`;
+  }
+
+  return (
+    [
+      topicTags[0] && `topics:"${escapeAlgoliaFilterString(topicTags[0])}"`,
+      language && `language:"${escapeAlgoliaFilterString(language)}"`,
+    ]
+      .filter(Boolean)
+      .join(' AND ') || undefined
+  );
+}
 
 // Custom component to use hits data with ResourceCarousel
 function RelatedGroupsHits({
@@ -57,17 +85,7 @@ export function RelatedGroupsPartial({
   currentGroupName?: string;
 }) {
   const [hits, setHits] = useState<GroupType[]>([]);
-  const topicTags = splitGroupTopics(topics);
-
-  // Filter related groups by topic and (when set) language. Groups without a
-  // language attribute fall back to topic-only matching.
-  const filters =
-    [
-      topicTags[0] && `topics:"${escapeAlgoliaFilterString(topicTags[0])}"`,
-      language && `language:"${escapeAlgoliaFilterString(language)}"`,
-    ]
-      .filter(Boolean)
-      .join(' AND ') || undefined;
+  const filters = buildRelatedGroupsFilters(topics, language);
 
   const { ALGOLIA_APP_ID, ALGOLIA_SEARCH_API_KEY, algoliaIndexes } =
     useLoaderData<LoaderReturnType>();
