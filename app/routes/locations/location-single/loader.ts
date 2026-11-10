@@ -2,21 +2,10 @@ import type { LoaderFunction } from 'react-router';
 import { mapPageBuilderChildItems } from '~/routes/page-builder/loader';
 import { PageBuilderSection } from '~/routes/page-builder/types';
 import { fetchRockData } from '~/lib/.server/fetch-rock-data';
-import {
-  buildV2SearchBody,
-  escapeDynamicLinq,
-  fetchRockV2,
-  getSearchItems,
-  requestRockV2,
-  toV1Shape,
-  type RockV2AttributeValue,
-} from '~/lib/.server/fetch-rock-v2';
-import { normalize } from '~/lib/utils';
+import { fetchCampusWithDetails } from '~/lib/.server/rock-campuses';
+import { fetchDefinedValueByGuid } from '~/lib/.server/rock-defined-values';
 import type { LocationViewModel } from './types';
-import {
-  mapRockCampusToLocationViewModel,
-  type RockCampus,
-} from './location-mapper.server';
+import { mapRockCampusToLocationViewModel } from './location-mapper.server';
 
 export type CampusAmenity = {
   title: string;
@@ -55,60 +44,6 @@ const allCampuses = [
   'trinity',
 ];
 
-export const fetchCampusV1 = async (campusUrl: string) =>
-  (await fetchRockData({
-    endpoint: 'Campuses',
-    queryParams: {
-      $filter: `Url eq '${campusUrl}'`,
-      $expand: 'Location',
-      loadAttributes: 'simple',
-      $top: '1',
-    },
-  })) as RockCampus | null;
-
-/** Rock Entity Search (Campus, refinement allowed, Execute for the REST key). */
-const CAMPUS_SEARCH_KEY = 'cf-web-campus-by-url';
-
-/**
- * v2 read of the same campus: search by Url, then its attribute values and
- * Location. IdKey and Location.Latitude are computed, not columns, so the
- * search selects Guids and the follow-up GETs return the full records.
- */
-export const campusV2Read = (campusUrl: string) => ({
-  path: `campuses/search/${CAMPUS_SEARCH_KEY}`,
-  method: 'POST' as const,
-  body: buildV2SearchBody({
-    where: `Url == "${escapeDynamicLinq(campusUrl)}"`,
-    select:
-      'new (Id, Guid, Name, Url, PhoneNumber, ServiceTimes, LeaderPersonAliasId, Location.Guid as LocationGuid)',
-    limit: 1,
-  }),
-  map: async (data: unknown): Promise<RockCampus> => {
-    const [found] = getSearchItems(data);
-    // Throwing (not returning null) sends a miss to v1, so a bad search can't 404 a real campus.
-    if (!found) throw new Error(`Campus "${campusUrl}" not found in Rock v2`);
-
-    const { guid, locationGuid } = normalize(found) as {
-      guid: string;
-      locationGuid?: string;
-    };
-    const [attributeValues, location] = await Promise.all([
-      requestRockV2({ path: `campuses/${guid}/attributevalues` }),
-      locationGuid
-        ? requestRockV2({ path: `locations/${locationGuid}` })
-        : Promise.resolve(null),
-    ]);
-
-    return {
-      ...toV1Shape(
-        found,
-        attributeValues as Record<string, RockV2AttributeValue>,
-      ),
-      location: location ? normalize(location) : null,
-    } as RockCampus;
-  },
-});
-
 export const loader: LoaderFunction = async ({ params }) => {
   const campusUrl = params.location;
 
@@ -125,12 +60,9 @@ export const loader: LoaderFunction = async ({ params }) => {
     });
   }
 
-  const campus = await fetchRockV2({
-    ...campusV2Read(campusUrl),
-    fallback: () => fetchCampusV1(campusUrl),
-  });
+  const campus = await fetchCampusWithDetails({ url: campusUrl });
 
-  if (!campus || Array.isArray(campus)) {
+  if (!campus) {
     throw new Response('Campus not found', { status: 404 });
   }
 
@@ -190,17 +122,9 @@ export const loader: LoaderFunction = async ({ params }) => {
 
   for (const guid of campusAmenityGuids) {
     try {
-      const definedValue = await fetchRockData({
-        endpoint: 'DefinedValues',
-        queryParams: {
-          $filter: `Guid eq guid'${guid}'`,
-          loadAttributes: 'simple',
-        },
+      const amenity = await fetchDefinedValueByGuid(guid, {
+        attributes: 'simple',
       });
-
-      const amenity = Array.isArray(definedValue)
-        ? definedValue[0]
-        : definedValue;
 
       if (amenity?.value) {
         campusAmenities.push({

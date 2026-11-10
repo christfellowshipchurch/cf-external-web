@@ -36,14 +36,17 @@ nothing new:
 - `fetchRockV2`, `requestRockV2`, `toV1Shape`, `buildV2SearchBody`,
   `getSearchItems` and `escapeDynamicLinq` in `app/lib/.server/fetch-rock-v2.ts`.
   New reads reuse them.
-- The `ROCK_V2_ENABLED` flag, the v1 fallback and the dev-only `🔍 Rock v2 vs v1`
-  comparison are built in. Turning v2 on is only an environment variable.
+- The `ROCK_V2_ENABLED` constant in `app/lib/rock-config.ts`, the v1 fallback
+  and the dev-only `🔍 Rock v2 vs v1` comparison are built in. It's a constant,
+  not an environment variable, so switching v2 on or off is a code change.
+- Tests run on v1 (`vitest.setup.ts` mocks the constant to `false`). A v2 test
+  mocks it back on.
 
 ## How the code works
 
 - `fetchRockV2` (`app/lib/.server/fetch-rock-v2.ts`) runs a v2 read, with the
   existing v1 call as its `fallback`.
-- When `ROCK_V2_ENABLED` is not `true`, only the fallback runs. Pages behave
+- When `ROCK_V2_ENABLED` is `false`, only the fallback runs. Pages behave
   exactly as on v1.
 - When v2 is on and **any** v2 call in the read fails, the whole read falls back
   to v1. A missing permission can't take a page down; it only logs
@@ -140,11 +143,8 @@ caches permissions, so new grants may not apply until you do.
 
 ### 6. Test locally
 
-```bash
-ROCK_V2_ENABLED=true pnpm dev
-```
-
-Load the page and read the terminal:
+With `ROCK_V2_ENABLED` set to `true` in `app/lib/rock-config.ts`, start the dev
+server as usual, load the page and read the terminal:
 
 - `🔍 Rock v2 vs v1 … N differences`: v2 works. Check every difference against
   what the page actually reads (see "Expected differences" below).
@@ -233,6 +233,70 @@ Read and inherits the controller's grant.
 `{Entity}AttributeValues.Any(av => av.Key == "…" && av.Value == "…")`, e.g.
 `ContentChannelItemAttributeValues` or `PersonAttributeValues`. Check the
 collection's exact name in **Admin Tools › Settings › Model Map**.
+
+## Step 1 (CFDP-4478): simple cached reads
+
+Every Campus, Defined Value, Content Channel, Media Element and Attribute
+Matrix read on the site now goes through one shared helper with its v1 call
+as the fallback.
+
+It follows My Groups' setup (`my-church-platform`,
+`docs/architecture/rock-v2-setup.md`), which uses the same REST user on the same
+Rock:
+
+- **One saved Entity Search per entity, keyed by its v2 route name**
+  (`searchPath('campuses')` → `campuses/search/campuses`), refinement on, so the
+  code owns the `where`. Both apps share them.
+- **Attribute values are projected in the search** with
+  `selectAttributeValues('Campus')`, i.e.
+  `CampusAttributeValues.Select(av => new (av.Key, av.Value, av.PersistedTextValue as TextValue))`,
+  and mapped by `projectedToV1Shape`. One call returns records and values, with
+  no per-record `/attributevalues` call and no Execute Unrestricted Read grant.
+
+| Helper                                      | File                     | v2 calls                                                                        |
+| ------------------------------------------- | ------------------------ | ------------------------------------------------------------------------------- |
+| `fetchCampuses` (dropdowns, Guid/Name → Id) | `rock-campuses.ts`       | search `campuses`                                                               |
+| `fetchCampusesWithDetails` / `…WithDetails` | `rock-campuses.ts`       | search `campuses` with attribute values, then `GET locations/{guid}` per campus |
+| `fetchDefinedValues` / `…ByGuid`            | `rock-defined-values.ts` | search `definedvalues`, attribute values when asked for                         |
+| `fetchRockEntityByGuid` with `select`       | `fetch-rock-v2.ts`       | search `contentchannels`                                                        |
+| `fetchRockEntityByGuid` without `select`    | `fetch-rock-v2.ts`       | `GET mediaelements/{guid}`                                                      |
+| `getAttributeMatrixItems`                   | `rock-utils.ts`          | search `attributematricesitem` with attribute values                            |
+
+`attributematricesitem` is Rock's v2 route name for AttributeMatrixItem. The
+matrix read also selects `AttributeMatrix.Guid` and falls back to v1 if any
+row belongs to another matrix, in case Rock ignored the `where`.
+
+Malformed Guids now return nothing without calling Rock, on v1 and v2.
+
+**Already in place** (from My Groups and the prototype): the `campuses`,
+`contentchannels` and `attributematricesitem` searches with Execute for apollos;
+`POST search/{searchKey}` Execute Read on those three controllers;
+`GET {id}` on MediaElements and Locations.
+
+**Rock setup still to do:**
+
+| Where                                                                           | Permission for apollos |
+| ------------------------------------------------------------------------------- | ---------------------- |
+| Entity Search `definedvalues` (Defined Value, Active, refinement on, max blank) | Execute › Allow        |
+| v2 DefinedValues controller, `POST search/{searchKey}` action                   | Execute Read › Allow   |
+
+Until it's done, Defined Value reads fall back to v1.
+
+`cf-web-campus-by-url` is no longer called, and the campus read no longer uses
+`GET campuses/{id}/attributevalues`, so its Execute Unrestricted Read grant can
+go too. Remove both once this ships.
+
+**To confirm on the first run:**
+
+- `CampusAttributeValues` and `DefinedValueAttributeValues` exist (Model Map).
+  `AttributeMatrixItemAttributeValues` already works in My Groups.
+- `limit` (hero actions ask for 2) and `sort: "Order desc"`. This is the first
+  read that pages, so it settles `V2_PAGING_FIELDS`.
+- Calls per page: a campus details read is 1 + 1 per campus (the Location),
+  about 15 for the active list. Every other read is one call.
+
+The admin `target=attribute-matrices` flush also clears the
+`attributematricesitem` search's cache entries.
 
 ## Expected differences between v1 and v2
 

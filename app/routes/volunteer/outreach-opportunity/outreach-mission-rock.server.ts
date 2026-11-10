@@ -2,6 +2,7 @@ import camelCase from 'lodash/camelCase';
 import { addHours, format, isValid, parse } from 'date-fns';
 
 import { fetchRockData, TTL } from '~/lib/.server/fetch-rock-data';
+import { fetchDefinedValueByGuid } from '~/lib/.server/rock-defined-values';
 import { escapeOData } from '~/lib/.server/rock-utils';
 import { createImageUrlFromGuid } from '~/lib/utils';
 
@@ -204,13 +205,8 @@ async function fetchEventTypeImageUrl(
 
   let raw: unknown;
   try {
-    raw = await fetchRockData({
-      endpoint: 'DefinedValues',
-      queryParams: {
-        $filter: `Guid eq guid'${escapeOData(eventTypeGuid)}'`,
-        $top: '1',
-        loadAttributes: 'expanded',
-      },
+    raw = await fetchDefinedValueByGuid(eventTypeGuid, {
+      attributes: 'expanded',
       ttl: TTL.SHORT,
     });
   } catch {

@@ -7,6 +7,7 @@ import {
   TTL,
   type ItemWithDateRange,
 } from '~/lib/.server/fetch-rock-data';
+import { fetchDefinedValueByGuid } from '~/lib/.server/rock-defined-values';
 import {
   buildV2SearchBody,
   escapeDynamicLinq,
@@ -174,19 +175,15 @@ export const mapRockDataToMessage = async (
     // Loop through all category values and fetch their details
     const sermonPrimaryCategories: { value: string }[] = [];
     for (const categoryGuid of categoryValues) {
-      const sermonPrimaryCategory = await fetchRockData({
-        endpoint: `DefinedValues/`,
-        queryParams: {
-          $filter: `Guid eq guid'${categoryGuid.trim()}'`,
-          $select: 'Value',
-        },
-        ttl: TTL.LONG,
-      });
+      const sermonPrimaryCategory = await fetchDefinedValueByGuid(
+        categoryGuid,
+        { fields: ['Value'], ttl: TTL.LONG },
+      );
 
-      if (sermonPrimaryCategory && sermonPrimaryCategory.length > 0) {
-        sermonPrimaryCategories.push(sermonPrimaryCategory[0]);
-      } else {
-        sermonPrimaryCategories.push(sermonPrimaryCategory);
+      if (sermonPrimaryCategory) {
+        sermonPrimaryCategories.push({
+          value: sermonPrimaryCategory.value ?? '',
+        });
       }
     }
 
@@ -199,18 +196,15 @@ export const mapRockDataToMessage = async (
 
     const sermonSecondaryCategories: { value: string }[] = [];
     for (const categoryGuid of categoryValues) {
-      const sermonSecondaryCategory = await fetchRockData({
-        endpoint: `DefinedValues/`,
-        queryParams: {
-          $filter: `Guid eq guid'${categoryGuid.trim()}'`,
-          $select: 'Value',
-        },
-      });
+      const sermonSecondaryCategory = await fetchDefinedValueByGuid(
+        categoryGuid,
+        { fields: ['Value'] },
+      );
 
-      if (sermonSecondaryCategory && sermonSecondaryCategory.length > 0) {
-        sermonSecondaryCategories.push(sermonSecondaryCategory[0]);
-      } else {
-        sermonSecondaryCategories.push(sermonSecondaryCategory);
+      if (sermonSecondaryCategory) {
+        sermonSecondaryCategories.push({
+          value: sermonSecondaryCategory.value ?? '',
+        });
       }
     }
 
@@ -220,12 +214,8 @@ export const mapRockDataToMessage = async (
   let seriesUrl = '';
   const seriesGuid = rockItem.attributeValues?.messageSeries?.value;
   if (seriesGuid) {
-    const seriesData = await fetchRockData({
-      endpoint: `DefinedValues/`,
-      queryParams: {
-        $filter: `Guid eq guid'${seriesGuid}'`,
-        loadAttributes: 'simple',
-      },
+    const seriesData = await fetchDefinedValueByGuid(seriesGuid, {
+      attributes: 'simple',
       ttl: TTL.LONG,
     });
     seriesUrl = seriesData?.attributeValues?.url?.value || '';

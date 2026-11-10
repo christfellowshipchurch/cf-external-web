@@ -118,13 +118,17 @@ describe('admin cache invalidation (POST target=attribute-matrices)', () => {
     process.env.CACHE_INVALIDATION_SECRET = 'test-secret';
   });
 
-  it('flushes both prefixes — items alone would leave the parent $expand listing stale ids', async () => {
+  it('flushes both v1 prefixes and the v2 reads — items alone would leave the parent $expand listing stale ids', async () => {
     mocks.redis = { pipeline: vi.fn() };
     mocks.deleteByPrefix.mockResolvedValue(1);
 
     await action(matrixArgs());
 
-    expect(mocks.deleteByPrefix).toHaveBeenCalledTimes(2);
+    expect(mocks.deleteByPrefix).toHaveBeenCalledTimes(3);
+    expect(mocks.deleteByPrefix).toHaveBeenCalledWith(
+      mocks.redis,
+      'v2/models/attributematricesitem/search/attributematricesitem',
+    );
     expect(mocks.deleteByPrefix).toHaveBeenCalledWith(
       mocks.redis,
       'AttributeMatrices',
@@ -136,16 +140,19 @@ describe('admin cache invalidation (POST target=attribute-matrices)', () => {
     expect(mocks.invalidateItem).not.toHaveBeenCalled();
   });
 
-  it('reports deletedKeys as the sum of both flushes, in the shape clear.lava checks', async () => {
+  it('reports deletedKeys as the sum of every flush, in the shape clear.lava checks', async () => {
     mocks.redis = { pipeline: vi.fn() };
-    mocks.deleteByPrefix.mockResolvedValueOnce(3).mockResolvedValueOnce(4);
+    mocks.deleteByPrefix
+      .mockResolvedValueOnce(3)
+      .mockResolvedValueOnce(4)
+      .mockResolvedValueOnce(2);
 
     const response = await action(matrixArgs());
 
     expect(readData(response)).toEqual({
       success: true,
       target: 'attribute-matrices',
-      deletedKeys: 7,
+      deletedKeys: 9,
     });
   });
 

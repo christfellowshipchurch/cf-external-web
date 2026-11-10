@@ -1,15 +1,26 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import {
   attributeIsImage,
   getImages,
   getAttributeMatrixItems,
 } from '../rock-utils';
 
-vi.mock('../fetch-rock-data', () => ({
+const rockV2 = vi.hoisted(() => ({ enabled: false }));
+
+vi.mock('~/lib/rock-config', async (importOriginal) => ({
+  ...(await importOriginal<object>()),
+  get ROCK_V2_ENABLED() {
+    return rockV2.enabled;
+  },
+}));
+vi.mock('../redis-config', () => ({ default: null }));
+vi.mock('../fetch-rock-data', async (importOriginal) => ({
+  ...(await importOriginal<object>()),
   fetchRockData: vi.fn(),
 }));
 
-vi.mock('~/lib/utils', () => ({
+vi.mock('~/lib/utils', async (importOriginal) => ({
+  ...(await importOriginal<object>()),
   createImageUrlFromGuid: (guid: string) => `https://cdn.example.com/${guid}`,
 }));
 
@@ -96,7 +107,7 @@ describe('getAttributeMatrixItems', () => {
     try {
       mockFetch.mockResolvedValueOnce(null);
       const result = await getAttributeMatrixItems({
-        attributeMatrixGuid: 'guid-1',
+        attributeMatrixGuid: '00000000-0000-4000-8000-000000000000',
       });
       expect(result).toEqual([]);
     } finally {
@@ -109,7 +120,7 @@ describe('getAttributeMatrixItems', () => {
     try {
       mockFetch.mockResolvedValueOnce({ attributeMatrixItems: [] });
       const result = await getAttributeMatrixItems({
-        attributeMatrixGuid: 'guid-1',
+        attributeMatrixGuid: '00000000-0000-4000-8000-000000000000',
       });
       expect(result).toEqual([]);
     } finally {
@@ -128,7 +139,7 @@ describe('getAttributeMatrixItems', () => {
       .mockResolvedValueOnce(expandedItems);
 
     const result = await getAttributeMatrixItems({
-      attributeMatrixGuid: 'guid-2',
+      attributeMatrixGuid: '00000000-0000-4000-8000-000000000001',
     });
     expect(result).toEqual(expandedItems);
   });
@@ -139,7 +150,7 @@ describe('getAttributeMatrixItems', () => {
       .mockResolvedValueOnce([{ id: 1, attributeValues: {} }]);
 
     await getAttributeMatrixItems({
-      attributeMatrixGuid: 'guid-order',
+      attributeMatrixGuid: '00000000-0000-4000-8000-000000000007',
     });
 
     expect(mockFetch).toHaveBeenNthCalledWith(2, {
@@ -159,7 +170,7 @@ describe('getAttributeMatrixItems', () => {
       .mockResolvedValueOnce(singleItem);
 
     const result = await getAttributeMatrixItems({
-      attributeMatrixGuid: 'guid-3',
+      attributeMatrixGuid: '00000000-0000-4000-8000-000000000002',
     });
     expect(result).toEqual([singleItem]);
   });
@@ -172,7 +183,7 @@ describe('getAttributeMatrixItems', () => {
         .mockResolvedValueOnce(null);
 
       const result = await getAttributeMatrixItems({
-        attributeMatrixGuid: 'guid-4',
+        attributeMatrixGuid: '00000000-0000-4000-8000-000000000003',
       });
       expect(result).toEqual([]);
     } finally {
@@ -195,7 +206,7 @@ describe('getAttributeMatrixItems', () => {
       );
 
     const result = await getAttributeMatrixItems({
-      attributeMatrixGuid: 'guid-large',
+      attributeMatrixGuid: '00000000-0000-4000-8000-000000000006',
     });
 
     const idFilters = mockFetch.mock.calls
@@ -222,7 +233,7 @@ describe('getAttributeMatrixItems', () => {
       .mockResolvedValueOnce([{ id: 21, order: 0 }]);
 
     const result = await getAttributeMatrixItems({
-      attributeMatrixGuid: 'guid-interleaved',
+      attributeMatrixGuid: '00000000-0000-4000-8000-000000000005',
     });
 
     expect(result.map((item) => item.id)).toEqual([
@@ -236,11 +247,110 @@ describe('getAttributeMatrixItems', () => {
     try {
       mockFetch.mockRejectedValueOnce(new Error('network error'));
       const result = await getAttributeMatrixItems({
-        attributeMatrixGuid: 'guid-5',
+        attributeMatrixGuid: '00000000-0000-4000-8000-000000000004',
       });
       expect(result).toEqual([]);
     } finally {
       errorSpy.mockRestore();
     }
+  });
+});
+
+describe('getAttributeMatrixItems on Rock v2', () => {
+  const MATRIX_GUID = '1b5c2e3d-4f5a-6b7c-8d9e-0f1a2b3c4d5e';
+  const jsonResponse = (data: unknown) => ({
+    ok: true,
+    json: async () => data,
+    text: async () => JSON.stringify(data),
+  });
+
+  beforeEach(() => {
+    mockFetch.mockReset();
+    rockV2.enabled = true;
+    vi.stubEnv('NODE_ENV', 'test');
+    vi.stubEnv('ROCK_API', 'https://rock.example.com/api/');
+  });
+
+  afterEach(() => {
+    rockV2.enabled = false;
+    vi.unstubAllEnvs();
+    vi.unstubAllGlobals();
+  });
+
+  const matrixRow = (matrixGuid: string) => ({
+    id: 5,
+    guid: 'item-guid',
+    Order: 0,
+    matrixGuid: matrixGuid,
+    attributeValues: [{ key: 'Header', value: 'Q?', textValue: 'Q?' }],
+  });
+
+  it('reads the items and their values in one attributematricesitem search', async () => {
+    const fetchMock = vi.fn().mockResolvedValueOnce(
+      jsonResponse({
+        count: 1,
+        items: [matrixRow(MATRIX_GUID.toUpperCase())],
+      }),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+
+    const items = await getAttributeMatrixItems({
+      attributeMatrixGuid: MATRIX_GUID,
+    });
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock.mock.calls[0][0]).toBe(
+      'https://rock.example.com/api/v2/models/attributematricesitem/search/attributematricesitem',
+    );
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body);
+    expect(body.where).toBe(`AttributeMatrix.Guid == "${MATRIX_GUID}"`);
+    expect(body.select).toContain('AttributeMatrixItemAttributeValues.Select(');
+    expect(body.sort).toBe('Order, Id');
+    expect(items).toEqual([
+      {
+        id: 5,
+        guid: 'item-guid',
+        order: 0,
+        attributeValues: { header: { value: 'Q?', valueFormatted: 'Q?' } },
+      },
+    ]);
+    expect(mockFetch).not.toHaveBeenCalled();
+  });
+
+  // Showing another matrix's rows would put the wrong content on a page.
+  it('falls back to v1 when the search returns items of another matrix', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValueOnce(
+        jsonResponse({
+          count: 1,
+          items: [matrixRow('99999999-9999-4999-8999-999999999999')],
+        }),
+      ),
+    );
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    mockFetch.mockResolvedValueOnce(null);
+
+    await expect(
+      getAttributeMatrixItems({ attributeMatrixGuid: MATRIX_GUID }),
+    ).resolves.toEqual([]);
+    expect(mockFetch).toHaveBeenCalledWith(
+      expect.objectContaining({ endpoint: 'AttributeMatrices' }),
+    );
+  });
+
+  // Matrix Guids come from CMS attributes; a malformed one never reaches Rock.
+  it('returns [] for a malformed Guid without calling Rock', async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    await expect(
+      getAttributeMatrixItems({ attributeMatrixGuid: "x' or 1 eq 1" }),
+    ).resolves.toEqual([]);
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(mockFetch).not.toHaveBeenCalled();
+    warnSpy.mockRestore();
   });
 });

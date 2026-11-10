@@ -4,6 +4,7 @@ import { algoliasearch } from 'algoliasearch';
 import { escapeAlgoliaFilterString } from '~/components/finders/finder-algolia.utils';
 import { PodcastEpisode, RockPodcastEpisode, WistiaElement } from '../types';
 import { fetchRockData } from '~/lib/.server/fetch-rock-data';
+import { fetchRockEntityByGuid } from '~/lib/.server/fetch-rock-v2';
 import { toRockDateTimeLiteral } from '~/lib/.server/rock-datetime';
 import { createImageUrlFromGuid, parseRockKeyValueList } from '~/lib/utils';
 import { PODCAST_SHOW_CHANNEL_ID } from '../podcast-routing.server';
@@ -147,13 +148,16 @@ async function getPodcastChannel(
     const channelData = getFirstItem(channel);
 
     // The showChannel Guid references the ContentChannel that contains the episodes
-    const showChannel = await fetchRockData({
-      endpoint: 'ContentChannels',
-      queryParams: {
-        $filter: `Guid eq guid'${channelData.attributeValues?.showChannel?.value}'`,
-        $select: 'Name,Id',
-      },
+    const showChannel = await fetchRockEntityByGuid<{
+      id: string;
+      name: string;
+    }>({
+      v1Endpoint: 'ContentChannels',
+      v2Model: 'contentchannels',
+      guid: String(channelData.attributeValues?.showChannel?.value ?? ''),
+      select: 'Name,Id',
     });
+    if (!showChannel) throw new Error('Show channel not found');
 
     return {
       id: showChannel.id,
@@ -197,14 +201,11 @@ async function getPodcastEpisode({
  */
 async function getWistiaElement(guid: string): Promise<WistiaElement | null> {
   try {
-    const wistiaElement = await fetchRockData({
-      endpoint: 'MediaElements',
-      queryParams: {
-        $filter: `Guid eq guid'${guid}'`,
-      },
+    return await fetchRockEntityByGuid<WistiaElement>({
+      v1Endpoint: 'MediaElements',
+      v2Model: 'mediaelements',
+      guid,
     });
-
-    return getFirstItem(wistiaElement) as WistiaElement;
   } catch (error) {
     throw new Error(
       `${ERROR_MESSAGES.WISTIA_FETCH_ERROR} for guid ${guid}: ${

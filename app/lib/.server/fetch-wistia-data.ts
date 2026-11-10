@@ -1,4 +1,4 @@
-import { fetchRockData } from './fetch-rock-data';
+import { fetchRockEntityByGuid } from './fetch-rock-v2';
 
 type FetchWistiaProps = {
   id: string;
@@ -38,27 +38,17 @@ export async function fetchWistiaData({
 }
 
 export async function fetchWistiaDataFromRock(guid: string) {
-  const mediaElement = await fetchRockData({
-    endpoint: 'MediaElements',
-    queryParams: {
-      $filter: `Guid eq guid'${guid}'`,
-    },
+  const mediaElement = await fetchRockEntityByGuid<{ sourceKey?: string }>({
+    v1Endpoint: 'MediaElements',
+    v2Model: 'mediaelements',
+    guid,
   });
 
   if (!mediaElement) {
     throw new Error(`Media element not found for GUID: ${guid}`);
   }
 
-  // Ensure mediaElement is an array
-  const mediaElementArray = Array.isArray(mediaElement)
-    ? mediaElement
-    : [mediaElement];
-
-  if (mediaElementArray.length === 0) {
-    throw new Error(`No media element found for GUID: ${guid}`);
-  }
-
-  return mediaElementArray[0];
+  return mediaElement;
 }
 
 /**

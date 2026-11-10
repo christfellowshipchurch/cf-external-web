@@ -44,8 +44,8 @@ describe('location-single loader', () => {
         $filter: `Url eq '${campus.url}'`,
         $expand: 'Location',
         loadAttributes: 'simple',
-        $top: '1',
       },
+      ttl: undefined,
     });
     expect(mapRockCampusToLocationViewModel).toHaveBeenCalledWith(campus);
     expect(result.location).toEqual({

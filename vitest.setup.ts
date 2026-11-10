@@ -1,6 +1,12 @@
 import '@testing-library/jest-dom';
 import { vi } from 'vitest';
 
+// Tests read Rock on v1 only; Rock v2 tests mock `ROCK_V2_ENABLED` on themselves.
+vi.mock('~/lib/rock-config', async (importOriginal) => ({
+  ...(await importOriginal<object>()),
+  ROCK_V2_ENABLED: false,
+}));
+
 // Mock the window.matchMedia function
 Object.defineProperty(window, 'matchMedia', {
   writable: true,

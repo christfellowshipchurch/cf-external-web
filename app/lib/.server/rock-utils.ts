@@ -5,6 +5,16 @@ import {
 } from '../types/rock-types';
 import { createImageUrlFromGuid } from '~/lib/utils';
 import { fetchRockData } from './fetch-rock-data';
+import {
+  buildV2SearchBody,
+  escapeDynamicLinq,
+  fetchRockV2,
+  getSearchItems,
+  isRockGuid,
+  projectedToV1Shape,
+  searchPath,
+  selectAttributeValues,
+} from './fetch-rock-v2';
 import { AttributeMatrix } from '../types/rock-types';
 
 /**
@@ -52,11 +62,53 @@ export const getImages = ({
  */
 const MATRIX_ITEM_BATCH_SIZE = 20;
 
+/** Rock's v2 route name for AttributeMatrixItem (and its saved search's key). */
+export const MATRIX_ITEMS_V2_MODEL = 'attributematricesitem';
+
+/** v2 read of a matrix's items with their attribute values, in one search. */
+export const matrixItemsV2Read = (attributeMatrixGuid: string) => ({
+  path: searchPath(MATRIX_ITEMS_V2_MODEL),
+  method: 'POST' as const,
+  body: buildV2SearchBody({
+    where: `AttributeMatrix.Guid == "${escapeDynamicLinq(attributeMatrixGuid)}"`,
+    select: `new (Id, Guid, Order, AttributeMatrix.Guid as MatrixGuid, ${selectAttributeValues('AttributeMatrixItem')})`,
+    sort: 'Order, Id',
+  }),
+  map: (data: unknown): AttributeMatrixItem[] => {
+    const rows = getSearchItems(data).map((row) =>
+      projectedToV1Shape<AttributeMatrixItem & { matrixGuid?: string }>(row),
+    );
+    // A search whose `where` Rock ignored returns other matrices' items:
+    // send the read to v1 rather than show another matrix's content.
+    const wanted = attributeMatrixGuid.toLowerCase();
+    if (rows.some((row) => String(row.matrixGuid).toLowerCase() !== wanted)) {
+      throw new Error('Matrix item search returned items of another matrix');
+    }
+    return rows.map(({ matrixGuid: _matrixGuid, ...row }) => row);
+  },
+});
+
+/** A matrix's items with attribute values, in matrix Order. Empty on any failure. */
 export const getAttributeMatrixItems = async ({
   attributeMatrixGuid,
 }: {
   attributeMatrixGuid: string;
 }): Promise<AttributeMatrixItem[]> => {
+  const guid = attributeMatrixGuid.trim();
+  if (!isRockGuid(guid)) {
+    console.warn(`Attribute matrix guid is malformed: ${guid}`);
+    return [];
+  }
+
+  return fetchRockV2({
+    ...matrixItemsV2Read(guid),
+    fallback: () => getAttributeMatrixItemsV1(guid),
+  });
+};
+
+const getAttributeMatrixItemsV1 = async (
+  attributeMatrixGuid: string,
+): Promise<AttributeMatrixItem[]> => {
   try {
     const attributeMatrix: AttributeMatrix = await fetchRockData({
       endpoint: `AttributeMatrices`,

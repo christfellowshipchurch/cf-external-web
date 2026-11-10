@@ -1,6 +1,14 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 const redisStore = vi.hoisted(() => new Map<string, string>());
+const rockV2 = vi.hoisted(() => ({ enabled: true }));
+
+vi.mock('~/lib/rock-config', async (importOriginal) => ({
+  ...(await importOriginal<object>()),
+  get ROCK_V2_ENABLED() {
+    return rockV2.enabled;
+  },
+}));
 
 vi.mock('../redis-config', () => ({
   default: {
@@ -15,6 +23,8 @@ vi.mock('../redis-config', () => ({
 import {
   buildV2SearchBody,
   fetchRockV2,
+  keepMatchingRows,
+  projectedToV1Shape,
   requestRockV2,
   toV1Shape,
 } from '../fetch-rock-v2';
@@ -39,7 +49,7 @@ beforeEach(() => {
   redisStore.clear();
   process.env.ROCK_API = 'https://rock.example.com/api/';
   process.env.ROCK_TOKEN = 'test-token';
-  process.env.ROCK_V2_ENABLED = 'true';
+  rockV2.enabled = true;
   vi.stubEnv('NODE_ENV', 'test');
   global.fetch = vi.fn();
   errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
@@ -56,9 +66,9 @@ afterEach(() => {
  * v2 ships dark: with the flag off, a page must behave exactly as it does on
  * v1 today, never touching the v2 endpoints.
  */
-describe('ROCK_V2_ENABLED off', () => {
+describe('Rock v2 off', () => {
   it('runs only the v1 fallback and never calls Rock v2', async () => {
-    process.env.ROCK_V2_ENABLED = 'false';
+    rockV2.enabled = false;
     const fallback = vi.fn(async () => ({ name: 'from v1' }));
 
     const result = await fetchRockV2({
@@ -73,7 +83,7 @@ describe('ROCK_V2_ENABLED off', () => {
   });
 });
 
-describe('ROCK_V2_ENABLED on', () => {
+describe('Rock v2 on', () => {
   it('reads /api/v2/models with the REST key and returns the mapped result', async () => {
     fetchMock().mockResolvedValueOnce(
       okResponse({ name: 'Palm Beach Gardens' }),
@@ -300,6 +310,51 @@ describe('toV1Shape', () => {
 
   it('leaves attributeValues off when none were loaded', () => {
     expect(toV1Shape({ id: 1 })).not.toHaveProperty('attributeValues');
+  });
+});
+
+describe('projectedToV1Shape', () => {
+  it('maps projected attribute values to v1 `attributeValues`', () => {
+    expect(
+      projectedToV1Shape({
+        guid: CAMPUS_GUID,
+        attributeValues: [{ key: 'MapLink', value: 'm', textValue: 'Map' }],
+      }),
+    ).toEqual({
+      guid: CAMPUS_GUID,
+      attributeValues: { mapLink: { value: 'm', valueFormatted: 'Map' } },
+    });
+  });
+
+  // v1 rows read without attributes have no `attributeValues` key either.
+  it('adds no attributeValues when the search selected none', () => {
+    expect(projectedToV1Shape({ Value: 'Grid' })).toEqual({ value: 'Grid' });
+  });
+});
+
+describe('keepMatchingRows', () => {
+  it('keeps rows that match, ignoring case', () => {
+    const rows = [{ Guid: CAMPUS_GUID.toUpperCase() }];
+    expect(keepMatchingRows(rows, 'Guid', CAMPUS_GUID)).toEqual(rows);
+  });
+
+  // Rock v2 returns camelCase keys, so `Guid` must find a row's `guid`.
+  it('reads the field from camelCase rows as Rock returns them', () => {
+    const rows = [{ guid: CAMPUS_GUID, url: 'jupiter' }];
+    expect(keepMatchingRows(rows, 'Guid', CAMPUS_GUID)).toEqual(rows);
+    expect(keepMatchingRows(rows, 'Url', 'jupiter')).toEqual(rows);
+  });
+
+  // A search that ignored its `where` returns other records; the read must
+  // fall back to v1 rather than use one of them.
+  it('throws when any row belongs to another record', () => {
+    expect(() =>
+      keepMatchingRows(
+        [{ Guid: CAMPUS_GUID }, { Guid: 'other' }],
+        'Guid',
+        CAMPUS_GUID,
+      ),
+    ).toThrow(/isn't/);
   });
 });
 

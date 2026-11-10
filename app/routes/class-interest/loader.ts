@@ -1,5 +1,5 @@
 import type { LoaderFunction } from 'react-router';
-import { fetchRockData } from '~/lib/.server/fetch-rock-data';
+import { fetchCampuses } from '~/lib/.server/rock-campuses';
 
 export type ClassInterestCampus = {
   id: number;
@@ -12,14 +12,11 @@ export type ClassInterestLoaderData = {
 };
 
 export const loader: LoaderFunction = async () => {
-  const campuses = await fetchRockData({
-    endpoint: 'Campuses',
-    queryParams: {
-      $filter: 'IsActive eq true',
-      $orderby: 'Order',
-      $select: 'Id, Name, Guid',
-    },
-  });
+  const campuses = await fetchCampuses<ClassInterestCampus>({ active: true }, [
+    'Id',
+    'Name',
+    'Guid',
+  ]);
 
   return {
     campuses,
