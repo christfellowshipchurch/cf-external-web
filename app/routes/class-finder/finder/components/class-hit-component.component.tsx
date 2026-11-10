@@ -45,9 +45,11 @@ export function ClassHitComponent({
           <div className='flex min-h-0 flex-1 flex-col gap-5 px-6 pb-4 pt-5'>
             {/* Attributes */}
             <div className='flex flex-wrap gap-[6px]'>
-              <p className='bg-[#EBEBEB] w-fit flex rounded-sm text-xs font-semibold px-2 py-1'>
-                {hit.topic}
-              </p>
+              {hit.topic && (
+                <p className='bg-[#EBEBEB] w-fit flex rounded-sm text-xs font-semibold px-2 py-1'>
+                  {hit.topic}
+                </p>
+              )}
             </div>
 
             {/* Description Info */}

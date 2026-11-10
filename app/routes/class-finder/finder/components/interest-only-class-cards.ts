@@ -17,7 +17,7 @@ export type RockClassDefinedValue = RockContentChannelItem & {
   description?: string;
 };
 
-function rockAttr(item: RockClassDefinedValue, key: string): string {
+export function rockAttr(item: RockClassDefinedValue, key: string): string {
   const v = item.attributeValues?.[key]?.value;
   return typeof v === 'string' ? v.trim() : '';
 }
@@ -74,36 +74,36 @@ export function buildInterestOnlyClassHits(
 }
 
 /**
- * Appends interest-only cards whose `pathName` has no rendered card. Dedupe
- * against `cards` (after grouping drops incomplete Algolia rows), not raw
- * hits. They have no language, format or search data, so they show on the
- * unfiltered view and when only topic filters are active (matched against the
- * Rock topic).
+ * Interest-only cards to show for the current results. Skips classes that
+ * already have a rendered Algolia card (compare against the grouped cards, not
+ * raw hits, since grouping drops incomplete rows). They have no language,
+ * format or search data, so they show on the unfiltered view and when only
+ * topic filters are active (matched case-insensitively against the Rock topic).
  */
-export function withInterestOnlyClassHits(
-  cards: ClassHitType[],
+export function pickInterestOnlyClassHits(
+  algoliaCards: ClassHitType[],
   interestOnlyHits: ClassHitType[],
   uiState: { query?: string; refinementList?: Record<string, string[]> },
 ): ClassHitType[] {
-  if (interestOnlyHits.length === 0) return cards;
+  if (interestOnlyHits.length === 0) return [];
 
   const hasQuery = (uiState.query?.trim().length ?? 0) > 0;
   const refinements = Object.entries(uiState.refinementList ?? {}).filter(
     ([, values]) => values.length > 0,
   );
-  if (hasQuery) return cards;
-  if (refinements.some(([attribute]) => attribute !== 'topic')) return cards;
+  if (hasQuery) return [];
+  if (refinements.some(([attribute]) => attribute !== 'topic')) return [];
 
-  const topics = uiState.refinementList?.topic ?? [];
+  const normalize = (topic: string | undefined) =>
+    (topic ?? '').trim().toLowerCase();
+  const topics = (uiState.refinementList?.topic ?? []).map(normalize);
   const indexedPaths = new Set(
-    cards.map((hit) => hit.pathName?.trim()).filter(Boolean),
+    algoliaCards.map((hit) => hit.pathName?.trim()).filter(Boolean),
   );
 
-  const extras = interestOnlyHits.filter(
+  return interestOnlyHits.filter(
     (hit) =>
       !indexedPaths.has(hit.pathName) &&
-      (topics.length === 0 || topics.includes(hit.topic)),
+      (topics.length === 0 || topics.includes(normalize(hit.topic))),
   );
-
-  return extras.length > 0 ? [...cards, ...extras] : cards;
 }

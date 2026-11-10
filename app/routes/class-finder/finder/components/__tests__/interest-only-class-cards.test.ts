@@ -4,7 +4,7 @@ import type { ClassHitType } from '../../../types';
 import {
   buildInterestOnlyClassHits,
   type RockClassDefinedValue,
-  withInterestOnlyClassHits,
+  pickInterestOnlyClassHits,
 } from '../interest-only-class-cards';
 
 function makeRockClass(
@@ -106,7 +106,7 @@ describe('buildInterestOnlyClassHits', () => {
   });
 });
 
-describe('withInterestOnlyClassHits', () => {
+describe('pickInterestOnlyClassHits', () => {
   const interest = makeHit({
     objectID: 'interest-financial-peace',
     pathName: 'financial-peace',
@@ -115,8 +115,7 @@ describe('withInterestOnlyClassHits', () => {
   const card = makeHit({ objectID: 'grouped-0', pathName: 'alpha' });
 
   it('appends the card on the unfiltered view', () => {
-    expect(withInterestOnlyClassHits([card], [interest], {})).toEqual([
-      card,
+    expect(pickInterestOnlyClassHits([card], [interest], {})).toEqual([
       interest,
     ]);
   });
@@ -126,22 +125,34 @@ describe('withInterestOnlyClassHits', () => {
       objectID: 'grouped-0',
       pathName: 'financial-peace',
     });
-    expect(withInterestOnlyClassHits([algoliaCard], [interest], {})).toEqual([
-      algoliaCard,
-    ]);
+    expect(pickInterestOnlyClassHits([algoliaCard], [interest], {})).toEqual(
+      [],
+    );
   });
 
   it('shows the card when its topic is the selected topic', () => {
     expect(
-      withInterestOnlyClassHits([], [interest], {
+      pickInterestOnlyClassHits([], [interest], {
         refinementList: { topic: ['Finances'] },
       }),
     ).toEqual([interest]);
   });
 
+  it('matches the topic ignoring case and whitespace', () => {
+    expect(
+      pickInterestOnlyClassHits(
+        [],
+        [{ ...interest, topic: ' finances ' as ClassHitType['topic'] }],
+        {
+          refinementList: { topic: ['Finances'] },
+        },
+      ),
+    ).toHaveLength(1);
+  });
+
   it('hides the card when another topic is selected', () => {
     expect(
-      withInterestOnlyClassHits([], [interest], {
+      pickInterestOnlyClassHits([], [interest], {
         refinementList: { topic: ['Parenting'] },
       }),
     ).toEqual([]);
@@ -149,13 +160,13 @@ describe('withInterestOnlyClassHits', () => {
 
   it('hides the card for a search query', () => {
     expect(
-      withInterestOnlyClassHits([], [interest], { query: 'finance' }),
+      pickInterestOnlyClassHits([], [interest], { query: 'finance' }),
     ).toEqual([]);
   });
 
   it('hides the card when a non-topic filter is active', () => {
     expect(
-      withInterestOnlyClassHits([], [interest], {
+      pickInterestOnlyClassHits([], [interest], {
         refinementList: { topic: ['Finances'], format: ['Virtual'] },
       }),
     ).toEqual([]);

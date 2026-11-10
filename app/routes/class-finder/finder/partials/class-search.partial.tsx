@@ -37,7 +37,7 @@ import {
   shouldShowJourneyCard,
   withJourneyCardFirst,
 } from '../components/journey-pinned-card';
-import { withInterestOnlyClassHits } from '../components/interest-only-class-cards';
+import { pickInterestOnlyClassHits } from '../components/interest-only-class-cards';
 import { useAlgoliaUrlSync } from '~/hooks/use-algolia-url-sync';
 import { useScrollToSearchResultsOnLoad } from '~/hooks/use-scroll-to-search-results-on-load';
 import { HubsTagsRefinementList } from '~/components/hubs-tags-refinement';
@@ -174,7 +174,6 @@ export const ClassSearch = () => {
     location.pathname +
     (searchParams.toString() ? `?${searchParams.toString()}` : '');
 
-  // Interest-only classes are indexed in Algolia as catalog rows (no session dates).
   const finderFiltersActive = useMemo(() => {
     const s = parseClassFinderUrlState(searchParams);
     return (
@@ -383,14 +382,15 @@ function ClassTypeGroupedResults({
   // Journey is not in the classes index. Pin it after grouping so it is not
   // rewritten or dropped by isCompleteClassFinderHit / syntheticHitsFromGrouped.
   const mappedHits = useMemo(() => {
-    const cards = showJourneyCard
-      ? withJourneyCardFirst(algoliaHits)
-      : algoliaHits;
-    // TEMPORARY: Rock "I'm Interested" classes missing from the index.
-    return withInterestOnlyClassHits(cards, interestOnlyHits, {
-      query,
-      refinementList,
-    });
+    // TEMPORARY: Rock "I'm Interested" classes missing from the index, placed
+    // before the Algolia cards so they land on the first page.
+    const interestCards = pickInterestOnlyClassHits(
+      algoliaHits,
+      interestOnlyHits,
+      { query, refinementList },
+    );
+    const cards = [...interestCards, ...algoliaHits];
+    return showJourneyCard ? withJourneyCardFirst(cards) : cards;
   }, [algoliaHits, showJourneyCard, interestOnlyHits, query, refinementList]);
 
   const start = (currentPage - 1) * ITEMS_PER_PAGE;

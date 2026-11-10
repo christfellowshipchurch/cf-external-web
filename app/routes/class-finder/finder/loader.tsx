@@ -11,6 +11,7 @@ import type { ClassHitType } from '../types';
 import { parseClassFinderUrlState } from './components/class-finder-url-state';
 import {
   buildInterestOnlyClassHits,
+  rockAttr,
   type RockClassDefinedValue,
 } from './components/interest-only-class-cards';
 import {
@@ -34,11 +35,6 @@ export type LoaderReturnType = {
 
 /** Rock Classes Defined Type (387) id used to source "I'm Interested" classes. */
 const CLASSES_DEFINED_TYPE_ID = 387;
-
-function rockAttr(item: RockClassDefinedValue, key: string): string {
-  const v = item.attributeValues?.[key]?.value;
-  return typeof v === 'string' ? v.trim() : '';
-}
 
 async function fetchRockClassDefinedValues(): Promise<RockClassDefinedValue[]> {
   try {
