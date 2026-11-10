@@ -142,3 +142,6 @@ build/
 .env*.local
 .claude/launch.json
 .codex/
+
+# Amp orb portals
+.amp/portals/*
