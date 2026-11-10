@@ -317,8 +317,8 @@ describe('projectedToV1Shape', () => {
   it('maps projected attribute values to v1 `attributeValues`', () => {
     expect(
       projectedToV1Shape({
-        Guid: CAMPUS_GUID,
-        AttributeValues: [{ Key: 'MapLink', Value: 'm', TextValue: 'Map' }],
+        guid: CAMPUS_GUID,
+        attributeValues: [{ key: 'MapLink', value: 'm', textValue: 'Map' }],
       }),
     ).toEqual({
       guid: CAMPUS_GUID,

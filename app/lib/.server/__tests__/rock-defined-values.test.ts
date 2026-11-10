@@ -88,7 +88,7 @@ describe('fetchDefinedValues', () => {
       vi.fn().mockResolvedValueOnce(
         jsonResponse({
           count: 3,
-          items: [{ Value: 'a' }, { Value: 'b' }, { Value: 'c' }],
+          items: [{ value: 'a' }, { value: 'b' }, { value: 'c' }],
         }),
       ),
     );
@@ -103,7 +103,7 @@ describe('fetchDefinedValues', () => {
       vi.fn().mockResolvedValueOnce(
         jsonResponse({
           count: 1,
-          items: [{ Guid: '99999999-9999-4999-8999-999999999999', Value: 'x' }],
+          items: [{ guid: '99999999-9999-4999-8999-999999999999', value: 'x' }],
         }),
       ),
     );
@@ -159,10 +159,10 @@ describe('fetchDefinedValues', () => {
           count: 1,
           items: [
             {
-              Guid: GUID,
-              Value: 'Series',
-              AttributeValues: [
-                { Key: 'Url', Value: 'series-url', TextValue: 'x' },
+              guid: GUID,
+              value: 'Series',
+              attributeValues: [
+                { key: 'Url', value: 'series-url', textValue: 'x' },
               ],
             },
           ],

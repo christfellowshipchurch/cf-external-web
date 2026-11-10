@@ -1,3 +1,5 @@
+import camelCase from 'lodash/camelCase';
+import pick from 'lodash/pick';
 import { ensureArray, normalize } from '~/lib/utils';
 import type { TTLValue } from './cache-utils';
 import { fetchRockData } from './fetch-rock-data';
@@ -121,7 +123,11 @@ export const fetchCampuses = async <T = Record<string, unknown>>(
       ...(isOrdered(filter) && { sort: 'Order' }),
     }),
     ttl,
-    map: (data) => searchRows(data, filter).map((item) => toV1Shape(item) as T),
+    // Return only the fields asked for, as v1's $select does.
+    map: (data) =>
+      searchRows(data, filter).map(
+        (item) => pick(toV1Shape(item), fields.map(camelCase)) as T,
+      ),
     fallback: async () =>
       ensureArray(
         await fetchRockData({

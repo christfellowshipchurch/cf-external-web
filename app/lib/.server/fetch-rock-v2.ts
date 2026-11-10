@@ -1,3 +1,4 @@
+import camelCase from 'lodash/camelCase';
 import isEqual from 'lodash/isEqual';
 import mapValues from 'lodash/mapValues';
 import { ROCK_V2_ENABLED } from '~/lib/rock-config';
@@ -106,7 +107,7 @@ export const projectedToV1Shape = <T = Record<string, unknown>>(
  * Search rows whose `field` equals `expected` (case-insensitive). If Rock
  * ignored the refinement `where`, a search returns unrelated rows; throwing
  * then sends the read to v1 instead of using the wrong record. Rock returns
- * camelCase keys (`guid`), so `field` (`Guid`) is matched ignoring case too.
+ * camelCase keys, so `field` (`Guid`) is read as given, then as `guid`.
  */
 export const keepMatchingRows = (
   rows: Record<string, unknown>[],
@@ -114,13 +115,11 @@ export const keepMatchingRows = (
   expected: string,
 ): Record<string, unknown>[] => {
   const wanted = expected.toLowerCase();
-  const valueOf = (row: Record<string, unknown>) => {
-    const key = Object.keys(row).find(
-      (k) => k.toLowerCase() === field.toLowerCase(),
-    );
-    return key === undefined ? '' : String(row[key] ?? '');
-  };
-  const matching = rows.filter((row) => valueOf(row).toLowerCase() === wanted);
+  const camelField = camelCase(field);
+  const matching = rows.filter(
+    (row) =>
+      String(row[field] ?? row[camelField] ?? '').toLowerCase() === wanted,
+  );
   if (matching.length !== rows.length) {
     throw new Error(
       `Rock v2 search returned rows whose ${field} isn't "${expected}"`,

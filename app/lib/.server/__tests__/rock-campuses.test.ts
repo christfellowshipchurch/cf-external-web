@@ -63,18 +63,19 @@ describe('campusDetailsV2Read', () => {
   it('combines the search hit, its projected attribute values and Location into the v1 shape', async () => {
     const [campus] = await campusDetailsV2Read({ url: 'jupiter' }).map({
       count: 1,
+      // Rock v2 returns camelCase keys.
       items: [
         {
-          Id: 7,
-          Guid: CAMPUS_GUID,
-          Name: 'Jupiter',
-          Url: 'jupiter',
-          LocationGuid: LOCATION_GUID,
-          AttributeValues: [
+          id: 7,
+          guid: CAMPUS_GUID,
+          name: 'Jupiter',
+          url: 'jupiter',
+          locationGuid: LOCATION_GUID,
+          attributeValues: [
             {
-              Key: 'MapLink',
-              Value: 'https://maps.example',
-              TextValue: 'Map',
+              key: 'MapLink',
+              value: 'https://maps.example',
+              textValue: 'Map',
             },
           ],
         },
@@ -132,7 +133,7 @@ describe('campusDetailsV2Read', () => {
   it('sorts active campuses by Rock Order, selecting Order', () => {
     const { body } = campusDetailsV2Read({ active: true });
     expect(body).toMatchObject({ where: 'IsActive == true', sort: 'Order' });
-    expect(body.select).toMatch(/[(,] Order,/);
+    expect(body.select).toMatch(/\bOrder\b/);
   });
 });
 
@@ -146,8 +147,8 @@ describe('fetchCampuses', () => {
         json: async () => ({
           count: 2,
           items: [
-            { Id: 1, Guid: '99999999-9999-4999-8999-999999999999' },
-            { Id: 7, Guid: CAMPUS_GUID },
+            { id: 1, guid: '99999999-9999-4999-8999-999999999999' },
+            { id: 7, guid: CAMPUS_GUID },
           ],
         }),
       }),
@@ -196,6 +197,7 @@ describe('fetchCampuses', () => {
     expect(fetchRockData).not.toHaveBeenCalled();
   });
 
+  // Order is selected only so Rock can sort; callers get the fields they asked for, as on v1.
   it('maps v2 search items to the v1 shape when v2 is on', async () => {
     stubRockV2Fetch(
       vi.fn().mockResolvedValue({
@@ -209,7 +211,7 @@ describe('fetchCampuses', () => {
 
     await expect(
       fetchCampuses({ active: true }, ['Name', 'Guid']),
-    ).resolves.toEqual([{ name: 'Jupiter', guid: CAMPUS_GUID, order: 4 }]);
+    ).resolves.toEqual([{ name: 'Jupiter', guid: CAMPUS_GUID }]);
     const [url, init] = vi.mocked(global.fetch).mock.calls[0];
     expect(url).toBe(
       'https://rock.example.com/api/v2/models/campuses/search/campuses',
@@ -234,7 +236,7 @@ describe('fetchCampuses', () => {
     );
 
     await expect(fetchCampuses({ guid: CAMPUS_GUID }, ['Id'])).resolves.toEqual(
-      [{ id: 7, guid: CAMPUS_GUID }],
+      [{ id: 7 }],
     );
     expect(fetchRockData).not.toHaveBeenCalled();
   });

@@ -278,11 +278,11 @@ describe('getAttributeMatrixItems on Rock v2', () => {
   });
 
   const matrixRow = (matrixGuid: string) => ({
-    Id: 5,
-    Guid: 'item-guid',
+    id: 5,
+    guid: 'item-guid',
     Order: 0,
-    MatrixGuid: matrixGuid,
-    AttributeValues: [{ Key: 'Header', Value: 'Q?', TextValue: 'Q?' }],
+    matrixGuid: matrixGuid,
+    attributeValues: [{ key: 'Header', value: 'Q?', textValue: 'Q?' }],
   });
 
   it('reads the items and their values in one attributematricesitem search', async () => {
