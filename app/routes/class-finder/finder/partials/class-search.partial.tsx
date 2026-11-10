@@ -387,18 +387,11 @@ function ClassTypeGroupedResults({
       ? withJourneyCardFirst(algoliaHits)
       : algoliaHits;
     // TEMPORARY: Rock "I'm Interested" classes missing from the index.
-    return withInterestOnlyClassHits(cards, hits, interestOnlyHits, {
+    return withInterestOnlyClassHits(cards, interestOnlyHits, {
       query,
       refinementList,
     });
-  }, [
-    algoliaHits,
-    showJourneyCard,
-    hits,
-    interestOnlyHits,
-    query,
-    refinementList,
-  ]);
+  }, [algoliaHits, showJourneyCard, interestOnlyHits, query, refinementList]);
 
   const start = (currentPage - 1) * ITEMS_PER_PAGE;
   const pageHits = mappedHits.slice(start, start + ITEMS_PER_PAGE);

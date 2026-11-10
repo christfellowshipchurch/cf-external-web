@@ -37,15 +37,17 @@ export function buildInterestOnlyClassHits(
   items: RockClassDefinedValue[],
 ): ClassHitType[] {
   const hits: ClassHitType[] = [];
+  const seenPaths = new Set<string>();
 
   for (const item of items) {
     if (!isToggleOn(item)) continue;
 
     const pathName = rockAttr(item, 'url');
     const title = item.value?.trim() ?? '';
-    if (!pathName || !title) continue;
-
     const imageGuid = rockAttr(item, 'image');
+    // Same bar as isCompleteClassFinderHit: no card without a slug, title or cover.
+    if (!pathName || !title || !imageGuid || seenPaths.has(pathName)) continue;
+    seenPaths.add(pathName);
 
     hits.push({
       objectID: `interest-${pathName}`,
@@ -56,9 +58,7 @@ export function buildInterestOnlyClassHits(
       groupId: 0,
       subtitle: '',
       summary: item.description?.trim() ?? '',
-      coverImage: {
-        sources: imageGuid ? [{ uri: createImageUrlFromGuid(imageGuid) }] : [],
-      },
+      coverImage: { sources: [{ uri: createImageUrlFromGuid(imageGuid) }] },
       _geoloc: { lat: 0, lng: 0 },
       startDate: null,
       endDate: null,
@@ -74,13 +74,14 @@ export function buildInterestOnlyClassHits(
 }
 
 /**
- * Appends interest-only cards whose `pathName` has no Algolia hit. They have no
- * language, format or search data, so they show on the unfiltered view and when
- * only topic filters are active (matched against the Rock topic).
+ * Appends interest-only cards whose `pathName` has no rendered card. Dedupe
+ * against `cards` (after grouping drops incomplete Algolia rows), not raw
+ * hits. They have no language, format or search data, so they show on the
+ * unfiltered view and when only topic filters are active (matched against the
+ * Rock topic).
  */
 export function withInterestOnlyClassHits(
   cards: ClassHitType[],
-  algoliaHits: ClassHitType[],
   interestOnlyHits: ClassHitType[],
   uiState: { query?: string; refinementList?: Record<string, string[]> },
 ): ClassHitType[] {
@@ -95,7 +96,7 @@ export function withInterestOnlyClassHits(
 
   const topics = uiState.refinementList?.topic ?? [];
   const indexedPaths = new Set(
-    algoliaHits.map((hit) => hit.pathName?.trim()).filter(Boolean),
+    cards.map((hit) => hit.pathName?.trim()).filter(Boolean),
   );
 
   const extras = interestOnlyHits.filter(

@@ -53,6 +53,7 @@ describe('buildInterestOnlyClassHits', () => {
       makeRockClass({
         interestedToggle: 'True',
         url: 'financial-peace',
+        image: 'abc-guid',
         classTopic: 'Finances',
       }),
     ]);
@@ -81,6 +82,25 @@ describe('buildInterestOnlyClassHits', () => {
     ).toEqual([]);
   });
 
+  it('skips a toggled class without an image', () => {
+    expect(
+      buildInterestOnlyClassHits([
+        makeRockClass({ interestedToggle: 'True', url: 'financial-peace' }),
+      ]),
+    ).toEqual([]);
+  });
+
+  it('builds one card when two Rock values share a url', () => {
+    const attrs = {
+      interestedToggle: 'True',
+      url: 'financial-peace',
+      image: 'abc-guid',
+    };
+    expect(
+      buildInterestOnlyClassHits([makeRockClass(attrs), makeRockClass(attrs)]),
+    ).toHaveLength(1);
+  });
+
   it('returns no cards when the Rock fetch returned nothing', () => {
     expect(buildInterestOnlyClassHits([])).toEqual([]);
   });
@@ -95,22 +115,25 @@ describe('withInterestOnlyClassHits', () => {
   const card = makeHit({ objectID: 'grouped-0', pathName: 'alpha' });
 
   it('appends the card on the unfiltered view', () => {
-    expect(withInterestOnlyClassHits([card], [card], [interest], {})).toEqual([
+    expect(withInterestOnlyClassHits([card], [interest], {})).toEqual([
       card,
       interest,
     ]);
   });
 
-  it('skips the card once Algolia has a hit for the same class', () => {
-    const algoliaHit = makeHit({ objectID: 'a1', pathName: 'financial-peace' });
-    expect(
-      withInterestOnlyClassHits([card], [algoliaHit], [interest], {}),
-    ).toEqual([card]);
+  it('skips the card once Algolia renders a card for the same class', () => {
+    const algoliaCard = makeHit({
+      objectID: 'grouped-0',
+      pathName: 'financial-peace',
+    });
+    expect(withInterestOnlyClassHits([algoliaCard], [interest], {})).toEqual([
+      algoliaCard,
+    ]);
   });
 
   it('shows the card when its topic is the selected topic', () => {
     expect(
-      withInterestOnlyClassHits([], [], [interest], {
+      withInterestOnlyClassHits([], [interest], {
         refinementList: { topic: ['Finances'] },
       }),
     ).toEqual([interest]);
@@ -118,7 +141,7 @@ describe('withInterestOnlyClassHits', () => {
 
   it('hides the card when another topic is selected', () => {
     expect(
-      withInterestOnlyClassHits([], [], [interest], {
+      withInterestOnlyClassHits([], [interest], {
         refinementList: { topic: ['Parenting'] },
       }),
     ).toEqual([]);
@@ -126,13 +149,13 @@ describe('withInterestOnlyClassHits', () => {
 
   it('hides the card for a search query', () => {
     expect(
-      withInterestOnlyClassHits([], [], [interest], { query: 'finance' }),
+      withInterestOnlyClassHits([], [interest], { query: 'finance' }),
     ).toEqual([]);
   });
 
   it('hides the card when a non-topic filter is active', () => {
     expect(
-      withInterestOnlyClassHits([], [], [interest], {
+      withInterestOnlyClassHits([], [interest], {
         refinementList: { topic: ['Finances'], format: ['Virtual'] },
       }),
     ).toEqual([]);
