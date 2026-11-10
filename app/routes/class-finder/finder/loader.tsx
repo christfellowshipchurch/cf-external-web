@@ -4,11 +4,15 @@ import { AuthenticationError } from '~/lib/.server/error-types';
 import { createAuditedServerAlgoliaClient } from '~/lib/.server/algolia-request-audit.server';
 import { getServerAlgoliaIndexes } from '~/lib/.server/algolia-indexes.server';
 import { fetchRockData } from '~/lib/.server/fetch-rock-data';
-import type { RockContentChannelItem } from '~/lib/types/rock-types';
 import { createImageUrlFromGuid } from '~/lib/utils';
 import type { AlgoliaIndexMap } from '~/lib/algolia-indexes';
 
+import type { ClassHitType } from '../types';
 import { parseClassFinderUrlState } from './components/class-finder-url-state';
+import {
+  buildInterestOnlyClassHits,
+  type RockClassDefinedValue,
+} from './components/interest-only-class-cards';
 import {
   getClassFinderServerState,
   type ClassFinderServerState,
@@ -21,15 +25,15 @@ export type LoaderReturnType = {
   serverState: ClassFinderServerState;
   /** Cover images keyed by class URL slug (`pathName` / Rock `url` attribute). */
   rockCoverImagesByPath: Record<string, string>;
+  /**
+   * TEMPORARY: Rock 387 classes with the "I'm Interested" toggle on. The client
+   * shows the ones with no Algolia hit (`interest-only-class-cards.ts`).
+   */
+  interestOnlyHits: ClassHitType[];
 };
 
 /** Rock Classes Defined Type (387) id used to source "I'm Interested" classes. */
 const CLASSES_DEFINED_TYPE_ID = 387;
-
-type RockClassDefinedValue = RockContentChannelItem & {
-  value?: string;
-  description?: string;
-};
 
 function rockAttr(item: RockClassDefinedValue, key: string): string {
   const v = item.attributeValues?.[key]?.value;
@@ -115,6 +119,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   const rockCoverImagesByPath = buildRockCoverImagesByPath(
     rockClassDefinedValues,
   );
+  const interestOnlyHits = buildInterestOnlyClassHits(rockClassDefinedValues);
 
   return Response.json({
     // The browser receives the search-only key so the hydrated InstantSearch
@@ -124,5 +129,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     algoliaIndexes,
     serverState,
     rockCoverImagesByPath,
+    interestOnlyHits,
   } satisfies LoaderReturnType);
 };
