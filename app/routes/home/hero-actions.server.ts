@@ -1,4 +1,5 @@
-import { fetchRockData, TTL } from '~/lib/.server/fetch-rock-data';
+import { TTL } from '~/lib/.server/fetch-rock-data';
+import { fetchDefinedValues } from '~/lib/.server/rock-defined-values';
 import { IconName } from '~/primitives/button/types';
 import type { HeroAction } from './loader';
 
@@ -19,24 +20,22 @@ export const fetchHeroActions = async (): Promise<HeroAction[]> => {
   const definedTypeId = 631;
 
   try {
-    const heroActions = await fetchRockData({
-      endpoint: 'DefinedValues',
-      queryParams: {
-        $filter: `DefinedTypeId eq ${definedTypeId} and IsActive eq true`,
-        $orderby: 'Order desc',
-        $top: '2',
-        loadAttributes: 'simple',
-      },
+    const heroActions = await fetchDefinedValues<HeroActionRaw>({
+      definedTypeId,
+      activeOnly: true,
+      orderBy: 'Order desc',
+      limit: 2,
+      attributes: 'simple',
       ttl: TTL.NONE,
     });
 
-    return heroActions.map((action: HeroActionRaw) => ({
+    return heroActions.map((action) => ({
       iconName: (sanitizeIconName(action.attributeValues?.icon?.value) ??
         'bell') as IconName,
       heading: action.description as string,
       title: action.value as string,
       url: action.attributeValues?.url?.value as string,
-      position: action.order,
+      position: action.order as number,
     }));
   } catch (error) {
     console.error('Error fetching hero actions:', error);

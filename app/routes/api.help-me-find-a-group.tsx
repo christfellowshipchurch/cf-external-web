@@ -1,7 +1,11 @@
 import { type ActionFunction, type LoaderFunction, data } from 'react-router';
 import type { HelpMeFindAGroupFormType } from '~/components/modals/help-me-find-a-group/types';
-import type { HelpMeFindAGroupLoaderReturnType } from '~/components/modals/help-me-find-a-group/types';
-import { fetchRockData } from '~/lib/.server/fetch-rock-data';
+import type {
+  HelpMeFindAGroupLoaderReturnType,
+  HubOption,
+} from '~/components/modals/help-me-find-a-group/types';
+import { fetchCampuses, type CampusOption } from '~/lib/.server/rock-campuses';
+import { fetchDefinedValues } from '~/lib/.server/rock-defined-values';
 import { postRockWorkflowLaunchWithApiInitiator } from '~/lib/.server/rock-workflow';
 
 // People Group Type (CFDP-4062). Feeds the "Group Preference" attribute on
@@ -11,21 +15,12 @@ const HUB_DEFINED_TYPE_ID = 625;
 
 export const loader: LoaderFunction = async () => {
   const [campuses, hubs] = await Promise.all([
-    fetchRockData({
-      endpoint: 'Campuses',
-      queryParams: {
-        $filter: 'IsActive eq true',
-        $orderby: 'Order',
-        $select: 'Name, Guid',
-      },
-    }),
-    fetchRockData({
-      endpoint: 'DefinedValues',
-      queryParams: {
-        $filter: `DefinedTypeId eq ${HUB_DEFINED_TYPE_ID} and IsActive eq true`,
-        $orderby: 'Order',
-        $select: 'Guid, Value',
-      },
+    fetchCampuses<CampusOption>({ active: true }, ['Name', 'Guid']),
+    fetchDefinedValues<HubOption>({
+      definedTypeId: HUB_DEFINED_TYPE_ID,
+      activeOnly: true,
+      orderBy: 'Order',
+      fields: ['Guid', 'Value'],
     }),
   ]);
 

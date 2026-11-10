@@ -1,5 +1,6 @@
-import { fetchRockData, TTL } from '~/lib/.server/fetch-rock-data';
-import { ensureArray, formattedServiceTimes } from '~/lib/utils';
+import { TTL } from '~/lib/.server/fetch-rock-data';
+import { fetchCampusWithDetails } from '~/lib/.server/rock-campuses';
+import { formattedServiceTimes } from '~/lib/utils';
 import {
   FALLBACK_SUNDAY_SERVICE_TIMES,
   isOnlineServiceLive,
@@ -19,18 +20,10 @@ const ONLINE_CAMPUS_URL = 'cf-everywhere';
  */
 const fetchSundayServiceTimes = async (): Promise<string[]> => {
   try {
-    const data = await fetchRockData({
-      endpoint: 'Campuses',
-      queryParams: {
-        $filter: `Url eq '${ONLINE_CAMPUS_URL}'`,
-        loadAttributes: 'simple',
-      },
-      ttl: TTL.LONG,
-    });
-
-    // Rock unwraps a single match to an object but returns an array when the
-    // filter matches more than one row.
-    const campus = ensureArray(data)[0];
+    const campus = await fetchCampusWithDetails(
+      { url: ONLINE_CAMPUS_URL },
+      TTL.LONG,
+    );
     const serviceTimes = campus?.serviceTimes;
 
     if (typeof serviceTimes !== 'string' || !serviceTimes.trim()) {

@@ -4,6 +4,7 @@ import {
   postRockData,
   TTL,
 } from '~/lib/.server/fetch-rock-data';
+import { fetchCampuses } from '~/lib/.server/rock-campuses';
 import type {
   ConnectCardPrefill,
   ConnectCardPrefillResponse,
@@ -216,15 +217,11 @@ const buildPrefill = async (
       },
       ttl: TTL.NONE,
     }),
-    fetchRockData({
-      endpoint: 'Campuses',
-      queryParams: {
-        $filter: 'IsActive eq true',
-        $orderby: 'Order',
-        $select: 'Id,Name,Guid',
-      },
-      ttl: TTL.NONE,
-    }),
+    fetchCampuses<RockCampus>(
+      { active: true },
+      ['Id', 'Name', 'Guid'],
+      TTL.NONE,
+    ),
   ]);
 
   const phone = asArray(phoneNumbers as RockPhoneNumber[] | RockPhoneNumber)[0];

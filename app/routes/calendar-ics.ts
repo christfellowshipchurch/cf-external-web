@@ -1,6 +1,5 @@
 import { LoaderFunctionArgs } from 'react-router';
-import { fetchRockData } from '~/lib/.server/fetch-rock-data';
-import { escapeOData } from '~/lib/.server/rock-utils';
+import { fetchCampusWithDetails } from '~/lib/.server/rock-campuses';
 import {
   format,
   addMinutes,
@@ -25,25 +24,18 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   const campus = reqUrl.searchParams.get('campus') ?? '';
   const time = reqUrl.searchParams.get('time') ?? '';
 
-  const data = await fetchRockData({
-    endpoint: 'Campuses',
-    queryParams: {
-      $filter: `Url eq '${escapeOData(campus)}'`,
-      $expand: 'Location',
-      loadAttributes: 'simple',
-    },
-  });
+  const data = campus ? await fetchCampusWithDetails({ url: campus }) : null;
 
-  if (!data || data.length === 0) {
+  if (!data) {
     throw new Response('Campus not found', { status: 404 });
   }
 
   const { name, location } = data;
   const address = [
-    location.street1,
-    location.city,
-    location.state,
-    location.postalCode,
+    location?.street1,
+    location?.city,
+    location?.state,
+    location?.postalCode,
   ]
     .filter(Boolean)
     .join(', ');

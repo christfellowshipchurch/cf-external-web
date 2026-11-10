@@ -1,4 +1,5 @@
-import { fetchRockData, TTL } from '~/lib/.server/fetch-rock-data';
+import { TTL } from '~/lib/.server/fetch-rock-data';
+import { fetchDefinedValues } from '~/lib/.server/rock-defined-values';
 import { createImageUrlFromGuid } from '~/lib/utils';
 import type { VolunteerAtChurchResource } from './types';
 
@@ -42,19 +43,14 @@ export async function fetchDreamTeamBucketByGuid(
   guid: string,
 ): Promise<VolunteerAtChurchResource | null> {
   try {
-    const raw = await fetchRockData({
-      endpoint: 'DefinedValues',
-      queryParams: {
-        $filter: `DefinedTypeId eq ${DREAM_TEAM_BUCKETS_DEFINED_TYPE_ID} and IsActive eq true and Guid eq guid'${guid}'`,
-        loadAttributes: 'simple',
-        $top: '1',
-      },
+    const [item] = (await fetchDefinedValues({
+      guid,
+      definedTypeId: DREAM_TEAM_BUCKETS_DEFINED_TYPE_ID,
+      activeOnly: true,
+      limit: 1,
+      attributes: 'simple',
       ttl: TTL.NONE,
-    });
-
-    const item: RawDefinedValue | undefined = Array.isArray(raw)
-      ? raw[0]
-      : (raw ?? undefined);
+    })) as RawDefinedValue[];
     if (!item) return null;
     return mapDefinedValueToResource(item);
   } catch (error) {
@@ -67,21 +63,13 @@ export async function fetchDreamTeamBuckets(): Promise<
   VolunteerAtChurchResource[]
 > {
   try {
-    const raw = await fetchRockData({
-      endpoint: 'DefinedValues',
-      queryParams: {
-        $filter: `DefinedTypeId eq ${DREAM_TEAM_BUCKETS_DEFINED_TYPE_ID} and IsActive eq true`,
-        $orderby: 'Order',
-        loadAttributes: 'simple',
-      },
+    const items = (await fetchDefinedValues({
+      definedTypeId: DREAM_TEAM_BUCKETS_DEFINED_TYPE_ID,
+      activeOnly: true,
+      orderBy: 'Order',
+      attributes: 'simple',
       ttl: TTL.NONE,
-    });
-
-    const items: RawDefinedValue[] = Array.isArray(raw)
-      ? raw
-      : raw
-        ? [raw]
-        : [];
+    })) as RawDefinedValue[];
 
     return items.reduce<VolunteerAtChurchResource[]>((acc, item) => {
       const mapped = mapDefinedValueToResource(item);
