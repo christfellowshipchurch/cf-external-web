@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+# Nothing to authenticate or reconnect: the repo has no databases or tunnels.
+# Fast repair only: re-link the pinned Node if the /usr/local/bin links were reset, and fail if
+# it is still missing so the problem surfaces instead of hiding until a command breaks.
+set -euo pipefail
+
+cd "$(dirname "$0")/.."
+want="$(tr -d '[:space:]' < .nvmrc)"
+want="${want#v}"
+if [[ "$(node -v 2>/dev/null || true)" != "v$want" ]]; then
+  node_dir="$HOME/.local/share/node-v$want"
+  if [[ -x "$node_dir/bin/node" ]]; then
+    for bin in node npm npx corepack; do
+      sudo -n ln -sf "$node_dir/bin/$bin" "/usr/local/bin/$bin"
+    done
+    hash -r
+  fi
+fi
+if [[ "$(node -v 2>/dev/null || true)" != "v$want" ]]; then
+  echo "node is not v$want; rerun .agents/setup" >&2
+  exit 1
+fi
+[[ -d node_modules ]] || echo "warning: node_modules missing; rerun .agents/setup" >&2
