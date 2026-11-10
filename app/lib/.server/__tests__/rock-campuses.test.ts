@@ -128,11 +128,11 @@ describe('campusDetailsV2Read', () => {
     );
   });
 
-  it('sorts active campuses by Rock Order', () => {
-    expect(campusDetailsV2Read({ active: true }).body).toMatchObject({
-      where: 'IsActive == true',
-      sort: 'Order',
-    });
+  // Rock sorts after the select, so sorting on a field it didn't select is a 500.
+  it('sorts active campuses by Rock Order, selecting Order', () => {
+    const { body } = campusDetailsV2Read({ active: true });
+    expect(body).toMatchObject({ where: 'IsActive == true', sort: 'Order' });
+    expect(body.select).toMatch(/[(,] Order,/);
   });
 });
 
@@ -202,23 +202,40 @@ describe('fetchCampuses', () => {
         ok: true,
         json: async () => ({
           count: 1,
-          items: [{ Name: 'Jupiter', Guid: CAMPUS_GUID }],
+          items: [{ name: 'Jupiter', guid: CAMPUS_GUID, order: 4 }],
         }),
       }),
     );
 
     await expect(
       fetchCampuses({ active: true }, ['Name', 'Guid']),
-    ).resolves.toEqual([{ name: 'Jupiter', guid: CAMPUS_GUID }]);
+    ).resolves.toEqual([{ name: 'Jupiter', guid: CAMPUS_GUID, order: 4 }]);
     const [url, init] = vi.mocked(global.fetch).mock.calls[0];
     expect(url).toBe(
       'https://rock.example.com/api/v2/models/campuses/search/campuses',
     );
+    // Rock sorts after the select, so sorting on a field it didn't select is a 500.
     expect(JSON.parse(String(init?.body))).toEqual({
       where: 'IsActive == true',
-      select: 'new (Name, Guid)',
+      select: 'new (Name, Guid, Order)',
       sort: 'Order',
     });
+    expect(fetchRockData).not.toHaveBeenCalled();
+  });
+
+  // Rock v2 returns camelCase keys; a matching row must not trip the
+  // wrong-record guard and send every lookup to v1.
+  it('uses the v2 row for a Guid lookup when Rock returns camelCase keys', async () => {
+    stubRockV2Fetch(
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({ count: 1, items: [{ id: 7, guid: CAMPUS_GUID }] }),
+      }),
+    );
+
+    await expect(fetchCampuses({ guid: CAMPUS_GUID }, ['Id'])).resolves.toEqual(
+      [{ id: 7, guid: CAMPUS_GUID }],
+    );
     expect(fetchRockData).not.toHaveBeenCalled();
   });
 });

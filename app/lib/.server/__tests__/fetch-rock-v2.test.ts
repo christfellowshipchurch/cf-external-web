@@ -338,6 +338,13 @@ describe('keepMatchingRows', () => {
     expect(keepMatchingRows(rows, 'Guid', CAMPUS_GUID)).toEqual(rows);
   });
 
+  // Rock v2 returns camelCase keys, so `Guid` must find a row's `guid`.
+  it('reads the field from camelCase rows as Rock returns them', () => {
+    const rows = [{ guid: CAMPUS_GUID, url: 'jupiter' }];
+    expect(keepMatchingRows(rows, 'Guid', CAMPUS_GUID)).toEqual(rows);
+    expect(keepMatchingRows(rows, 'Url', 'jupiter')).toEqual(rows);
+  });
+
   // A search that ignored its `where` returns other records; the read must
   // fall back to v1 rather than use one of them.
   it('throws when any row belongs to another record', () => {

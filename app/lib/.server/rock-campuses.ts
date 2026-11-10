@@ -106,9 +106,11 @@ export const fetchCampuses = async <T = Record<string, unknown>>(
   if (isUnmatchable(filter)) return [];
 
   // The looked-up field is always selected, so the v2 rows can be checked.
+  // Rock sorts after the select, so a sorted read must select Order too.
   const key = lookupKey(filter);
-  const v2Fields =
-    key && !fields.includes(key[0]) ? [...fields, key[0]] : fields;
+  const v2Fields: string[] =
+    key && !fields.includes(key[0]) ? [...fields, key[0]] : [...fields];
+  if (isOrdered(filter) && !v2Fields.includes('Order')) v2Fields.push('Order');
 
   return fetchRockV2<T[]>({
     path: searchPath('campuses'),
@@ -139,7 +141,7 @@ export const fetchCampuses = async <T = Record<string, unknown>>(
  * Attribute values come in the search itself. Location.Latitude is computed,
  * not a column, so the Location comes from a follow-up GET by Guid.
  */
-const CAMPUS_DETAILS_SELECT = `new (Id, Guid, Name, Url, PhoneNumber, ServiceTimes, LeaderPersonAliasId, Location.Guid as LocationGuid, ${selectAttributeValues('Campus')})`;
+const CAMPUS_DETAILS_SELECT = `new (Id, Guid, Name, Url, PhoneNumber, ServiceTimes, LeaderPersonAliasId, Order, Location.Guid as LocationGuid, ${selectAttributeValues('Campus')})`;
 
 /** v2 read of campuses with attribute values and Location (1 + 1 call each). */
 export const campusDetailsV2Read = (filter: CampusFilter, ttl?: TTLValue) => ({
