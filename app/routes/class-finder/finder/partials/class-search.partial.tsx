@@ -37,6 +37,7 @@ import {
   shouldShowJourneyCard,
   withJourneyCardFirst,
 } from '../components/journey-pinned-card';
+import { pickInterestOnlyClassHits } from '../components/interest-only-class-cards';
 import { useAlgoliaUrlSync } from '~/hooks/use-algolia-url-sync';
 import { useScrollToSearchResultsOnLoad } from '~/hooks/use-scroll-to-search-results-on-load';
 import { HubsTagsRefinementList } from '~/components/hubs-tags-refinement';
@@ -100,6 +101,7 @@ export const ClassSearch = () => {
     ALGOLIA_SEARCH_API_KEY,
     serverState,
     rockCoverImagesByPath,
+    interestOnlyHits,
     algoliaIndexes,
   } = loaderData;
   const classIndexName = algoliaIndexes.classes;
@@ -172,7 +174,6 @@ export const ClassSearch = () => {
     location.pathname +
     (searchParams.toString() ? `?${searchParams.toString()}` : '');
 
-  // Interest-only classes are indexed in Algolia as catalog rows (no session dates).
   const finderFiltersActive = useMemo(() => {
     const s = parseClassFinderUrlState(searchParams);
     return (
@@ -280,6 +281,7 @@ export const ClassSearch = () => {
               <div className='max-w-screen-content mx-auto md:w-full'>
                 <ClassTypeGroupedInstantSearchResults
                   rockCoverImagesByPath={rockCoverImagesByPath}
+                  interestOnlyHits={interestOnlyHits}
                   filtersActive={finderFiltersActive}
                   fromClassFinderUrl={fromClassFinderUrl}
                   onClearFilters={clearAllFiltersFromUrl}
@@ -302,11 +304,13 @@ const ITEMS_PER_PAGE = 12;
 
 function ClassTypeGroupedInstantSearchResults({
   rockCoverImagesByPath,
+  interestOnlyHits,
   filtersActive,
   fromClassFinderUrl,
   onClearFilters,
 }: {
   rockCoverImagesByPath: Record<string, string>;
+  interestOnlyHits: ClassHitType[];
   filtersActive: boolean;
   fromClassFinderUrl?: string;
   onClearFilters: () => void;
@@ -324,6 +328,11 @@ function ClassTypeGroupedInstantSearchResults({
       hits={items}
       isLoading={isLoading}
       rockCoverImagesByPath={rockCoverImagesByPath}
+      interestOnlyHits={interestOnlyHits}
+      query={indexUiState.query}
+      refinementList={
+        indexUiState.refinementList as Record<string, string[]> | undefined
+      }
       filtersActive={filtersActive}
       showJourneyCard={showJourneyCard}
       fromClassFinderUrl={fromClassFinderUrl}
@@ -336,6 +345,9 @@ function ClassTypeGroupedResults({
   hits,
   isLoading,
   rockCoverImagesByPath,
+  interestOnlyHits,
+  query,
+  refinementList,
   filtersActive,
   showJourneyCard,
   fromClassFinderUrl,
@@ -344,6 +356,9 @@ function ClassTypeGroupedResults({
   hits: ClassHitType[];
   isLoading: boolean;
   rockCoverImagesByPath: Record<string, string>;
+  interestOnlyHits: ClassHitType[];
+  query?: string;
+  refinementList?: Record<string, string[]>;
   filtersActive: boolean;
   showJourneyCard: boolean;
   fromClassFinderUrl?: string;
@@ -366,10 +381,17 @@ function ClassTypeGroupedResults({
 
   // Journey is not in the classes index. Pin it after grouping so it is not
   // rewritten or dropped by isCompleteClassFinderHit / syntheticHitsFromGrouped.
-  const mappedHits = useMemo(
-    () => (showJourneyCard ? withJourneyCardFirst(algoliaHits) : algoliaHits),
-    [algoliaHits, showJourneyCard],
-  );
+  const mappedHits = useMemo(() => {
+    // TEMPORARY: Rock "I'm Interested" classes missing from the index, placed
+    // before the Algolia cards so they land on the first page.
+    const interestCards = pickInterestOnlyClassHits(
+      algoliaHits,
+      interestOnlyHits,
+      { query, refinementList },
+    );
+    const cards = [...interestCards, ...algoliaHits];
+    return showJourneyCard ? withJourneyCardFirst(cards) : cards;
+  }, [algoliaHits, showJourneyCard, interestOnlyHits, query, refinementList]);
 
   const start = (currentPage - 1) * ITEMS_PER_PAGE;
   const pageHits = mappedHits.slice(start, start + ITEMS_PER_PAGE);
