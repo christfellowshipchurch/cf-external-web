@@ -17,6 +17,10 @@ vi.mock('~/lib/.server/fetch-wistia-data', () => ({
   fetchWistiaDataFromRock: vi.fn(),
 }));
 
+vi.mock('~/lib/.server/rock-defined-values', () => ({
+  fetchDefinedValueByGuid: vi.fn(),
+}));
+
 vi.mock('~/lib/.server/rock-utils', () => ({
   getAttributeMatrixItems: vi.fn(),
 }));
@@ -30,9 +34,17 @@ import {
   PODCAST_SHOW_CHANNEL_ID,
 } from '../../podcasts/podcast-routing.server';
 import { getAttributeMatrixItems } from '~/lib/.server/rock-utils';
+import { fetchWistiaDataFromRock } from '~/lib/.server/fetch-wistia-data';
+import { fetchDefinedValueByGuid } from '~/lib/.server/rock-defined-values';
 import { fetchChildItems, mapPageBuilderChildItems } from '../loader';
 
 const mockGetAttributeMatrixItems = getAttributeMatrixItems as ReturnType<
+  typeof vi.fn
+>;
+const mockFetchWistiaDataFromRock = fetchWistiaDataFromRock as ReturnType<
+  typeof vi.fn
+>;
+const mockFetchDefinedValueByGuid = fetchDefinedValueByGuid as ReturnType<
   typeof vi.fn
 >;
 
@@ -568,5 +580,45 @@ describe('mapPageBuilderChildItems – section date range', () => {
     expect(sections.map((s) => s.id)).toEqual(['live-section']);
     // The expired section's items are never fetched.
     expect(mockFetchRockData).toHaveBeenCalledTimes(2);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// mapPageBuilderChildItems – content block feature video
+// ---------------------------------------------------------------------------
+
+describe('mapPageBuilderChildItems – content block feature video', () => {
+  it('loads a feature video as a media element instead of a defined value', async () => {
+    // Rock stores the Wistia media guid on featureVideo. That guid is not a
+    // Defined Value; resolving it as one throws and 500s the ministry page.
+    const videoGuid = '8b1c97b2-9895-4a96-8180-86941a218730';
+    const layoutGuid = '58006c59-f59b-4c49-b7e5-2fef2255f80a';
+
+    mockFetchDefinedValueByGuid.mockImplementation(async (guid: string) => {
+      if (guid === videoGuid) return null;
+      return { value: 'FEATURE' };
+    });
+    mockFetchWistiaDataFromRock.mockResolvedValue({ sourceKey: 'kids-promo' });
+
+    const [section] = await mapPageBuilderChildItems([
+      {
+        id: '19037',
+        status: 2,
+        title: 'Where Kids Learn to Love Jesus',
+        content: '',
+        contentChannelId: '170',
+        attributeValues: {
+          layoutType: { value: layoutGuid },
+          featureVideo: { value: videoGuid },
+          coverImage: { value: 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee' },
+        },
+      },
+    ]);
+
+    expect(mockFetchDefinedValueByGuid).not.toHaveBeenCalledWith(videoGuid);
+    expect(mockFetchDefinedValueByGuid).toHaveBeenCalledWith(layoutGuid);
+    expect(mockFetchWistiaDataFromRock).toHaveBeenCalledWith(videoGuid);
+    expect(section.featureVideo).toBe('kids-promo');
+    expect(section.layoutType).toBe('FEATURE');
   });
 });
