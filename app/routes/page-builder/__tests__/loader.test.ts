@@ -37,6 +37,7 @@ import { getAttributeMatrixItems } from '~/lib/.server/rock-utils';
 import { fetchWistiaDataFromRock } from '~/lib/.server/fetch-wistia-data';
 import { fetchDefinedValueByGuid } from '~/lib/.server/rock-defined-values';
 import { fetchChildItems, mapPageBuilderChildItems } from '../loader';
+import type { ContentBlockData } from '../types';
 
 const mockGetAttributeMatrixItems = getAttributeMatrixItems as ReturnType<
   typeof vi.fn
@@ -618,7 +619,9 @@ describe('mapPageBuilderChildItems – content block feature video', () => {
     expect(mockFetchDefinedValueByGuid).not.toHaveBeenCalledWith(videoGuid);
     expect(mockFetchDefinedValueByGuid).toHaveBeenCalledWith(layoutGuid);
     expect(mockFetchWistiaDataFromRock).toHaveBeenCalledWith(videoGuid);
-    expect(section.featureVideo).toBe('kids-promo');
-    expect(section.layoutType).toBe('FEATURE');
+    // Those fields are on the content block, not the shared section type.
+    const block = section as ContentBlockData;
+    expect(block.featureVideo).toBe('kids-promo');
+    expect(block.layoutType).toBe('FEATURE');
   });
 });
