@@ -36,11 +36,12 @@ nothing new:
 - `fetchRockV2`, `requestRockV2`, `toV1Shape`, `buildV2SearchBody`,
   `getSearchItems` and `escapeDynamicLinq` in `app/lib/.server/fetch-rock-v2.ts`.
   New reads reuse them.
-- The `ROCK_V2_ENABLED` constant in `app/lib/rock-config.ts`, the v1 fallback
-  and the dev-only `🔍 Rock v2 vs v1` comparison are built in. It's a constant,
-  not an environment variable, so switching v2 on or off is a code change.
-- Tests run on v1 (`vitest.setup.ts` mocks the constant to `false`). A v2 test
-  mocks it back on.
+- The `ROCK_V2_ENABLED` environment variable, the v1 fallback and the dev-only
+  `🔍 Rock v2 vs v1` comparison are built in. Like My Groups, v2 is **on unless
+  `ROCK_V2_ENABLED=false`**: unset or `true` means on. Set it to `false` in an
+  environment to run every read on its v1 fallback, no deploy needed.
+- Tests run on v1 (`vitest.config.ts` sets `ROCK_V2_ENABLED=false`). A v2 test
+  turns it on with `vi.stubEnv`.
 
 ## How the code works
 
@@ -143,8 +144,7 @@ caches permissions, so new grants may not apply until you do.
 
 ### 6. Test locally
 
-With `ROCK_V2_ENABLED` set to `true` in `app/lib/rock-config.ts`, start the dev
-server as usual, load the page and read the terminal:
+With `ROCK_V2_ENABLED` unset (or `true`), start the dev server as usual, load the page and read the terminal:
 
 - `🔍 Rock v2 vs v1 … N differences`: v2 works. Check every difference against
   what the page actually reads (see "Expected differences" below).
@@ -208,26 +208,10 @@ values kept returning 401 until the action-level Unrestricted Read was added.
 
 ### Message single page: Content Channel Item by Url attribute
 
-**Calls:** search, then attribute values (2 v2 calls vs 1 on v1). This
-replaces v1's `ContentChannelItems/GetByAttributeValue`, which has no v2
-equivalent.
-
-- `POST contentchannelitems/search/cf-web-message-by-url`, body `where`:
-  `ContentChannelId == 63 && Status == "Approved" && ContentChannelItemAttributeValues.Any(av => av.Key == "Url" && av.Value == "{path}")`
-  - In preview mode the `Status` clause is left out, as on v1.
-  - The scheduled/expired date check runs in code, as v1 does for
-    `GetByAttributeValue`.
-- `GET contentchannelitems/{guid}/attributevalues`
-
-**Rock setup:**
-
-| Where                                                                                                               | Permission for the REST user |
-| ------------------------------------------------------------------------------------------------------------------- | ---------------------------- |
-| Entity Search `cf-web-message-by-url` (Content Channel Item, refinement on, max 10, Where `ContentChannelId == 63`) | Execute › Allow              |
-| v2 ContentChannelItems controller                                                                                   | Execute Read › Allow         |
-
-No action-level grant was needed. The attribute-values action offers Execute
-Read and inherits the controller's grant.
+The message page first used its own search (`cf-web-message-by-url`) plus a
+`GET contentchannelitems/{guid}/attributevalues` call. Since steps 2 and 3 it
+reads through the shared `contentchannelitems` search like every other content
+read, in one call. `cf-web-message-by-url` is no longer called.
 
 **Filtering on an attribute in an Entity Search:** use
 `{Entity}AttributeValues.Any(av => av.Key == "…" && av.Value == "…")`, e.g.
@@ -298,6 +282,97 @@ go too. Remove both once this ships.
 The admin `target=attribute-matrices` flush also clears the
 `attributematricesitem` search's cache entries.
 
+## Steps 2 and 3 (CFDP-4537, CFDP-4538): content items and attribute lookups
+
+Every `ContentChannelItems`, `ContentChannelItemAssociations` and
+`…/GetByAttributeValue` read now tries v2 first, except the sitemap (below).
+
+**How:** `fetchViaV2Search` (`rock-v2-search.ts`) takes the **same options a
+`fetchRockData` call already had** and runs them as a saved-search request.
+Call sites only swap the function name; the v1 call is unchanged and is the
+fallback.
+
+- `$filter` becomes the `where` through `odataFilterToLinq`. It accepts only
+  the subset the site uses (`eq ne lt le gt ge and or not`, parentheses,
+  numbers, strings, `guid'…'`, `datetime'…'`, `null`). Anything else goes
+  straight to v1 with a warning.
+- `filterByStatusApproved`, `filterByDateRange` and preview mode are resolved
+  by the same code as v1 (`resolveRockQuery`), so both versions ask Rock the
+  same question.
+- `attributeKey` / `value` become
+  `{Entity}AttributeValues.Any(av => av.Key == "…" && av.Value == "…")`.
+  As on v1, the date range for an attribute lookup is checked in code after
+  `$top`.
+- `$top` becomes `limit`, and the result is also cut to `$top` in code.
+- `$skip`, `$select` and `attributeKeys` aren't translated. A read that uses
+  one stays on v1.
+- Rows come back in v1's shape: one row unwrapped, `Status` as a number, dates
+  without the `-04:00` offset (so `new Date(value)` formats as on v1), and
+  `attributes` built from the attribute value keys.
+- **Wrong-record guard**, as in step 1: an attribute lookup also selects the
+  looked-up value (`LookupValue`), and an `Id eq` / `Guid eq` read checks each
+  row's Id or Guid. A row that doesn't match sends the read to v1.
+- A lookup by `Url` or `Pathname` that finds nothing throws, so v1 answers and
+  a misbehaving search can't 404 a real page. Other empty results are
+  returned as empty.
+
+| Helper                                 | File                     | v2 call                          |
+| -------------------------------------- | ------------------------ | -------------------------------- |
+| `fetchContentItems`                    | `rock-content-items.ts`  | search `contentchannelitems`     |
+| `fetchChildContentItems`               | `rock-content-items.ts`  | search `contentchannelitems`     |
+| `fetchDefinedValuesByAttribute`        | `rock-defined-values.ts` | search `definedvalues`           |
+| `fetchChurchRolesByPreferenceAreaGuid` | `church-roles.server.ts` | search `connectionOpportunities` |
+
+**Page-builder children** used to be the association list plus one read per
+child. v2 reads them in one search,
+`where: ParentItems.Any(a => a.ContentChannelItemId == {parentId})`, selecting
+each child's association `Order` to sort by. It reads every status and drops
+non-Approved children in code (not in preview), so a Pending child is still in
+the cache index.
+
+**Cache invalidation.** v2 responses go into the same `cfitem:{id}` /
+`cfchildren:{id}` reverse index as v1 (`storeIndexedResponse` in
+`cache-utils.ts`), so the admin single-item clear also clears v2 keys:
+
+- content item reads index every row, plus the requested id for an
+  `Id eq N` read that came back empty;
+- the children read indexes the parent, each child, and the parent → child
+  relationships.
+
+"Now" in a `where` (`DateTime(…)`) is replaced with a placeholder before the
+cache key is hashed, as v1 does for its date-range clause. Without it every
+request would get its own key.
+
+This was the gate for turning `ROCK_V2_ENABLED` on in production.
+
+**Stays on v1:** the sitemap. It pages with `$skip`, and Rock's paging field
+names aren't confirmed yet (see "Still to confirm").
+
+**Rock setup.** `contentchannelitems` and `definedvalues` searches already
+exist with Execute for apollos. Still to do:
+
+| Where                                                                                                           | Permission for apollos    |
+| --------------------------------------------------------------------------------------------------------------- | ------------------------- |
+| Entity Search `connectionOpportunities` (Connection Opportunity, Active, refinement on, max blank): **created** | Execute › Allow (confirm) |
+| v2 ConnectionOpportunities controller, `POST search/{searchKey}` action                                         | Execute Read › Allow      |
+
+The search exists; until the controller grant is in place, church roles fall back to v1. Once this ships, delete the
+`cf-web-message-by-url` search.
+
+**To confirm on the first run:**
+
+- `DateTime(2026, 11, 10, 16, 5, 9)` in a `where` (date-range reads: navbar,
+  podcasts, daily devo, volunteer trips, group finder notify).
+- `ParentItems` and `.Min(a => a.Order)` in the children search (page builder,
+  link tree, ministry builder, podcast show).
+- `ContentChannelItemAttributeValues`, `PersonAttributeValues` and
+  `ConnectionOpportunityAttributeValues` (Model Map).
+- `Status == "Approved"` compares against the enum, and `Status` comes back as
+  a name or a number (both are handled).
+
+Each of these falls back to v1 if Rock rejects it, logging
+`⚠️ Rock v2 request failed`.
+
 ## Expected differences between v1 and v2
 
 These showed up on both pages. None affected what the pages display.
@@ -310,6 +385,68 @@ These showed up on both pages. None affected what the pages display.
 | Navigation properties (e.g. `contentChannel`) and `attributes` are only in v1                                                  | v2 doesn't expand related records. Fetch them separately if a page needs them.                                                                                                                  |
 | Fields left out of a search `select` are only in v1                                                                            | Expected. Only select what the page reads.                                                                                                                                                      |
 | Some attributes show different `valueFormatted` text with the same `value`                                                     | Seen on two campus attributes. Possibly older cached text in v2. Check if a page displays that attribute.                                                                                       |
+
+## Saved Entity Search keys
+
+Every search apollos can execute on our Rock, shared with My Groups. The path
+is `{v2 route name}/search/{key}`; `searchPath(model, searchKey)` in
+`fetch-rock-v2.ts` builds it, and an entity's `searchKey` is only set when
+the key isn't the route name.
+
+The older keys are all lowercase (the v2 route name). Newer ones are
+camelCase, starting with `connectionOpportunities`. **Eventually every key
+should be camelCase.** The renames are part of the cleanup ticket,
+CFDP-4546. Rename one search at a time, together with the code change, since
+My Groups calls the same searches.
+
+Casing below is as recorded from My Groups' setup; check the key in Rock
+(**Admin Tools › Settings › Entity Search**) before relying on it.
+
+| Key now                   | Target key                          | Used by this site              |
+| ------------------------- | ----------------------------------- | ------------------------------ |
+| `campuses`                | `campuses`                          | Yes (step 1)                   |
+| `contentchannels`         | `contentChannels`                   | Yes (step 1)                   |
+| `attributematricesitem`   | `attributeMatricesItem`             | Yes (step 1)                   |
+| `definedvalues`           | `definedValues`                     | Yes (steps 1, 3)               |
+| `contentchannelitems`     | `contentChannelItems`               | Yes (steps 2, 3)               |
+| `people`                  | `people`                            | No (author lookup stays on v1) |
+| `connectionOpportunities` | `connectionOpportunities` (already) | Yes (step 3, church roles)     |
+| `locations`               | `locations`                         | No (My Groups)                 |
+| `groups`                  | `groups`                            | No (My Groups)                 |
+| `groupmembers`            | `groupMembers`                      | No (My Groups)                 |
+| `grouplocations`          | `groupLocations`                    | No (My Groups)                 |
+| `phonenumbers`            | `phoneNumbers`                      | No (My Groups)                 |
+| `relatedentities`         | `relatedEntities`                   | No (My Groups)                 |
+| `binaryfiles`             | `binaryFiles`                       | No (My Groups)                 |
+| `binaryfiletypes`         | `binaryFileTypes`                   | No (My Groups)                 |
+| `entitytypes`             | `entityTypes`                       | No (My Groups)                 |
+| `attributes`              | `attributes`                        | No (My Groups)                 |
+
+## Staying on v1
+
+Reads that steps 1–3 deliberately leave on v1, and why. Steps 4–6 (people and
+groups, workflow launches, writes) haven't started, so their calls aren't
+listed here.
+
+| Read                                                                                            | Why                                                                                                                                                                                                                           | Moves when                                                                                            |
+| ----------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| Sitemap (`sitemap[.]xml.ts`, `ContentChannelItems`)                                             | It pages with `$top` / `$skip`. Rock's v2 paging field names aren't confirmed, and if Rock ignored the offset every page would repeat the first one.                                                                          | A paged v2 read confirms `V2_PAGING_FIELDS`; then switch to `fetchContentItems`.                      |
+| Author by Pathname (`fetchAuthorByPathname` in `author-utils.ts`, `People/GetByAttributeValue`) | The `people` search answers 500 with no detail whenever it also selects `PersonAttributeValues`, unless `limit` is large: no limit, 1 and 10 fail, 1000 works (tested 2026-11-11). The lookup without attribute values works. | Step 4 (CFDP-4539), with Person reads: find out why Rock fails, or read attribute values another way. |
+
+## Cleanup after v2 is confirmed (CFDP-4546)
+
+Once a read is confirmed working on v2 in production:
+
+- remove its v1 fallback and the v1 helpers only it uses;
+- remove the extra logging: the dev-only `🔍 Rock v2 vs v1` comparison and
+  fallback warnings that no longer apply;
+- remove `ROCK_V2_ENABLED` once nothing reads it;
+- rename the search keys to camelCase (table above);
+- delete unused Rock searches and grants (`cf-web-campus-by-url`,
+  `cf-web-message-by-url`, the Campuses `attributevalues` Unrestricted Read
+  grant) and settled "Still to confirm" items.
+
+Reads listed under "Staying on v1" keep their v1 call.
 
 ## Still to confirm
 

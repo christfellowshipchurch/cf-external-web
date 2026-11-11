@@ -7,14 +7,6 @@ import {
   fetchCampusesWithDetails,
 } from '../rock-campuses';
 
-const rockV2 = vi.hoisted(() => ({ enabled: false }));
-
-vi.mock('~/lib/rock-config', async (importOriginal) => ({
-  ...(await importOriginal<object>()),
-  get ROCK_V2_ENABLED() {
-    return rockV2.enabled;
-  },
-}));
 vi.mock('../redis-config', () => ({ default: null }));
 vi.mock('../fetch-rock-data', async (importOriginal) => ({
   ...(await importOriginal<object>()),
@@ -30,7 +22,7 @@ const LOCATION_GUID = 'location-guid';
 
 beforeEach(() => {
   vi.clearAllMocks();
-  rockV2.enabled = false;
+  vi.stubEnv('ROCK_V2_ENABLED', 'false');
   vi.spyOn(console, 'error').mockImplementation(() => {});
 });
 
@@ -41,7 +33,7 @@ afterEach(() => {
 
 /** fetchRockV2 calls its own requestRockV2, so v2-on tests stub fetch itself. */
 const stubRockV2Fetch = (fetchMock: ReturnType<typeof vi.fn>) => {
-  rockV2.enabled = true;
+  vi.stubEnv('ROCK_V2_ENABLED', 'true');
   vi.stubEnv('NODE_ENV', 'test');
   vi.stubEnv('ROCK_API', 'https://rock.example.com/api/');
   vi.stubGlobal('fetch', fetchMock);

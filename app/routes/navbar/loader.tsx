@@ -1,7 +1,7 @@
+import { fetchContentItems } from '~/lib/.server/rock-content-items';
 // This loader is used to fetch the feature cards for the navbar and is stored in the root loader to be used across the app
 
 import type { LoaderFunctionArgs } from 'react-router';
-import { fetchRockData } from '~/lib/.server/fetch-rock-data';
 // import { fetchTopSearches } from "~/lib/.server/fetch-top-searches";
 import type { FeatureCard } from '~/components/navbar/types';
 import { createImageUrlFromGuid, parseRockKeyValueList } from '~/lib/utils';
@@ -94,7 +94,7 @@ const fetchLatestPodcastEpisode =
         .map((id) => `ContentChannelId eq ${id}`)
         .join(' or ');
 
-      const latestEpisodeData = await fetchRockData({
+      const latestEpisodeData = await fetchContentItems({
         endpoint: 'ContentChannelItems',
         queryParams: {
           $filter: `(${channelFilter})`,
@@ -158,7 +158,7 @@ const fetchFeatureCards = async () => {
   try {
     const [latestArticleData, latestPodcastEpisode, latestSermonData] =
       await Promise.all([
-        fetchRockData({
+        fetchContentItems({
           endpoint: 'ContentChannelItems',
           queryParams: {
             $filter: `ContentChannelId eq ${ContentChannelIds.articles}`,
@@ -170,7 +170,7 @@ const fetchFeatureCards = async () => {
           filterByStatusApproved: true,
         }),
         fetchLatestPodcastEpisode(),
-        fetchRockData({
+        fetchContentItems({
           endpoint: 'ContentChannelItems',
           queryParams: {
             $filter: `ContentChannelId eq 63`,
@@ -224,7 +224,7 @@ const fetchFeatureCards = async () => {
 
 const fetchSiteBanner = async (): Promise<RockContentChannelItem | null> => {
   try {
-    const siteBanner = await fetchRockData({
+    const siteBanner = await fetchContentItems({
       endpoint: 'ContentChannelItems',
       queryParams: {
         $filter: `ContentChannelId eq ${ContentChannelIds.siteBanner}`,

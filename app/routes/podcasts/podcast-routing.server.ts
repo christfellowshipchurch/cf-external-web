@@ -1,4 +1,4 @@
-import { fetchRockData } from '~/lib/.server/fetch-rock-data';
+import { fetchContentItems } from '~/lib/.server/rock-content-items';
 import { fetchRockEntityByGuid } from '~/lib/.server/fetch-rock-v2';
 
 /**
@@ -48,7 +48,7 @@ export async function buildPodcastRoutingIndex(): Promise<PodcastRoutingIndex> {
 
   let showItems: RockShowItem[];
   try {
-    const raw = await fetchRockData({
+    const raw = await fetchContentItems({
       endpoint: 'ContentChannelItems',
       queryParams: {
         $filter: `ContentChannelId eq ${PODCAST_SHOW_CHANNEL_ID} and Status eq 'Approved'`,
