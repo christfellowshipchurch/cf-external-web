@@ -444,7 +444,9 @@ export const mapPageBuilderChildItems = async (
         };
       }
 
-      // If the section is a content block, fetch the defined values for any GUIDs that are not the cover image or video
+      // Content-block GUIDs are Defined Values, except the cover image and the feature video.
+      // featureVideo is a MediaElement guid (resolved below). Treating it as a Defined Value throws
+      // and fails the whole page.
       if (sectionType === 'CONTENT_BLOCK') {
         const updatedValues = await Promise.all(
           Object.entries(attributeValues || {}).map(async ([key, value]) => {
@@ -452,7 +454,8 @@ export const mapPageBuilderChildItems = async (
               typeof value === 'string' &&
               isGuid(value) &&
               key !== 'coverImage' &&
-              key !== 'video'
+              key !== 'video' &&
+              key !== 'featureVideo'
                 ? await fetchDefinedValue(value)
                 : getStringValue(value);
             return [key, processedValue];
