@@ -23,6 +23,7 @@ export const darkModeRoutes: RoutePattern[] = [
 // Define routes where the navbar should be completely hidden
 // Include both static and dynamic routes
 export const hideNavbarRoutes: RoutePattern[] = [
+  { path: '/give-embed' }, // Bare embed target: the giving form only, no site chrome
   { path: '/group-finder/', isDynamic: true }, // This will match /groups/[slug]
   { path: '/volunteer/outreach/', isDynamic: true }, // Matches /volunteer/outreach/:groupGuid
   { path: '/volunteer/church/', isDynamic: true }, // Matches /volunteer/church/:bucketGuid
@@ -57,6 +58,28 @@ export function shouldHideNavbar(pathname: string): boolean {
     if (route.isDynamic) {
       // Check if the current path starts with the base path
       // For example, /presentation/ will match /presentation/123, /presentation/my-presentation, etc.
+      return pathname.startsWith(route.path);
+    }
+
+    return false;
+  });
+}
+
+// Define routes where the footer should be completely hidden
+// Include both static and dynamic routes
+export const hideFooterRoutes: RoutePattern[] = [
+  { path: '/give-embed' }, // Bare embed target: the giving form only, no site chrome
+];
+
+export function shouldHideFooter(pathname: string): boolean {
+  return hideFooterRoutes.some((route) => {
+    // For exact static matches
+    if (!route.isDynamic && route.path === pathname) {
+      return true;
+    }
+
+    // For dynamic routes
+    if (route.isDynamic) {
       return pathname.startsWith(route.path);
     }
 
