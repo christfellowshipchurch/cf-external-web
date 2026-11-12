@@ -31,10 +31,12 @@ export const AboutPartial = ({
           <h2 className='font-extrabold text-center text-[32px]'>
             {aboutTitle ?? 'About This Event'}
           </h2>
+          {/* About Section Summary: Rock HTML attribute */}
           {aboutContent && (
-            <p className='text-center text-[#717182] text-lg font-medium md:mx-4 max-w-[700px]'>
-              {aboutContent}
-            </p>
+            <HtmlRenderer
+              html={aboutContent}
+              className='text-center text-[#717182] text-lg font-medium md:mx-4 max-w-[700px] [&_p:not(:last-child)]:mb-3'
+            />
           )}
 
           {/* Info Cards */}
