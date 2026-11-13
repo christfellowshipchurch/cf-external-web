@@ -35,7 +35,8 @@ export const AboutPartial = ({
           {aboutContent && (
             <HtmlRenderer
               html={aboutContent}
-              className='text-center text-[#717182] text-lg font-medium md:mx-4 max-w-[700px] [&_p:not(:last-child)]:mb-3'
+              // Lists sit centered as a block but stay left-aligned so bullets hug their text
+              className='text-center text-[#717182] text-lg font-medium md:mx-4 max-w-[700px] [&_p:not(:last-child)]:mb-3 [&_ol]:inline-block [&_ol]:text-left [&_ul]:inline-block [&_ul]:text-left'
             />
           )}
 
