@@ -1,10 +1,10 @@
+import { fetchDefinedValuesByAttribute } from '~/lib/.server/rock-defined-values';
 import type { LoaderFunctionArgs } from 'react-router';
 
 import { algoliasearch } from 'algoliasearch';
 
 import { AuthenticationError } from '~/lib/.server/error-types';
 import { getServerAlgoliaIndexes } from '~/lib/.server/algolia-indexes.server';
-import { fetchRockData } from '~/lib/.server/fetch-rock-data';
 import type { RockContentChannelItem } from '~/lib/types/rock-types';
 import { createImageUrlFromGuid } from '~/lib/utils';
 import type { GroupType } from '~/routes/group-finder/types';
@@ -110,7 +110,7 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
   let classDefinedValueGuid = '';
 
   try {
-    const classData = (await fetchRockData({
+    const classData = (await fetchDefinedValuesByAttribute({
       endpoint: 'DefinedValues/GetByAttributeValue',
       queryParams: {
         attributeKey: 'Url',

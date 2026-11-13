@@ -23,6 +23,11 @@ When an association response is cached, its `rock:*` key is added to parent
 `cfitem` set and each child id is added to parent `cfchildren` set. All indexes
 expire after `TTL.LONG`; response keys retain requested TTL.
 
+Rock v2 reads (`rock:v2/models/contentchannelitems/…` keys) use the same
+indexes through `storeIndexedResponse`. The page-builder children read is one
+v2 search, indexed under the parent, each child, and `cfchildren:{parentId}`.
+See `rock-v2-setup.md`, "Steps 2 and 3".
+
 ## Invalidation behavior
 
 `POST /api/admin/cache?id={contentChannelItemId}` authenticates with

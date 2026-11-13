@@ -1,5 +1,8 @@
-import { fetchRockData } from '~/lib/.server/fetch-rock-data';
-import { fetchDefinedValues } from '~/lib/.server/rock-defined-values';
+import { fetchContentItems } from '~/lib/.server/rock-content-items';
+import {
+  fetchDefinedValues,
+  fetchDefinedValuesByAttribute,
+} from '~/lib/.server/rock-defined-values';
 import { LoaderFunctionArgs } from 'react-router';
 import { createImageUrlFromGuid, ensureArray } from '~/lib/utils';
 import { mapRockDataToMessage } from '../messages/message-single/loader';
@@ -38,7 +41,7 @@ const getAttrValue = (
 const getSeries = async (seriesPath: string) => {
   const fetchSeries = isGuid(seriesPath)
     ? await fetchDefinedValues({ guid: seriesPath, attributes: 'simple' })
-    : await fetchRockData({
+    : await fetchDefinedValuesByAttribute({
         endpoint: 'DefinedValues/GetByAttributeValue',
         queryParams: {
           attributeKey: 'Url',
@@ -69,7 +72,7 @@ interface RockResourceItem {
 const getSeriesResources = async (
   seriesGuid: string,
 ): Promise<SeriesResource[]> => {
-  const seriesResources = await fetchRockData({
+  const seriesResources = await fetchContentItems({
     endpoint: 'ContentChannelItems/GetByAttributeValue',
     queryParams: {
       attributeKey: 'MessageSeries',
@@ -184,7 +187,7 @@ interface RockEventItem {
 }
 
 const getSeriesEvents = async (seriesGuid: string): Promise<SeriesEvent[]> => {
-  const seriesEvents = await fetchRockData({
+  const seriesEvents = await fetchContentItems({
     endpoint: 'ContentChannelItems/GetByAttributeValue',
     queryParams: {
       attributeKey: 'MessageSeries',
@@ -222,7 +225,7 @@ const getSeriesEvents = async (seriesGuid: string): Promise<SeriesEvent[]> => {
 };
 
 const getSeriesMessages = async (seriesGuid: string) => {
-  const seriesMessages = await fetchRockData({
+  const seriesMessages = await fetchContentItems({
     endpoint: 'ContentChannelItems/GetByAttributeValue',
     queryParams: {
       attributeKey: 'MessageSeries',

@@ -25,9 +25,6 @@ export function toPublicRockUrl(url: string): string {
   return parsed.toString();
 }
 
-/** Turns Rock REST v2 reads on. Off, every read runs only its v1 fallback. */
-export const ROCK_V2_ENABLED = false;
-
 export const ContentItemIds = {
   groupsLaunchNotify: 21402,
 };

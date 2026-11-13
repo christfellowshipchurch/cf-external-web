@@ -1,20 +1,29 @@
 import camelCase from 'lodash/camelCase';
 import isEqual from 'lodash/isEqual';
 import mapValues from 'lodash/mapValues';
-import { ROCK_V2_ENABLED } from '~/lib/rock-config';
 import { normalize } from '~/lib/utils';
 import redis from './redis-config';
-import { buildCacheKey, TTL, type TTLValue } from './cache-utils';
+import {
+  buildCacheKey,
+  storeIndexedResponse,
+  TTL,
+  type ContentItemRelationship,
+  type TTLValue,
+} from './cache-utils';
 import { buildRockUrl, fetchRockData, isPreviewMode } from './fetch-rock-data';
 
 /**
  * Rock REST v2 (`/api/v2/models/...`) reads, run beside the v1 helpers.
- * Every call carries a v1 fallback: it runs when `ROCK_V2_ENABLED` (in
- * `rock-config.ts`) is off or the
- * v2 call fails, so turning v2 on can never take a page down.
+ * Every call carries a v1 fallback: it runs when `ROCK_V2_ENABLED=false` or
+ * the v2 call fails, so turning v2 on can never take a page down.
  */
 
-export const isRockV2Enabled = (): boolean => ROCK_V2_ENABLED;
+/**
+ * On unless the `ROCK_V2_ENABLED` env var is `false`, like My Groups. Off,
+ * every read runs only its v1 fallback.
+ */
+export const isRockV2Enabled = (): boolean =>
+  process.env.ROCK_V2_ENABLED?.trim() !== 'false';
 
 /** One attribute as v2's `/{id}/attributevalues` returns it. */
 export interface RockV2AttributeValue {
@@ -71,10 +80,12 @@ export const toV1Shape = (
 });
 
 /**
- * One saved Entity Search per entity, keyed by its v2 route name, with query
- * refinement on so the caller owns the `where`. Shared with My Groups.
+ * One saved Entity Search per entity, with query refinement on so the caller
+ * owns the `where`. Shared with My Groups. Older keys equal the v2 route name;
+ * newer ones are camelCase (see the setup doc's search key table).
  */
-export const searchPath = (model: string): string => `${model}/search/${model}`;
+export const searchPath = (model: string, searchKey = model): string =>
+  `${model}/search/${searchKey}`;
 
 /**
  * Selects an entity's attribute values inside a search, so reads need no
@@ -162,7 +173,21 @@ interface RockV2Request {
   method?: 'GET' | 'POST';
   body?: Record<string, unknown>;
   ttl?: TTLValue;
+  /** Content items the response holds, for the per-item reverse index */
+  index?: (data: unknown) => ItemIndex;
 }
+
+export interface ItemIndex {
+  itemIds: string[];
+  relationships?: ContentItemRelationship[];
+}
+
+/**
+ * "Now" literals in a `where` change every request; hashing them would give
+ * each request its own cache key. The live value is still sent to Rock.
+ */
+const stableCacheBody = (body: Record<string, unknown>): string =>
+  JSON.stringify(body).replace(/DateTime\([\d, ]+\)/g, 'DateTime(now)');
 
 /**
  * One cached v2 call that throws on failure. Use it inside a fetchRockV2 `map`
@@ -174,6 +199,7 @@ export const requestRockV2 = async ({
   method = 'GET',
   body,
   ttl = TTL.DEFAULT,
+  index,
 }: RockV2Request): Promise<unknown> => {
   const normalizedPath = path.replace(/^\/+|\/+$/g, '');
   assertNoNumberId(normalizedPath);
@@ -183,7 +209,7 @@ export const requestRockV2 = async ({
   // method + body. The `v2/models/` endpoint keeps keys apart from v1's.
   const cacheKey = buildCacheKey(endpoint, {
     method,
-    body: body ? JSON.stringify(body) : undefined,
+    body: body ? stableCacheBody(body) : undefined,
   });
   const skipCache = isPreviewMode() || process.env.NODE_ENV === 'development';
   const effectiveTtl = skipCache ? TTL.NONE : ttl;
@@ -213,7 +239,17 @@ export const requestRockV2 = async ({
   // The raw v2 response is cached, so a mapper change needs no cache flush.
   if (redis && effectiveTtl > 0) {
     try {
-      await redis.set(cacheKey, JSON.stringify(data), 'EX', effectiveTtl);
+      const { itemIds, relationships = [] } = index?.(data) ?? {
+        itemIds: [],
+      };
+      await storeIndexedResponse(
+        redis,
+        cacheKey,
+        JSON.stringify(data),
+        effectiveTtl,
+        [...new Set(itemIds)],
+        relationships,
+      );
     } catch {
       console.error('⚠️ Redis cache storage failed');
     }

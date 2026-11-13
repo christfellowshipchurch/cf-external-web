@@ -1,4 +1,4 @@
-import { fetchRockData } from '~/lib/.server/fetch-rock-data';
+import { fetchContentItems } from '~/lib/.server/rock-content-items';
 import { fetchCampusesWithDetails } from '~/lib/.server/rock-campuses';
 import { createImageUrlFromGuid, parseRockKeyValueList } from '~/lib/utils';
 import {
@@ -88,7 +88,7 @@ export const loader = async ({
       });
     }
 
-    const pageData = await fetchRockData({
+    const pageData = await fetchContentItems({
       endpoint: 'ContentChannelItems/GetByAttributeValue',
       queryParams: {
         attributeKey: 'Pathname',

@@ -1,5 +1,5 @@
+import { fetchContentItems } from '~/lib/.server/rock-content-items';
 import { LoaderFunctionArgs } from 'react-router';
-import { fetchRockData } from '~/lib/.server/fetch-rock-data';
 import { parseRockKeyValueList } from '~/lib/utils';
 
 import { PageBuilderSection } from '../page-builder/types';
@@ -25,7 +25,7 @@ export type LinkTreeLoaderData = {
 const fetchLinkTreePage = async (
   pathname: string,
 ): Promise<RockContentChannelItem> => {
-  const linkTreePage = await fetchRockData({
+  const linkTreePage = await fetchContentItems({
     endpoint: 'ContentChannelItems/GetByAttributeValue',
     queryParams: {
       attributeKey: 'Url',

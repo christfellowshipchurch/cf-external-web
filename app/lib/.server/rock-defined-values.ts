@@ -1,6 +1,6 @@
 import { ensureArray } from '~/lib/utils';
 import type { TTLValue } from './cache-utils';
-import { fetchRockData } from './fetch-rock-data';
+import { fetchRockData, type FetchRockDataOptions } from './fetch-rock-data';
 import {
   buildV2SearchBody,
   escapeDynamicLinq,
@@ -13,6 +13,7 @@ import {
   selectAttributeValues,
 } from './fetch-rock-v2';
 import { escapeOData } from './rock-utils';
+import { fetchViaV2Search, type V2SearchEntity } from './rock-v2-search';
 
 /**
  * Defined Value reads for the whole site. Each runs on Rock v2 with the v1
@@ -167,3 +168,25 @@ export const fetchDefinedValueByGuid = async <T = RockDefinedValue>(
   options: Omit<DefinedValueQuery, 'guid'> = {},
 ): Promise<T | null> =>
   (await fetchDefinedValues<T>({ ...options, guid: guid.trim() }))[0] ?? null;
+
+const DEFINED_VALUES_V2: V2SearchEntity = {
+  v1Endpoint: 'DefinedValues',
+  model: 'definedvalues',
+  entityName: 'DefinedValue',
+  fields: [
+    'Id',
+    'Guid',
+    'DefinedTypeId',
+    'Value',
+    'Description',
+    'Order',
+    'IsActive',
+  ],
+};
+
+/**
+ * A `DefinedValues/GetByAttributeValue` read: `fetchRockData`'s options and
+ * result, run on v2 when it's on.
+ */
+export const fetchDefinedValuesByAttribute = (options: FetchRockDataOptions) =>
+  fetchViaV2Search(options, DEFINED_VALUES_V2);

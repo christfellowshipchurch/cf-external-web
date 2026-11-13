@@ -1,6 +1,6 @@
+import { fetchContentItems } from '~/lib/.server/rock-content-items';
 import { LoaderFunction } from 'react-router';
 import https from 'https';
-import { fetchRockData } from '~/lib/.server/fetch-rock-data';
 import { createImageUrlFromGuid } from '~/lib/utils';
 import { TTL } from '~/lib/.server/fetch-rock-data';
 import { parseRockDateTime } from '~/lib/.server/rock-datetime';
@@ -58,7 +58,7 @@ const fetchScripture = async (scripture: string) => {
 const fetchDailyDevo = async () => {
   const contentChannelId = 136;
 
-  const dailyDevoItems = await fetchRockData({
+  const dailyDevoItems = await fetchContentItems({
     endpoint: 'ContentChannelItems',
     queryParams: {
       $filter: `ContentChannelId eq ${contentChannelId}`,

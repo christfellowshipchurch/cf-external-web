@@ -1,12 +1,12 @@
+import { fetchContentItems } from '~/lib/.server/rock-content-items';
 import { parse, format } from 'date-fns';
 import { AttributeMatrixItem } from '~/lib/types/rock-types';
-import { fetchRockData } from '~/lib/.server/fetch-rock-data';
 import { fetchCampusWithDetails } from '~/lib/.server/rock-campuses';
 import { SessionRegistrationCardType } from './types';
 import { icons } from '~/lib/icons';
 
 export const fetchEventData = async (eventPath: string) => {
-  const rockData = await fetchRockData({
+  const rockData = await fetchContentItems({
     endpoint: 'ContentChannelItems/GetByAttributeValue',
     queryParams: {
       attributeKey: 'Url',

@@ -1,7 +1,7 @@
+import { fetchContentItems } from '~/lib/.server/rock-content-items';
 import { LoaderFunctionArgs } from 'react-router';
 import { algoliasearch } from 'algoliasearch';
 import { AuthenticationError } from '~/lib/.server/error-types';
-import { fetchRockData } from '~/lib/.server/fetch-rock-data';
 import { fetchWistiaDataFromRock } from '~/lib/.server/fetch-wistia-data';
 import { getAttributeMatrixItems } from '~/lib/.server/rock-utils';
 import { parseRockKeyValueList } from '~/lib/utils';
@@ -40,7 +40,7 @@ async function fetchStudyRockData(rockItemId: number): Promise<{
   }
 
   try {
-    const studyItem = await fetchRockData({
+    const studyItem = await fetchContentItems({
       endpoint: 'ContentChannelItems',
       queryParams: {
         $filter: `Id eq ${id}`,

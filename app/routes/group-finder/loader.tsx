@@ -1,9 +1,9 @@
+import { fetchContentItems } from '~/lib/.server/rock-content-items';
 import type { LoaderFunctionArgs } from 'react-router';
 
 import { AuthenticationError } from '~/lib/.server/error-types';
 import { createAuditedServerAlgoliaClient } from '~/lib/.server/algolia-request-audit.server';
 import { getServerAlgoliaIndexes } from '~/lib/.server/algolia-indexes.server';
-import { fetchRockData } from '~/lib/.server/fetch-rock-data';
 import type { AlgoliaIndexMap } from '~/lib/algolia-indexes';
 import { ContentItemIds } from '~/lib/rock-config';
 
@@ -108,7 +108,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   }
 
   try {
-    const notifyItem = await fetchRockData({
+    const notifyItem = await fetchContentItems({
       endpoint: 'ContentChannelItems',
       queryParams: {
         $filter: `Id eq ${ContentItemIds.groupsLaunchNotify}`,

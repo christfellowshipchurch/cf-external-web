@@ -1,3 +1,4 @@
+import { fetchContentItems } from '~/lib/.server/rock-content-items';
 import { type LoaderFunction } from 'react-router';
 import { fetchRockData } from '~/lib/.server/fetch-rock-data';
 import { AuthorProps } from './partials/hero.partial';
@@ -144,7 +145,7 @@ export async function fetchRelatedArticles(
     ?.trim();
   if (!categoryGuid || !categoryName) return undefined;
 
-  const response = await fetchRockData({
+  const response = await fetchContentItems({
     endpoint: 'ContentChannelItems/GetByAttributeValue',
     queryParams: {
       attributeKey: 'PrimaryCategory',
@@ -213,7 +214,7 @@ export async function fetchRelatedArticles(
 
 const fetchArticleData = async (articlePath: string) => {
   try {
-    const rockData = await fetchRockData({
+    const rockData = await fetchContentItems({
       endpoint: 'ContentChannelItems/GetByAttributeValue',
       queryParams: {
         attributeKey: 'Pathname', //TODO: decide whether to use Url or Pathname for all content channels

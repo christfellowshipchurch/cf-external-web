@@ -1,13 +1,13 @@
+import { fetchContentItems } from '~/lib/.server/rock-content-items';
 // import type { LoaderFunctionArgs } from "react-router";
 import type { PodcastShow } from '../types';
-import { fetchRockData } from '~/lib/.server/fetch-rock-data';
 import { createImageUrlFromGuid } from '~/lib/utils';
 import { PODCAST_SHOW_CHANNEL_ID } from '../podcast-routing.server';
 
 export async function loader(): Promise<{ podcastShows: PodcastShow[] }> {
   let podcastShowsData;
   try {
-    podcastShowsData = await fetchRockData({
+    podcastShowsData = await fetchContentItems({
       endpoint: 'ContentChannelItems',
       queryParams: {
         $filter: `ContentChannelId eq ${PODCAST_SHOW_CHANNEL_ID}`,
