@@ -201,7 +201,10 @@ const SessionColumn = ({
   };
 
   return (
-    <div className='flex flex-col rounded-lg border border-gray-200 bg-white'>
+    // On desktop each card spans the parent's two rows as a subgrid, so every
+    // card's header is as tall as the tallest description and the pills and
+    // times line up across the three cards.
+    <div className='flex flex-col rounded-lg border border-gray-200 bg-white md:row-span-2 md:grid md:grid-rows-subgrid md:gap-0'>
       <div className='flex flex-col gap-2 border-b border-neutral-lightest p-4'>
         <h4 className='flex items-center gap-1 font-bold text-black'>
           {copy.session(sessionNumber)}
@@ -209,7 +212,7 @@ const SessionColumn = ({
             <Icon name='checkCircle' size={16} className='text-ocean' />
           )}
         </h4>
-        <p className='text-xs text-neutral-default'>
+        <p className='flex-1 text-xs text-neutral-default'>
           {copy.sessionDescriptions[sessionNumber]}
         </p>
         <p
