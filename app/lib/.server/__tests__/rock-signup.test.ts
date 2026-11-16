@@ -19,12 +19,10 @@ vi.mock('../rock-utils', () => ({
 }));
 vi.mock('../rock-person', () => ({
   updatePerson: vi.fn(),
-}));
-vi.mock('../authentication/rock-authentication', () => ({
   fetchUserLogin: vi.fn(),
   createUserProfile: vi.fn(),
 }));
-vi.mock('../authentication/sms-authentication', () => ({
+vi.mock('../rock-phone-numbers', () => ({
   parsePhoneNumberUtil: vi.fn(() => ({
     significantNumber: '5551234567',
     countryCode: 1,
@@ -34,12 +32,12 @@ vi.mock('../authentication/sms-authentication', () => ({
 vi.mock('../redis-config', () => ({ default: null }));
 
 import { fetchRockData, patchRockData, postRockData } from '../fetch-rock-data';
-import { updatePerson } from '../rock-person';
 import {
+  updatePerson,
   fetchUserLogin,
   createUserProfile,
-} from '../authentication/rock-authentication';
-import { createPhoneNumberInRock } from '../authentication/sms-authentication';
+} from '../rock-person';
+import { createPhoneNumberInRock } from '../rock-phone-numbers';
 
 const mockFetchRockData = fetchRockData as ReturnType<typeof vi.fn>;
 const mockPatchRockData = patchRockData as ReturnType<typeof vi.fn>;

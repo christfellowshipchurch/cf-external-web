@@ -5,14 +5,10 @@ import {
   TTL,
 } from './fetch-rock-data';
 import {
-  createUserProfile,
-  fetchUserLogin,
-} from './authentication/rock-authentication';
-import {
   createPhoneNumberInRock,
   parsePhoneNumberUtil,
-} from './authentication/sms-authentication';
-import { updatePerson } from './rock-person';
+} from './rock-phone-numbers';
+import { createUserProfile, fetchUserLogin, updatePerson } from './rock-person';
 import { fetchCampuses } from './rock-campuses';
 import { escapeOData } from './rock-utils';
 

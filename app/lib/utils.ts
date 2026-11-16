@@ -27,20 +27,6 @@ export function normalize(data: object): object {
   return mapKeys(normalizedValues, (value, key: string) => camelCase(key));
 }
 
-interface FieldObject {
-  field: string;
-  value: unknown;
-}
-
-export const fieldsAsObject = (fields: FieldObject[]) =>
-  fields.reduce(
-    (accum, { field, value }) => ({
-      ...accum,
-      [field]: typeof value === 'string' ? value.trim() : value,
-    }),
-    {} as Record<string, unknown>,
-  );
-
 export const enforceProtocol = (uri: string) =>
   uri?.startsWith('//') ? `https:${uri}` : uri;
 

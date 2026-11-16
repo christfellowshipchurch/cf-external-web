@@ -56,7 +56,7 @@ export default defineConfig(async ({ isSsrBuild, command }) => {
     },
     plugins,
     optimizeDeps: {
-      exclude: ['twilio', 'ioredis'],
+      exclude: ['ioredis'],
     },
   };
 });

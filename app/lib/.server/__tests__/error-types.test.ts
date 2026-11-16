@@ -1,9 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import {
-  AuthenticationError,
-  RockAPIError,
-  EncryptionError,
-} from '../error-types';
+import { AuthenticationError, RockAPIError } from '../error-types';
 
 describe('AuthenticationError', () => {
   it('is an instance of Error', () => {
@@ -52,29 +48,6 @@ describe('RockAPIError', () => {
   it('supports cause option', () => {
     const cause = new Error('original');
     const err = new RockAPIError('wrapper', 500, { cause });
-    expect((err as Error & { cause?: unknown }).cause).toBe(cause);
-  });
-});
-
-describe('EncryptionError', () => {
-  it('is an instance of Error', () => {
-    const err = new EncryptionError('decrypt failed');
-    expect(err).toBeInstanceOf(Error);
-  });
-
-  it('sets name to EncryptionError', () => {
-    const err = new EncryptionError('decrypt failed');
-    expect(err.name).toBe('EncryptionError');
-  });
-
-  it('sets message correctly', () => {
-    const err = new EncryptionError('invalid key');
-    expect(err.message).toBe('invalid key');
-  });
-
-  it('supports cause option', () => {
-    const cause = new Error('original');
-    const err = new EncryptionError('wrapper', { cause });
     expect((err as Error & { cause?: unknown }).cause).toBe(cause);
   });
 });

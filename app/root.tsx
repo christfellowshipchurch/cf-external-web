@@ -8,11 +8,9 @@ import {
   useRouteLoaderData,
 } from 'react-router';
 import { type ReactNode } from 'react';
-import { type LoaderFunctionArgs } from 'react-router';
 import { randomUUID } from 'node:crypto';
 
 import { Navbar, Footer } from './components';
-import { AuthProvider } from './providers/auth-provider';
 import { CookieConsentProvider } from './providers/cookie-consent-provider';
 
 import './styles/tailwind.css';
@@ -28,9 +26,9 @@ export { ErrorBoundary } from './error';
 // client bundles can still evaluate oddly; window check inside setup is authoritative.
 setupDevWebVitalsLogging();
 
-export async function loader(args: LoaderFunctionArgs) {
+export async function loader() {
   const nonce = randomUUID();
-  const navbarData = await navbarLoader(args);
+  const navbarData = await navbarLoader();
   const headers: Record<string, string> = {};
   // Preview deployments render Pending/unapproved content — keep it out of
   // search indexes even if Deployment Protection is ever misconfigured.
@@ -132,20 +130,18 @@ export function Layout({ children }: { children: ReactNode }) {
 
 export default function App() {
   return (
-    <AuthProvider>
-      <CookieConsentProvider>
-        <NavbarVisibilityProvider>
-          {/* Records the previous route for back links. Safe to delete: see app/lib/navigation-history. */}
-          <NavigationHistoryTracker />
-          <div className='min-h-screen flex flex-col text-pretty'>
-            <Navbar />
-            <main>
-              <Outlet />
-            </main>
-            <Footer />
-          </div>
-        </NavbarVisibilityProvider>
-      </CookieConsentProvider>
-    </AuthProvider>
+    <CookieConsentProvider>
+      <NavbarVisibilityProvider>
+        {/* Records the previous route for back links. Safe to delete: see app/lib/navigation-history. */}
+        <NavigationHistoryTracker />
+        <div className='min-h-screen flex flex-col text-pretty'>
+          <Navbar />
+          <main>
+            <Outlet />
+          </main>
+          <Footer />
+        </div>
+      </NavbarVisibilityProvider>
+    </CookieConsentProvider>
   );
 }

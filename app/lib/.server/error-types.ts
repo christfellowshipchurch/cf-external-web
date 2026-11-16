@@ -16,17 +16,3 @@ export class RockAPIError extends Error {
     this.name = 'RockAPIError';
   }
 }
-
-export class EncryptionError extends Error {
-  constructor(message: string, options?: { cause?: unknown }) {
-    super(message, options);
-    this.name = 'EncryptionError';
-  }
-}
-
-export class RateLimitError extends Error {
-  constructor(message: string, options?: { cause?: unknown }) {
-    super(message, options);
-    this.name = 'RateLimitError';
-  }
-}

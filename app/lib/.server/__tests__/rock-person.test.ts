@@ -7,7 +7,7 @@ vi.mock('../fetch-rock-data', () => ({
   TTL: { NONE: 0 },
 }));
 
-vi.mock('../authentication/sms-authentication', () => ({
+vi.mock('../rock-phone-numbers', () => ({
   createPhoneNumberInRock: vi.fn(),
   parsePhoneNumberUtil: vi.fn(() => ({
     significantNumber: '5615551234',

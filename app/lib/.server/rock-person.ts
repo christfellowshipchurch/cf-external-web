@@ -8,7 +8,8 @@ import {
 import {
   createPhoneNumberInRock,
   parsePhoneNumberUtil,
-} from './authentication/sms-authentication';
+} from './rock-phone-numbers';
+import { escapeOData } from './rock-utils';
 
 export enum Gender {
   Female = 'Female',
@@ -41,6 +42,57 @@ export const createPerson = async (profile: PersonProfile) => {
       IsSystem: false,
     },
   });
+};
+
+type RockUserLogin = {
+  userName: string;
+  isConfirmed: boolean;
+  personId: number;
+  id: number;
+  guid: string;
+};
+
+export const createUserProfile = async ({
+  email,
+  ...otherFields
+}: {
+  email?: string;
+  [key: string]: unknown;
+}) => {
+  try {
+    const person = await createPerson({
+      Email: email,
+      // In order to get Rock's duplicate record system
+      // to trigger, we need to mark the record as
+      // "pending" which is the status value id: 5
+      RecordStatusValueId: 5,
+      ...otherFields,
+    });
+    return person;
+  } catch {
+    throw new Error('Unable to create profile!');
+  }
+};
+
+export const fetchUserLogin = async (
+  identity: string,
+): Promise<RockUserLogin | null> => {
+  const userLogin = await fetchRockData({
+    endpoint: 'UserLogins',
+    queryParams: {
+      $filter: `UserName eq '${escapeOData(identity)}'`,
+      $top: '1',
+    },
+    ttl: TTL.NONE,
+  });
+
+  // If no login exists for the identity, return null
+  if (Array.isArray(userLogin) && userLogin.length === 0) {
+    return null;
+  }
+
+  // Ensures that the return value is an object
+  return Array.isArray(userLogin) ? userLogin[0] : userLogin;
 };
 
 export const updatePerson = async (
