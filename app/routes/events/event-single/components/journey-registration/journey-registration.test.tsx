@@ -14,6 +14,7 @@ import { JourneyConfirmation } from './journey-confirmation.component';
 import { JourneyRegistration } from './journey-registration.component';
 import { YourInformationStep } from './your-information-step.component';
 import { translateSignUpError } from './journey-copy';
+import { ANCHOR_SCROLL_OFFSET } from '~/components/navbar/scroll-offset.constants';
 
 const campuses = [
   {
@@ -283,7 +284,7 @@ describe('JourneyRegistration changing campus', () => {
 
 // A campus picked low in the list used to leave the person part-way down step 2.
 describe('JourneyRegistration scroll on step change', () => {
-  const renderInSection = async (sectionTop: number) => {
+  const renderInSection = async (stepTop: number) => {
     const scrollTo = vi.spyOn(window, 'scrollTo').mockImplementation(() => {});
     const router = createMemoryRouter(
       [
@@ -305,9 +306,9 @@ describe('JourneyRegistration scroll on step change', () => {
     render(<RouterProvider router={router} />);
     const campusButton = await screen.findByRole('button', { name: /Jupiter/ });
     vi.spyOn(
-      document.getElementById('register')!,
+      document.getElementById('journey-registration-step')!,
       'getBoundingClientRect',
-    ).mockReturnValue({ top: sectionTop } as ReturnType<
+    ).mockReturnValue({ top: stepTop } as ReturnType<
       Element['getBoundingClientRect']
     >);
     scrollTo.mockClear();
@@ -317,13 +318,19 @@ describe('JourneyRegistration scroll on step change', () => {
 
   afterEach(() => vi.restoreAllMocks());
 
-  it('scrolls back to the top of the section when the person is below it', async () => {
+  it('scrolls back to the top of the step when the person is below it', async () => {
     const scrollTo = await renderInSection(-800);
     expect(screen.getByText('Step 2 of 3')).toBeInTheDocument();
+    // Lands on the step itself (its Back link), not the section heading,
+    // with the navbar offset above it.
     expect(scrollTo).toHaveBeenCalledTimes(1);
+    expect(scrollTo).toHaveBeenCalledWith({
+      top: -800 - ANCHOR_SCROLL_OFFSET,
+      behavior: 'smooth',
+    });
   });
 
-  it('leaves the page alone when the section top is already in view', async () => {
+  it('leaves the page alone when the step top is already in view', async () => {
     const scrollTo = await renderInSection(400);
     expect(screen.getByText('Step 2 of 3')).toBeInTheDocument();
     expect(scrollTo).not.toHaveBeenCalled();

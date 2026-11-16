@@ -24,6 +24,9 @@ import { getJourneyCopy } from './journey-copy';
 
 type Step = 1 | 2 | 3 | 'confirmation';
 
+/** Wraps the current step, so a step change can scroll to its top. */
+const STEP_ANCHOR_ID = 'journey-registration-step';
+
 type SessionsResponse = JourneySessionsData | { error: string };
 
 export const JourneyRegistration = () => {
@@ -42,16 +45,17 @@ export const JourneyRegistration = () => {
   }, []);
 
   // Each step replaces the last at a different height, so a campus picked low in
-  // the list would leave the person part-way down step 2. Bring the section's
-  // top back into view, but only when they've scrolled past it.
+  // the list would leave the person part-way down step 2. Bring the step's top
+  // (its Back link) back into view, with room above it for the sticky navbar,
+  // but only when they've scrolled past it.
   useEffect(() => {
     if (isFirstRender.current) {
       isFirstRender.current = false;
       return;
     }
-    const section = document.getElementById('register');
-    if (section && section.getBoundingClientRect().top < ANCHOR_SCROLL_OFFSET) {
-      scrollToAnchor('register');
+    const stepTop = document.getElementById(STEP_ANCHOR_ID);
+    if (stepTop && stepTop.getBoundingClientRect().top < ANCHOR_SCROLL_OFFSET) {
+      scrollToAnchor(STEP_ANCHOR_ID);
     }
   }, [step]);
 
@@ -227,7 +231,9 @@ export const JourneyRegistration = () => {
           </div>
         )}
 
-        {renderStep()}
+        <div id={STEP_ANCHOR_ID} className='flex w-full flex-col items-center'>
+          {renderStep()}
+        </div>
       </div>
     </div>
   );
