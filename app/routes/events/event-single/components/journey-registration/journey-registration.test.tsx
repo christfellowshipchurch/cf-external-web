@@ -13,6 +13,7 @@ import { PlanYourJourneyStep } from './plan-your-journey-step.component';
 import { JourneyConfirmation } from './journey-confirmation.component';
 import { JourneyRegistration } from './journey-registration.component';
 import { YourInformationStep } from './your-information-step.component';
+import { translateSignUpError } from './journey-copy';
 
 const campuses = [
   {
@@ -523,6 +524,106 @@ describe('JourneyConfirmation', () => {
     expect(
       screen.queryByRole('button', { name: 'Schedule Another Session' }),
     ).not.toBeInTheDocument();
+  });
+});
+
+describe('YourInformationStep in Spanish', () => {
+  const renderStep = (signUpError?: string) => {
+    const router = createMemoryRouter(
+      [
+        {
+          path: '/',
+          element: (
+            <YourInformationStep
+              campuses={campuses}
+              selection={{ 2: options[4] }}
+              registered={{ 1: options[1] }}
+              isSpanish
+              onBack={vi.fn()}
+              onSuccess={vi.fn()}
+            />
+          ),
+        },
+        {
+          path: '/api/journey-sign-up',
+          action: () => ({ error: signUpError }),
+        },
+      ],
+      { initialEntries: ['/'] },
+    );
+    return render(<RouterProvider router={router} />);
+  };
+
+  it('shows the step and the sessions sidebar in Spanish', () => {
+    renderStep();
+
+    expect(
+      screen.getByRole('heading', { name: 'Tu Información' }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'Completar Inscripción' }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('heading', { name: 'Tus Sesiones' }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'Editar Sesiones' }),
+    ).toBeInTheDocument();
+    expect(screen.getByText('Sesión 1 · Confirmada')).toBeInTheDocument();
+    expect(screen.getByText(/dom, 11 oct/)).toBeInTheDocument();
+    expect(screen.getByText('Sin programar')).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        '2 de 3 sesiones programadas. Puedes seleccionar las otras sesiones más adelante.',
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText(/Session|Your |Not scheduled|Complete/),
+    ).toBeNull();
+  });
+
+  // The action answers in English; a Spanish page must not show that.
+  it('shows sign-up errors in Spanish', async () => {
+    const { container } = renderStep(
+      'Session 2 is full. Please choose another time.',
+    );
+    fireEvent.submit(container.querySelector('form')!);
+
+    expect(
+      await screen.findByText(
+        'La Sesión 2 está llena. Por favor, elige otro horario.',
+      ),
+    ).toBeInTheDocument();
+  });
+});
+
+describe('translateSignUpError', () => {
+  it('keeps English as-is and translates known messages to Spanish', () => {
+    expect(
+      translateSignUpError(
+        'Session 3 is full. Please choose another time.',
+        false,
+      ),
+    ).toBe('Session 3 is full. Please choose another time.');
+    expect(
+      translateSignUpError(
+        'Session 3 is no longer available. Please choose another time.',
+        true,
+      ),
+    ).toBe('La Sesión 3 ya no está disponible. Por favor, elige otro horario.');
+    expect(
+      translateSignUpError(
+        'Please choose all sessions at the same campus.',
+        true,
+      ),
+    ).toBe('Por favor, elige todas las sesiones en el mismo campus.');
+  });
+
+  // A message the action adds later must not reach a Spanish page in English.
+  it('falls back to a generic Spanish error for unknown messages', () => {
+    expect(translateSignUpError('Something new broke.', true)).toBe(
+      'Algo salió mal. Por favor, inténtalo de nuevo.',
+    );
   });
 });
 

@@ -113,5 +113,45 @@ export const JOURNEY_COPY = {
 
 export type JourneyCopy = (typeof JOURNEY_COPY)['English'];
 
+/**
+ * Spanish for the errors `api.journey-sign-up` returns, keyed by its English
+ * text. Matched here rather than changed in the action, which launches the
+ * Rock workflow. A message not listed falls back to the generic one.
+ */
+const SPANISH_SIGN_UP_ERRORS: [RegExp, (n: string) => string][] = [
+  [/^Missing required fields$/, () => 'Faltan campos obligatorios.'],
+  [
+    /^Please select at least one session\.$/,
+    () => 'Selecciona al menos una sesión.',
+  ],
+  [
+    /^Session (\d) is no longer available\. Please choose another time\.$/,
+    (n) =>
+      `La Sesión ${n} ya no está disponible. Por favor, elige otro horario.`,
+  ],
+  [
+    /^Session (\d) is full\. Please choose another time\.$/,
+    (n) => `La Sesión ${n} está llena. Por favor, elige otro horario.`,
+  ],
+  [
+    /^Please choose all sessions at the same campus\.$/,
+    () => 'Por favor, elige todas las sesiones en el mismo campus.',
+  ],
+  [
+    /^Please enter a valid number of children\.$/,
+    () => 'Por favor, ingresa un número válido de niños.',
+  ],
+];
+const SPANISH_GENERIC_ERROR = 'Algo salió mal. Por favor, inténtalo de nuevo.';
+
+export const translateSignUpError = (message: string, isSpanish: boolean) => {
+  if (!isSpanish) return message;
+  for (const [pattern, toSpanish] of SPANISH_SIGN_UP_ERRORS) {
+    const match = pattern.exec(message);
+    if (match) return toSpanish(match[1] ?? '');
+  }
+  return SPANISH_GENERIC_ERROR;
+};
+
 export const getJourneyCopy = (isSpanish: boolean): JourneyCopy =>
   JOURNEY_COPY[isSpanish ? 'Spanish' : 'English'];

@@ -15,7 +15,7 @@ import {
   RadixFormSelectShell,
 } from '~/primitives/inputs/form-radix-field';
 import { FORM_COPY } from '~/components/modals/journey-finder-sign-up/journey-finder-sign-up-form.component';
-import { getJourneyCopy } from './journey-copy';
+import { getJourneyCopy, translateSignUpError } from './journey-copy';
 import {
   childcareFieldName,
   formatSessionShortDate,
@@ -357,7 +357,7 @@ export const YourInformationStep = ({
 
             {fetcher.data?.error && (
               <p className='text-center text-alert md:col-span-2'>
-                {fetcher.data.error}
+                {translateSignUpError(fetcher.data.error, isSpanish)}
               </p>
             )}
 
