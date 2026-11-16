@@ -9,6 +9,7 @@ import {
 } from '~/lib/journey-sessions';
 import { scrollToAnchor } from '~/lib/scroll-to-anchor';
 import { ANCHOR_SCROLL_OFFSET } from '~/components/navbar/scroll-offset.constants';
+import { useNavbarVisibility } from '~/providers/navbar-visibility-context';
 import { isSpanishCampusLabel } from '../../registration.data';
 import {
   JourneyCampusStep,
@@ -27,6 +28,10 @@ type Step = 1 | 2 | 3 | 'confirmation';
 /** Wraps the current step, so a step change can scroll to its top. */
 const STEP_ANCHOR_ID = 'journey-registration-step';
 
+/** Extra room above the step when scrolling to it, per design review; more under the site banner. */
+const STEP_SCROLL_GAP_PX = 32;
+const STEP_SCROLL_GAP_WITH_BANNER_PX = 64;
+
 type SessionsResponse = JourneySessionsData | { error: string };
 
 export const JourneyRegistration = () => {
@@ -39,6 +44,7 @@ export const JourneyRegistration = () => {
   const [registered, setRegistered] = useState<JourneySessionSelection>({});
   const [person, setPerson] = useState<JourneyInformationDraft>();
   const isFirstRender = useRef(true);
+  const { isSiteBannerVisible } = useNavbarVisibility();
 
   useEffect(() => {
     fetcher.load('/api/journey-sessions');
@@ -46,16 +52,21 @@ export const JourneyRegistration = () => {
 
   // Each step replaces the last at a different height, so a campus picked low in
   // the list would leave the person part-way down step 2. Bring the step's top
-  // (its Back link) back into view, with room above it for the sticky navbar,
+  // (its Back link) back into view, with room above it for the sticky navbar and site banner,
   // but only when they've scrolled past it.
   useEffect(() => {
     if (isFirstRender.current) {
       isFirstRender.current = false;
       return;
     }
+    const offset =
+      ANCHOR_SCROLL_OFFSET +
+      (isSiteBannerVisible
+        ? STEP_SCROLL_GAP_WITH_BANNER_PX
+        : STEP_SCROLL_GAP_PX);
     const stepTop = document.getElementById(STEP_ANCHOR_ID);
-    if (stepTop && stepTop.getBoundingClientRect().top < ANCHOR_SCROLL_OFFSET) {
-      scrollToAnchor(STEP_ANCHOR_ID);
+    if (stepTop && stepTop.getBoundingClientRect().top < offset) {
+      scrollToAnchor(STEP_ANCHOR_ID, { offset });
     }
   }, [step]);
 

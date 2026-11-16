@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, within } from '@testing-library/react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { createMemoryRouter } from 'react-router';
 import { RouterProvider } from 'react-router/dom';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -15,6 +15,27 @@ import { JourneyRegistration } from './journey-registration.component';
 import { YourInformationStep } from './your-information-step.component';
 import { translateSignUpError } from './journey-copy';
 import { ANCHOR_SCROLL_OFFSET } from '~/components/navbar/scroll-offset.constants';
+import {
+  NavbarVisibilityProvider,
+  useNavbarVisibility,
+} from '~/providers/navbar-visibility-context';
+
+// JourneyRegistration reads the site banner state from the navbar provider.
+const SiteBannerOn = () => {
+  const { setIsSiteBannerVisible } = useNavbarVisibility();
+  useEffect(() => setIsSiteBannerVisible(true), [setIsSiteBannerVisible]);
+  return null;
+};
+const JourneyRegistrationWithNav = ({
+  banner = false,
+}: {
+  banner?: boolean;
+}) => (
+  <NavbarVisibilityProvider>
+    {banner && <SiteBannerOn />}
+    <JourneyRegistration />
+  </NavbarVisibilityProvider>
+);
 
 const campuses = [
   {
@@ -230,7 +251,7 @@ describe('JourneyRegistration loading', () => {
   it('shows the campus card skeleton instead of a loading sentence', () => {
     const router = createMemoryRouter(
       [
-        { path: '/', element: <JourneyRegistration /> },
+        { path: '/', element: <JourneyRegistrationWithNav /> },
         {
           path: '/api/journey-sessions',
           loader: () => new Promise(() => {}),
@@ -251,7 +272,7 @@ describe('JourneyRegistration changing campus', () => {
   const renderFlow = async () => {
     const router = createMemoryRouter(
       [
-        { path: '/', element: <JourneyRegistration /> },
+        { path: '/', element: <JourneyRegistrationWithNav /> },
         {
           path: '/api/journey-sessions',
           loader: () => ({ campuses, options }),
@@ -284,7 +305,7 @@ describe('JourneyRegistration changing campus', () => {
 
 // A campus picked low in the list used to leave the person part-way down step 2.
 describe('JourneyRegistration scroll on step change', () => {
-  const renderInSection = async (stepTop: number) => {
+  const renderInSection = async (stepTop: number, banner = false) => {
     const scrollTo = vi.spyOn(window, 'scrollTo').mockImplementation(() => {});
     const router = createMemoryRouter(
       [
@@ -292,7 +313,7 @@ describe('JourneyRegistration scroll on step change', () => {
           path: '/',
           element: (
             <section id='register'>
-              <JourneyRegistration />
+              <JourneyRegistrationWithNav banner={banner} />
             </section>
           ),
         },
@@ -322,10 +343,19 @@ describe('JourneyRegistration scroll on step change', () => {
     const scrollTo = await renderInSection(-800);
     expect(screen.getByText('Step 2 of 3')).toBeInTheDocument();
     // Lands on the step itself (its Back link), not the section heading,
-    // with the navbar offset above it.
+    // with the navbar offset plus 32px of room above it.
     expect(scrollTo).toHaveBeenCalledTimes(1);
     expect(scrollTo).toHaveBeenCalledWith({
-      top: -800 - ANCHOR_SCROLL_OFFSET,
+      top: -800 - (ANCHOR_SCROLL_OFFSET + 32),
+      behavior: 'smooth',
+    });
+  });
+
+  it('leaves 64px of room when the site banner is showing', async () => {
+    const scrollTo = await renderInSection(-800, true);
+    expect(scrollTo).toHaveBeenCalledTimes(1);
+    expect(scrollTo).toHaveBeenCalledWith({
+      top: -800 - (ANCHOR_SCROLL_OFFSET + 64),
       behavior: 'smooth',
     });
   });
@@ -341,7 +371,7 @@ describe('JourneyRegistration campus links', () => {
   const renderAt = (url: string) => {
     const router = createMemoryRouter(
       [
-        { path: '/', element: <JourneyRegistration /> },
+        { path: '/', element: <JourneyRegistrationWithNav /> },
         {
           path: '/api/journey-sessions',
           loader: () => ({ campuses, options }),
@@ -382,7 +412,7 @@ describe('JourneyRegistration campus links', () => {
   it('switches the page to Spanish for a Spanish campus', async () => {
     const router = createMemoryRouter(
       [
-        { path: '/', element: <JourneyRegistration /> },
+        { path: '/', element: <JourneyRegistrationWithNav /> },
         {
           path: '/api/journey-sessions',
           loader: () => ({
