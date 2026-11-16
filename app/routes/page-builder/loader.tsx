@@ -1,8 +1,9 @@
-import { LoaderFunction } from 'react-router';
 import {
-  fetchRockData,
-  isItemInDateRange,
-} from '~/lib/.server/fetch-rock-data';
+  fetchChildContentItems,
+  fetchContentItems,
+} from '~/lib/.server/rock-content-items';
+import { LoaderFunction } from 'react-router';
+import { isItemInDateRange } from '~/lib/.server/fetch-rock-data';
 import { fetchDefinedValueByGuid } from '~/lib/.server/rock-defined-values';
 import { createImageUrlFromGuid, parseRockKeyValueList } from '~/lib/utils';
 import {
@@ -31,10 +32,6 @@ import {
 } from '../podcasts/podcast-routing.server';
 
 // Type definitions for Rock API responses
-interface ChildReference {
-  childContentChannelItemId: string;
-}
-
 interface RockAttributeValue {
   value: string | number | boolean;
 }
@@ -60,14 +57,6 @@ const toIconName = (value: unknown): IconName | undefined => {
   return cleaned in icons ? (cleaned as IconName) : undefined;
 };
 
-const toArray = <T,>(value: T | T[] | null | undefined): T[] => {
-  if (!value) {
-    return [];
-  }
-
-  return Array.isArray(value) ? value : [value];
-};
-
 interface RockAttributeValues {
   [key: string]: RockAttributeValue;
 }
@@ -84,39 +73,8 @@ interface RockContentItem {
   attributeValues?: RockAttributeValues;
 }
 
-export const fetchChildItems = async (
-  id: string,
-): Promise<RockContentItem[]> => {
-  const childReferences = toArray<ChildReference>(
-    await fetchRockData({
-      endpoint: 'ContentChannelItemAssociations',
-      queryParams: {
-        loadAttributes: 'simple',
-        $filter: `ContentChannelItemId eq ${id}`,
-        $orderby: 'Order',
-      },
-    }),
-  );
-
-  if (childReferences.length === 0) {
-    return [];
-  }
-
-  const children = await Promise.all(
-    childReferences.map(({ childContentChannelItemId }) =>
-      fetchRockData({
-        endpoint: 'ContentChannelItems',
-        queryParams: {
-          $filter: `Id eq ${childContentChannelItemId}`,
-          loadAttributes: 'simple',
-        },
-        filterByStatusApproved: true,
-      }),
-    ),
-  );
-
-  return children.flatMap((child) => toArray<RockContentItem>(child));
-};
+export const fetchChildItems = (id: string): Promise<RockContentItem[]> =>
+  fetchChildContentItems(id) as unknown as Promise<RockContentItem[]>;
 
 export const fetchDefinedValue = async (guid: string) => {
   const definedValue = await fetchDefinedValueByGuid(guid);
@@ -608,7 +566,7 @@ export const loader: LoaderFunction = async ({ params }) => {
       });
     }
 
-    const pageData = await fetchRockData({
+    const pageData = await fetchContentItems({
       endpoint: 'ContentChannelItems/GetByAttributeValue',
       queryParams: {
         attributeKey: 'Pathname',

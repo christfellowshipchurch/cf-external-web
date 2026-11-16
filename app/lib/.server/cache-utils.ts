@@ -150,6 +150,40 @@ export function extractContentItemIds(data: unknown): string[] {
   return ids;
 }
 
+/**
+ * Caches a response and records it in each content item's reverse index in one
+ * round-trip, so `invalidateItem` can later delete exactly the keys holding an
+ * item. Indexes expire after TTL.LONG so they can't outgrow the entries.
+ */
+export async function storeIndexedResponse(
+  redis: Redis,
+  cacheKey: string,
+  value: string,
+  ttl: number,
+  itemIds: string[],
+  relationships: ContentItemRelationship[],
+): Promise<void> {
+  if (itemIds.length === 0 && relationships.length === 0) {
+    await redis.set(cacheKey, value, 'EX', ttl);
+    return;
+  }
+
+  const pipeline = redis.pipeline();
+  pipeline.set(cacheKey, value, 'EX', ttl);
+  for (const id of itemIds) {
+    pipeline.sadd(itemTagKey(id), cacheKey);
+    pipeline.expire(itemTagKey(id), TTL.LONG);
+  }
+  for (const { parentId, childId } of relationships) {
+    // Parent saves must evict the relationship query plus every cached child.
+    pipeline.sadd(itemTagKey(parentId), cacheKey);
+    pipeline.expire(itemTagKey(parentId), TTL.LONG);
+    pipeline.sadd(childItemTagKey(parentId), childId);
+    pipeline.expire(childItemTagKey(parentId), TTL.LONG);
+  }
+  await pipeline.exec();
+}
+
 export interface ItemCacheFootprint {
   /** BFS visit order, root first */
   itemIds: string[];

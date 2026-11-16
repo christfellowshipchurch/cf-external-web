@@ -1,4 +1,8 @@
-import { fetchRockData, TTL } from '~/lib/.server/fetch-rock-data';
+import { TTL } from '~/lib/.server/fetch-rock-data';
+import {
+  fetchViaV2Search,
+  type V2SearchEntity,
+} from '~/lib/.server/rock-v2-search';
 
 import type { ChurchRole } from './types';
 
@@ -22,19 +26,30 @@ function mapOpportunityToRole(
   return { id, title, description };
 }
 
+const CONNECTION_OPPORTUNITIES_V2: V2SearchEntity = {
+  v1Endpoint: 'ConnectionOpportunities',
+  model: 'connectionopportunities',
+  searchKey: 'connectionOpportunities',
+  entityName: 'ConnectionOpportunity',
+  fields: ['Id', 'Guid', 'Name', 'Description', 'Order'],
+};
+
 export async function fetchChurchRolesByPreferenceAreaGuid(
   bucketGuid: string,
 ): Promise<ChurchRole[]> {
   try {
-    const raw = await fetchRockData({
-      endpoint: 'ConnectionOpportunities/GetByAttributeValue',
-      queryParams: {
-        $orderby: 'Order',
-        attributeKey: 'preferenceArea',
-        value: bucketGuid,
+    const raw = await fetchViaV2Search(
+      {
+        endpoint: 'ConnectionOpportunities/GetByAttributeValue',
+        queryParams: {
+          $orderby: 'Order',
+          attributeKey: 'preferenceArea',
+          value: bucketGuid,
+        },
+        ttl: TTL.SHORT,
       },
-      ttl: TTL.SHORT,
-    });
+      CONNECTION_OPPORTUNITIES_V2,
+    );
 
     const items: RawConnectionOpportunity[] = Array.isArray(raw)
       ? raw

@@ -1,6 +1,6 @@
+import { fetchContentItems } from '~/lib/.server/rock-content-items';
 import { LoaderFunctionArgs } from 'react-router';
 import { Trip, VolunteerAtChurchResource } from './types';
-import { fetchRockData } from '~/lib/.server/fetch-rock-data';
 import { createImageUrlFromGuid } from '~/lib/utils';
 import { getCoordinatesForCountry } from './country-coordinates';
 import { ContentChannelIds } from '~/lib/rock-config';
@@ -11,7 +11,7 @@ import type { AlgoliaIndexMap } from '~/lib/algolia-indexes';
 const MISSION_TRIPS_CONTENT_CHANNEL_ID = ContentChannelIds.missionTrips;
 
 const fetchVolunteerTrips = async () => {
-  const rawTrips = await fetchRockData({
+  const rawTrips = await fetchContentItems({
     endpoint: 'ContentChannelItems',
     filterByDateRange: true,
     queryParams: {
