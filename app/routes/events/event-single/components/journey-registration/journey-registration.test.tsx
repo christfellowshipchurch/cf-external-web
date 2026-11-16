@@ -2,7 +2,7 @@ import { fireEvent, render, screen, within } from '@testing-library/react';
 import { useState } from 'react';
 import { createMemoryRouter } from 'react-router';
 import { RouterProvider } from 'react-router/dom';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   JOURNEY_SESSION_NUMBERS,
   type JourneySessionNumber,
@@ -277,6 +277,55 @@ describe('JourneyRegistration changing campus', () => {
     await renderFlow();
     fireEvent.click(screen.getByRole('button', { name: /Palm Beach Gardens/ }));
     expect(screen.queryByText('No sessions selected')).not.toBeInTheDocument();
+  });
+});
+
+// A campus picked low in the list used to leave the person part-way down step 2.
+describe('JourneyRegistration scroll on step change', () => {
+  const renderInSection = async (sectionTop: number) => {
+    const scrollTo = vi.spyOn(window, 'scrollTo').mockImplementation(() => {});
+    const router = createMemoryRouter(
+      [
+        {
+          path: '/',
+          element: (
+            <section id='register'>
+              <JourneyRegistration />
+            </section>
+          ),
+        },
+        {
+          path: '/api/journey-sessions',
+          loader: () => ({ campuses, options }),
+        },
+      ],
+      { initialEntries: ['/'] },
+    );
+    render(<RouterProvider router={router} />);
+    const campusButton = await screen.findByRole('button', { name: /Jupiter/ });
+    vi.spyOn(
+      document.getElementById('register')!,
+      'getBoundingClientRect',
+    ).mockReturnValue({ top: sectionTop } as ReturnType<
+      Element['getBoundingClientRect']
+    >);
+    scrollTo.mockClear();
+    fireEvent.click(campusButton);
+    return scrollTo;
+  };
+
+  afterEach(() => vi.restoreAllMocks());
+
+  it('scrolls back to the top of the section when the person is below it', async () => {
+    const scrollTo = await renderInSection(-800);
+    expect(screen.getByText('Step 2 of 3')).toBeInTheDocument();
+    expect(scrollTo).toHaveBeenCalledTimes(1);
+  });
+
+  it('leaves the page alone when the section top is already in view', async () => {
+    const scrollTo = await renderInSection(400);
+    expect(screen.getByText('Step 2 of 3')).toBeInTheDocument();
+    expect(scrollTo).not.toHaveBeenCalled();
   });
 });
 

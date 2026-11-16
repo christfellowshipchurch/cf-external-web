@@ -7,6 +7,8 @@ import {
   type JourneySessionSelection,
   type JourneySessionsData,
 } from '~/lib/journey-sessions';
+import { scrollToAnchor } from '~/lib/scroll-to-anchor';
+import { ANCHOR_SCROLL_OFFSET } from '~/components/navbar/scroll-offset.constants';
 import { isSpanishCampusLabel } from '../../registration.data';
 import {
   JourneyCampusStep,
@@ -33,10 +35,25 @@ export const JourneyRegistration = () => {
   const [selection, setSelection] = useState<JourneySessionSelection>({});
   const [registered, setRegistered] = useState<JourneySessionSelection>({});
   const [person, setPerson] = useState<JourneyInformationDraft>();
+  const isFirstRender = useRef(true);
 
   useEffect(() => {
     fetcher.load('/api/journey-sessions');
   }, []);
+
+  // Each step replaces the last at a different height, so a campus picked low in
+  // the list would leave the person part-way down step 2. Bring the section's
+  // top back into view, but only when they've scrolled past it.
+  useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
+    const section = document.getElementById('register');
+    if (section && section.getBoundingClientRect().top < ANCHOR_SCROLL_OFFSET) {
+      scrollToAnchor('register');
+    }
+  }, [step]);
 
   const sessionsData =
     fetcher.data && 'options' in fetcher.data ? fetcher.data : undefined;
