@@ -1,3 +1,11 @@
+import {
+  buildV2SearchBody,
+  escapeDynamicLinq,
+  fetchRockV2,
+  getSearchItems,
+  searchPath,
+} from './fetch-rock-v2';
+import { fetchGroupMembers, fetchGroups } from './rock-people-groups';
 import { fetchRockData, TTL } from './fetch-rock-data';
 import { fetchCampusesWithDetails } from './rock-campuses';
 import { parseRockDateTime, toRockDateTimeLiteral } from './rock-datetime';
@@ -121,6 +129,22 @@ const chunk = <T>(items: T[], size: number): T[][] =>
     items.slice(i * size, i * size + size),
   );
 
+/**
+ * Ids of groups whose last class is on or after `earliestDate`, as v1's
+ * AttributeValues `{ entityId }` rows. v2 has no AttributeValues route, so the
+ * groups search filters on the value.
+ */
+export const upcomingJourneyGroupIdsV2Read = (earliestDate: string) => ({
+  path: searchPath('groups'),
+  method: 'POST' as const,
+  body: buildV2SearchBody({
+    where: `GroupAttributeValues.Any(av => av.AttributeId == ${CLASS_THREE_ATTRIBUTE_ID} && av.Value.CompareTo("${escapeDynamicLinq(earliestDate)}") >= 0)`,
+    select: 'new (Id)',
+  }),
+  map: (data: unknown) =>
+    getSearchItems(data).map((row) => ({ entityId: row.id })),
+});
+
 async function fetchUpcomingJourneyGroups(
   now: Date,
   ttl: number,
@@ -129,13 +153,18 @@ async function fetchUpcomingJourneyGroups(
   // is still inside the walk-in window. Use the Eastern date of (now − grace).
   const lookback = new Date(now.getTime() - WALK_IN_GRACE_MS);
   const earliestClassThree = toRockDateTimeLiteral(lookback).slice(0, 10);
-  const upcoming = await fetchRockData({
-    endpoint: 'AttributeValues',
-    queryParams: {
-      $filter: `AttributeId eq ${CLASS_THREE_ATTRIBUTE_ID} and Value ge '${earliestClassThree}'`,
-      $select: 'EntityId',
-    },
+  const upcoming = await fetchRockV2({
+    ...upcomingJourneyGroupIdsV2Read(earliestClassThree),
     ttl,
+    fallback: () =>
+      fetchRockData({
+        endpoint: 'AttributeValues',
+        queryParams: {
+          $filter: `AttributeId eq ${CLASS_THREE_ATTRIBUTE_ID} and Value ge '${earliestClassThree}'`,
+          $select: 'EntityId',
+        },
+        ttl,
+      }),
   });
   const groupIds = toArray<{ entityId: number }>(upcoming).map(
     (row) => row.entityId,
@@ -143,7 +172,7 @@ async function fetchUpcomingJourneyGroups(
 
   const batches = await Promise.all(
     chunk(groupIds, GROUP_ID_CHUNK_SIZE).map((ids) =>
-      fetchRockData({
+      fetchGroups({
         endpoint: 'Groups',
         queryParams: {
           $filter: `GroupTypeId eq ${JOURNEY_GROUP_TYPE_ID} and IsActive eq true and IsArchived eq false and (${ids.map((id) => `Id eq ${id}`).join(' or ')})`,
@@ -172,7 +201,7 @@ async function fetchSessionCounts(
   await Promise.all(
     withCapacity.map(async (group) => {
       const members = toArray<RockGroupMember>(
-        await fetchRockData({
+        await fetchGroupMembers({
           endpoint: 'GroupMembers',
           queryParams: {
             $filter: `GroupId eq ${group.id} and GroupMemberStatus eq 'Active'`,

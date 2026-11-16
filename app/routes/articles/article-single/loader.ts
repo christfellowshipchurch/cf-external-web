@@ -1,6 +1,9 @@
+import {
+  fetchPeople,
+  fetchPersonAliases,
+} from '~/lib/.server/rock-people-groups';
 import { fetchContentItems } from '~/lib/.server/rock-content-items';
 import { type LoaderFunction } from 'react-router';
-import { fetchRockData } from '~/lib/.server/fetch-rock-data';
 import { AuthorProps } from './partials/hero.partial';
 import { format } from 'date-fns';
 import { CallToAction, CollectionItem } from '~/routes/page-builder/types';
@@ -78,7 +81,7 @@ async function fetchRelatedAuthors(authorValues: string[]) {
 
   if (guidValues.length > 0) {
     const aliases = ensureArray<RockAlias>(
-      await fetchRockData({
+      await fetchPersonAliases({
         endpoint: 'PersonAlias',
         queryParams: {
           $filter: guidValues
@@ -91,7 +94,7 @@ async function fetchRelatedAuthors(authorValues: string[]) {
     const personIds = [...new Set(aliases.map((alias) => alias.personId))];
     const people = personIds.length
       ? ensureArray<RockPerson>(
-          await fetchRockData({
+          await fetchPeople({
             endpoint: 'People',
             queryParams: {
               $filter: personIds.map((id) => `Id eq ${id}`).join(' or '),

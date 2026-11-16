@@ -1,6 +1,10 @@
+import {
+  fetchPeople,
+  fetchPersonAliases,
+} from '~/lib/.server/rock-people-groups';
 import { fetchContentItems } from '~/lib/.server/rock-content-items';
 import type { LoaderFunction } from 'react-router';
-import { fetchRockData, TTL } from '~/lib/.server/fetch-rock-data';
+import { TTL } from '~/lib/.server/fetch-rock-data';
 import { fetchDefinedValueByGuid } from '~/lib/.server/rock-defined-values';
 import {
   createImageUrlFromGuid,
@@ -274,7 +278,7 @@ const fetchSpeakerData = async (guid: string) => {
   let authorAlias = null;
 
   try {
-    authorAlias = await fetchRockData({
+    authorAlias = await fetchPersonAliases({
       endpoint: 'PersonAlias',
       queryParams: {
         $filter: `Guid eq guid'${guid}'`,
@@ -290,7 +294,7 @@ const fetchSpeakerData = async (guid: string) => {
   if (authorAlias && authorAlias.length > 0) {
     let author = null;
     try {
-      author = await fetchRockData({
+      author = await fetchPeople({
         endpoint: 'People',
         queryParams: {
           $filter: `Id eq ${authorAlias[0].personId}`,

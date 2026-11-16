@@ -1,7 +1,12 @@
+import {
+  fetchGroups,
+  fetchPeople,
+  fetchPersonAliases,
+} from '~/lib/.server/rock-people-groups';
 import camelCase from 'lodash/camelCase';
 import { addHours, format, isValid, parse } from 'date-fns';
 
-import { fetchRockData, TTL } from '~/lib/.server/fetch-rock-data';
+import { TTL } from '~/lib/.server/fetch-rock-data';
 import { fetchDefinedValueByGuid } from '~/lib/.server/rock-defined-values';
 import { escapeOData } from '~/lib/.server/rock-utils';
 import { createImageUrlFromGuid } from '~/lib/utils';
@@ -228,7 +233,7 @@ async function fetchEventTypeImageUrl(
 async function getPersonIdFromPersonAliasGuid(
   aliasGuid: string,
 ): Promise<string | null> {
-  const res = await fetchRockData({
+  const res = await fetchPersonAliases({
     endpoint: 'PersonAlias',
     queryParams: {
       $filter: `Guid eq guid'${escapeOData(aliasGuid)}'`,
@@ -248,7 +253,7 @@ async function fetchPersonNameEmail(
     // Collection form, not People/{id}: Rock ignores $select on by-id routes and
     // returns the whole entity. A single match arrives unwrapped as an object, a
     // miss as an empty array.
-    const res = await fetchRockData({
+    const res = await fetchPeople({
       endpoint: 'People',
       queryParams: {
         $filter: `Id eq ${personId}`,
@@ -312,7 +317,7 @@ export async function fetchVolunteerMissionDetailFromRock(
 
   let raw: unknown;
   try {
-    raw = await fetchRockData({
+    raw = await fetchGroups({
       ...missionGroupRequest(guid),
       ttl: TTL.SHORT,
     });

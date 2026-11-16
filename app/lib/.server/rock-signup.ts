@@ -1,9 +1,10 @@
 import {
-  fetchRockData,
-  patchRockData,
-  postRockData,
-  TTL,
-} from './fetch-rock-data';
+  fetchGroupMembers,
+  fetchGroups,
+  fetchPeople,
+  fetchPhoneNumbers,
+} from './rock-people-groups';
+import { patchRockData, postRockData, TTL } from './fetch-rock-data';
 import {
   createUserProfile,
   fetchUserLogin,
@@ -46,7 +47,7 @@ const personNameMatches = async (
   firstName: string,
   lastName: string,
 ): Promise<boolean> => {
-  const personDetails = await fetchRockData({
+  const personDetails = await fetchPeople({
     endpoint: 'People',
     queryParams: {
       $filter: `Id eq ${personId}`,
@@ -110,7 +111,7 @@ export const findOrCreateRockPersonForSignup = async (
   }
 
   // Step 3: Query People by first name, last name, and email
-  const peopleByEmail = await fetchRockData({
+  const peopleByEmail = await fetchPeople({
     endpoint: 'People',
     queryParams: {
       $filter: `FirstName eq '${escapeOData(firstName)}' and LastName eq '${escapeOData(lastName)}' and Email eq '${escapeOData(email)}'`,
@@ -129,7 +130,7 @@ export const findOrCreateRockPersonForSignup = async (
   }
 
   // Step 4: Query PhoneNumbers by significant number, then verify name match
-  const phoneEntries = await fetchRockData({
+  const phoneEntries = await fetchPhoneNumbers({
     endpoint: 'PhoneNumbers',
     queryParams: {
       $select: 'PersonId',
@@ -182,7 +183,7 @@ export const updateRockPersonCampusForSignup = async (
       ['Id'],
       TTL.NONE,
     ),
-    fetchRockData({
+    fetchPeople({
       endpoint: 'People',
       queryParams: {
         $filter: `Id eq ${personId}`,
@@ -214,7 +215,7 @@ export const resolveGroupClassSignupTarget = async (
     throw new Error('Invalid signup group');
   }
 
-  const result = await fetchRockData({
+  const result = await fetchGroups({
     endpoint: 'Groups',
     queryParams: {
       $filter: `Id eq ${groupId}`,
@@ -260,7 +261,7 @@ export const launchGroupSignupWorkflow = async (
   groupId: string,
   personId: string,
 ): Promise<void> => {
-  const existingMembership = await fetchRockData({
+  const existingMembership = await fetchGroupMembers({
     endpoint: 'GroupMembers',
     queryParams: {
       $filter: `GroupId eq ${groupId} and PersonId eq ${personId} and IsArchived eq false`,

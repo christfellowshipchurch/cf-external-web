@@ -378,3 +378,23 @@ describe('isRockV2Enabled', () => {
     expect(isRockV2Enabled()).toBe(expected);
   });
 });
+
+// CLAUDE.md: never log names or emails. A search error body can quote its where.
+describe('requestRockV2 errors', () => {
+  it('leaves Rock’s response body out of search errors', async () => {
+    fetchMock().mockResolvedValue({
+      ok: false,
+      status: 400,
+      text: async () => 'Bad where: Email == "ann@example.com"',
+    });
+
+    const error = await requestRockV2({
+      path: 'people/search/people',
+      method: 'POST',
+      body: { where: 'Email == "ann@example.com"' },
+    }).catch((e: Error) => e);
+
+    expect(String(error)).toContain('failed: 400');
+    expect(String(error)).not.toContain('ann@example.com');
+  });
+});
