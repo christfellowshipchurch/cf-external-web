@@ -33,6 +33,13 @@ describe('Journey session labels', () => {
     expect(formatSessionTime('2026-10-04T21:30')).toBe('9:30 PM');
   });
 
+  it('uses Spanish day and month names for Spanish campuses', () => {
+    expect(formatSessionDateHeading('2026-10-04T21:30', true)).toBe(
+      'domingo, 4 de octubre',
+    );
+    expect(formatSessionShortDate('2026-10-07T21:30', true)).toBe('mié, 7 oct');
+  });
+
   it('formats noon and midnight correctly', () => {
     expect(formatSessionTime('2026-10-04T12:05')).toBe('12:05 PM');
     expect(formatSessionTime('2026-10-04T00:00')).toBe('12:00 AM');

@@ -18,6 +18,7 @@ import {
   type JourneyInformationDraft,
 } from './your-information-step.component';
 import { JourneyConfirmation } from './journey-confirmation.component';
+import { getJourneyCopy } from './journey-copy';
 
 type Step = 1 | 2 | 3 | 'confirmation';
 
@@ -46,6 +47,7 @@ export const JourneyRegistration = () => {
     (campus) => campus.id === preferredCampusId,
   );
   const isSpanish = isSpanishCampusLabel(preferredCampus?.name ?? '');
+  const copy = getJourneyCopy(isSpanish);
   const registeredSessions = JOURNEY_SESSION_NUMBERS.filter(
     (n) => registered[n],
   );
@@ -131,6 +133,7 @@ export const JourneyRegistration = () => {
             preferredCampusId={preferredCampusId}
             selection={selection}
             registered={registered}
+            isSpanish={isSpanish}
             onChangePreferredCampus={backToCampusStep}
             onSelect={(sessionNumber, option) =>
               setSelection((prev) => ({ ...prev, [sessionNumber]: option }))
@@ -173,6 +176,7 @@ export const JourneyRegistration = () => {
           <JourneyConfirmation
             campuses={sessionsData.campuses}
             registered={registered}
+            isSpanish={isSpanish}
             onScheduleAnother={() => setStep(2)}
             onRegisterSomeoneElse={resetAll}
           />
@@ -185,11 +189,9 @@ export const JourneyRegistration = () => {
       <div className='flex w-full max-w-[960px] flex-col items-center gap-8'>
         <div className='flex flex-col items-center gap-3 text-center'>
           <h2 className='text-[32px] font-extrabold text-black'>
-            Register for Journey
+            {copy.heading}
           </h2>
-          <p className='text-neutral-default'>
-            Journey includes three sessions. Complete all three in any order.
-          </p>
+          <p className='text-neutral-default'>{copy.intro}</p>
         </div>
 
         {step !== 'confirmation' && (
@@ -202,7 +204,9 @@ export const JourneyRegistration = () => {
                 />
               ))}
             </div>
-            <p className='text-sm font-semibold text-black'>Step {step} of 3</p>
+            <p className='text-sm font-semibold text-black'>
+              {copy.step(step)}
+            </p>
           </div>
         )}
 

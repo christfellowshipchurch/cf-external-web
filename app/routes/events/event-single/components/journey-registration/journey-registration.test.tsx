@@ -65,8 +65,10 @@ const options = [
 
 const Harness = ({
   registered = {},
+  isSpanish = false,
 }: {
   registered?: JourneySessionSelection;
+  isSpanish?: boolean;
 }) => {
   const [selection, setSelection] = useState<JourneySessionSelection>({});
   return (
@@ -76,6 +78,7 @@ const Harness = ({
       preferredCampusId={2}
       selection={selection}
       registered={registered}
+      isSpanish={isSpanish}
       onChangePreferredCampus={vi.fn()}
       onSelect={(n, option) =>
         setSelection((prev) => ({ ...prev, [n]: option }))
@@ -190,6 +193,7 @@ describe('PlanYourJourneyStep', () => {
         preferredCampusId={2}
         selection={{}}
         registered={{}}
+        isSpanish={false}
         onChangePreferredCampus={vi.fn()}
         onSelect={vi.fn()}
         onSelectEarliest={vi.fn()}
@@ -318,6 +322,38 @@ describe('JourneyRegistration campus links', () => {
     expect(window.location.hash).toBe('#register');
   });
 
+  it('switches the page to Spanish for a Spanish campus', async () => {
+    const router = createMemoryRouter(
+      [
+        { path: '/', element: <JourneyRegistration /> },
+        {
+          path: '/api/journey-sessions',
+          loader: () => ({
+            campuses: [
+              {
+                ...campuses[0],
+                id: 33,
+                name: 'Christ Fellowship Español Royal Palm Beach',
+                url: 'cf-espanol-royal-palm-beach',
+              },
+            ],
+            options: [opt(1, '2026-10-04T09:00', { campusId: 33 })],
+          }),
+        },
+      ],
+      { initialEntries: ['/?campus=cf-espanol-royal-palm-beach'] },
+    );
+    render(<RouterProvider router={router} />);
+
+    expect(await screen.findByText('Paso 2 de 3')).toBeInTheDocument();
+    expect(
+      screen.getByRole('heading', { name: 'Inscríbete en Journey' }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('heading', { name: 'Planifica tu Journey' }),
+    ).toBeInTheDocument();
+  });
+
   it('falls back to the campus picker for an unknown campus', async () => {
     renderAt('/?campus=not-a-campus');
     expect(
@@ -325,6 +361,54 @@ describe('JourneyRegistration campus links', () => {
         name: 'Choose Your Preferred Campus',
       }),
     ).toBeInTheDocument();
+  });
+});
+
+// CFE campuses: once a Spanish campus is chosen, the whole sign-up reads in Spanish.
+describe('PlanYourJourneyStep in Spanish', () => {
+  it('shows the Comms translations and Spanish dates', () => {
+    render(<Harness isSpanish />);
+
+    expect(
+      screen.getByRole('heading', { name: 'Planifica tu Journey' }),
+    ).toBeInTheDocument();
+    expect(screen.getByText('Campus seleccionado:')).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', {
+        name: 'Seleccionar la clase disponible más próxima',
+      }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('heading', { name: 'Sesión 1' }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        'Descubre la historia detrás de Christ Fellowship y qué significa conocer a Dios personalmente.',
+      ),
+    ).toBeInTheDocument();
+    expect(screen.getByText('domingo, 4 de octubre')).toBeInTheDocument();
+    expect(screen.queryByText(/Session|Not scheduled|Select/)).toBeNull();
+
+    const radio = within(
+      screen.getByRole('heading', { name: 'Sesión 1' }).closest('div')!
+        .parentElement!,
+    )
+      .getAllByRole('radio')
+      .find((el) => !(el as HTMLInputElement).disabled)!;
+    fireEvent.click(radio);
+
+    expect(
+      screen.getByText('1 de 3 sesiones seleccionadas'),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText('Puedes seleccionar las otras sesiones más adelante.'),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'Quitar Selección' }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'Continúa con Tu Información' }),
+    ).toBeEnabled();
   });
 });
 
@@ -337,6 +421,7 @@ describe('JourneyConfirmation', () => {
           1: options[2],
           3: opt(3, '2026-10-25T09:00'),
         }}
+        isSpanish={false}
         onScheduleAnother={vi.fn()}
         onRegisterSomeoneElse={vi.fn()}
       />,
@@ -358,11 +443,30 @@ describe('JourneyConfirmation', () => {
     ).toEqual(['https://maps.example/pbg']);
   });
 
+  it('reads in Spanish for a Spanish campus', () => {
+    render(
+      <JourneyConfirmation
+        campuses={campuses}
+        registered={{ 1: options[2] }}
+        isSpanish
+        onScheduleAnother={vi.fn()}
+        onRegisterSomeoneElse={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText('domingo, 4 de octubre')).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'Programar Otra Sesión' }),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/Registered|Session|Get Directions/)).toBeNull();
+  });
+
   it('hides "Schedule Another Session" once all three are booked', () => {
     render(
       <JourneyConfirmation
         campuses={campuses}
         registered={{ 1: options[1], 2: options[4], 3: options[5] }}
+        isSpanish={false}
         onScheduleAnother={vi.fn()}
         onRegisterSomeoneElse={vi.fn()}
       />,
