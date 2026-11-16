@@ -1,7 +1,7 @@
+import { fetchContentItems } from '~/lib/.server/rock-content-items';
 import type { LoaderFunction } from 'react-router';
 import { mapPageBuilderChildItems } from '~/routes/page-builder/loader';
 import { PageBuilderSection } from '~/routes/page-builder/types';
-import { fetchRockData } from '~/lib/.server/fetch-rock-data';
 import { fetchCampusWithDetails } from '~/lib/.server/rock-campuses';
 import { fetchDefinedValueByGuid } from '~/lib/.server/rock-defined-values';
 import type { LocationViewModel } from './types';
@@ -82,7 +82,7 @@ export const loader: LoaderFunction = async ({ params }) => {
 
   if (upcomingEventsCollectionGuid) {
     try {
-      const upcomingEventsCollection = await fetchRockData({
+      const upcomingEventsCollection = await fetchContentItems({
         endpoint: 'ContentChannelItems',
         queryParams: {
           $filter: `Guid eq guid'${upcomingEventsCollectionGuid}'`,

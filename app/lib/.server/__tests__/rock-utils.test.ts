@@ -5,14 +5,6 @@ import {
   getAttributeMatrixItems,
 } from '../rock-utils';
 
-const rockV2 = vi.hoisted(() => ({ enabled: false }));
-
-vi.mock('~/lib/rock-config', async (importOriginal) => ({
-  ...(await importOriginal<object>()),
-  get ROCK_V2_ENABLED() {
-    return rockV2.enabled;
-  },
-}));
 vi.mock('../redis-config', () => ({ default: null }));
 vi.mock('../fetch-rock-data', async (importOriginal) => ({
   ...(await importOriginal<object>()),
@@ -266,13 +258,13 @@ describe('getAttributeMatrixItems on Rock v2', () => {
 
   beforeEach(() => {
     mockFetch.mockReset();
-    rockV2.enabled = true;
+    vi.stubEnv('ROCK_V2_ENABLED', 'true');
     vi.stubEnv('NODE_ENV', 'test');
     vi.stubEnv('ROCK_API', 'https://rock.example.com/api/');
   });
 
   afterEach(() => {
-    rockV2.enabled = false;
+    vi.stubEnv('ROCK_V2_ENABLED', 'false');
     vi.unstubAllEnvs();
     vi.unstubAllGlobals();
   });

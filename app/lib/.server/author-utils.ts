@@ -1,4 +1,5 @@
 import { fetchRockData } from './fetch-rock-data';
+import { fetchContentItems } from './rock-content-items';
 import { createImageUrlFromGuid } from '~/lib/utils';
 
 export const fetchAuthorData = async ({ authorId }: { authorId: string }) => {
@@ -66,7 +67,7 @@ const isApproved = (article: { status?: number }) =>
   article?.status === ROCK_STATUS_APPROVED;
 
 export const fetchAuthorArticles = async (personAliasGuid: string) => {
-  const articles = await fetchRockData({
+  const articles = await fetchContentItems({
     endpoint: 'ContentChannelItems/GetByAttributeValue',
     queryParams: {
       attributeKey: 'Author',

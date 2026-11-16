@@ -1,15 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 const redisStore = vi.hoisted(() => new Map<string, string>());
-const rockV2 = vi.hoisted(() => ({ enabled: true }));
-
-vi.mock('~/lib/rock-config', async (importOriginal) => ({
-  ...(await importOriginal<object>()),
-  get ROCK_V2_ENABLED() {
-    return rockV2.enabled;
-  },
-}));
-
 vi.mock('../redis-config', () => ({
   default: {
     get: vi.fn(async (key: string) => redisStore.get(key) ?? null),
@@ -23,6 +14,7 @@ vi.mock('../redis-config', () => ({
 import {
   buildV2SearchBody,
   fetchRockV2,
+  isRockV2Enabled,
   keepMatchingRows,
   projectedToV1Shape,
   requestRockV2,
@@ -49,7 +41,7 @@ beforeEach(() => {
   redisStore.clear();
   process.env.ROCK_API = 'https://rock.example.com/api/';
   process.env.ROCK_TOKEN = 'test-token';
-  rockV2.enabled = true;
+  vi.stubEnv('ROCK_V2_ENABLED', 'true');
   vi.stubEnv('NODE_ENV', 'test');
   global.fetch = vi.fn();
   errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
@@ -68,7 +60,7 @@ afterEach(() => {
  */
 describe('Rock v2 off', () => {
   it('runs only the v1 fallback and never calls Rock v2', async () => {
-    rockV2.enabled = false;
+    vi.stubEnv('ROCK_V2_ENABLED', 'false');
     const fallback = vi.fn(async () => ({ name: 'from v1' }));
 
     const result = await fetchRockV2({
@@ -369,5 +361,20 @@ describe('buildV2SearchBody', () => {
     expect(buildV2SearchBody({ where: 'IsActive == true' })).toEqual({
       where: 'IsActive == true',
     });
+  });
+});
+
+// Same switch as My Groups: v2 is on unless explicitly turned off.
+describe('isRockV2Enabled', () => {
+  it.each([
+    [undefined, true],
+    ['', true],
+    ['true', true],
+    ['false', false],
+    [' false ', false],
+  ])('ROCK_V2_ENABLED=%s → %s', (value, expected) => {
+    vi.stubEnv('ROCK_V2_ENABLED', value);
+
+    expect(isRockV2Enabled()).toBe(expected);
   });
 });
