@@ -14,10 +14,13 @@ import {
   fetchRockV2,
   getSearchItems,
   isRockV2Enabled,
+  requestRockV2,
+  type RockV2AttributeValue,
   keepMatchingRows,
   projectedToV1Shape,
   searchPath,
   selectAttributeValues,
+  toV1Shape,
   type ItemIndex,
 } from './fetch-rock-v2';
 
@@ -38,8 +41,18 @@ export interface V2SearchEntity {
   entityName: string;
   /** Columns to select: what v1 returned that the site reads */
   fields: string[];
-  /** v1 `$expand` → extra select fields, e.g. `Photo` → `Photo.Guid as PhotoGuid` */
+  /**
+   * v1 `$expand` → extra select fields. Name them `Nav__Field` (e.g.
+   * `Photo.Guid as Photo__Guid`) to get v1's nested `photo.guid`.
+   */
   expands?: Record<string, string>;
+  /** Always ANDed into the `where`, for filters v1 applies on its own */
+  baseWhere?: string;
+  /**
+   * Read attribute values with `GET {model}/{guid}/attributevalues` per row,
+   * for entities whose search can't select them (Person answers 500).
+   */
+  attributeValuesFromRecord?: boolean;
   /** Enum columns, mapping v1's numeric filter values to enum names */
   enums?: Record<string, Record<string, string>>;
   /** Fixes a row up to v1's shape after the generic mapping */
@@ -114,6 +127,31 @@ export const odataFilterToLinq = (
   return out.join(' ').replace(/\( /g, '(').replace(/ \)/g, ')');
 };
 
+const FIELD_RE = /^[A-Za-z]\w*$/;
+
+/**
+ * Turns `Photo__Guid: x` into v1's `Photo: { Guid: x }`. A navigation that
+ * came back all null (no photo) becomes null, as v1 sends it.
+ */
+const nestExpandedFields = (
+  row: Record<string, unknown>,
+): Record<string, unknown> => {
+  const nested: Record<string, Record<string, unknown>> = {};
+  const flat: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(row)) {
+    const at = key.indexOf('__');
+    if (at < 0) flat[key] = value;
+    else (nested[key.slice(0, at)] ??= {})[key.slice(at + 2)] = value;
+  }
+  for (const [key, fields] of Object.entries(nested)) {
+    const inner = nestExpandedFields(fields);
+    flat[key] = Object.values(inner).every((value) => value == null)
+      ? null
+      : inner;
+  }
+  return flat;
+};
+
 const ORDER_BY_RE =
   /^[A-Z]\w*(?: (?:asc|desc))?(?:, ?[A-Z]\w*(?: (?:asc|desc))?)*$/;
 
@@ -159,6 +197,27 @@ export const withAttributeKeys = (
   })),
 });
 
+/** A row's attribute values from `GET {model}/{guid}/attributevalues`, in v1's shape. */
+const withRecordAttributes = async (
+  row: Record<string, unknown>,
+  model: string,
+  keys: string[] | undefined,
+  ttl: number | undefined,
+): Promise<Record<string, unknown>> => {
+  const values = (await requestRockV2({
+    path: `${model}/${row.guid}/attributevalues`,
+    ttl,
+  })) as Record<string, RockV2AttributeValue>;
+  const wanted = keys?.map((key) => key.toLowerCase());
+  const kept = Object.fromEntries(
+    Object.entries(values ?? {}).filter(
+      ([key]) => !wanted || wanted.includes(key.toLowerCase()),
+    ),
+  );
+  const { attributeValues } = toV1Shape({}, kept);
+  return { ...row, attributeValues };
+};
+
 /** fetchRockData's shape: one row unwrapped, otherwise an array. */
 const asV1Result = (rows: unknown[]) => (rows.length === 1 ? rows[0] : rows);
 
@@ -177,7 +236,7 @@ export const buildV2Search = (
     throw new Error(`${endpoint} isn't a ${entity.v1Endpoint} read`);
   }
   // Paging names are unconfirmed and custom headers mean a person's own access.
-  if (params.$skip || params.$select || params.attributeKeys || customHeaders) {
+  if (params.$skip || customHeaders) {
     throw new Error(`${endpoint} uses a query option v2 can't match yet`);
   }
   if (params.$orderby && !ORDER_BY_RE.test(params.$orderby)) {
@@ -189,6 +248,7 @@ export const buildV2Search = (
 
   const attributeValues = `${entity.entityName}AttributeValues`;
   const where = [
+    ...(entity.baseWhere ? [entity.baseWhere] : []),
     ...(params.$filter
       ? [`(${odataFilterToLinq(params.$filter, entity.enums)})`]
       : []),
@@ -206,8 +266,25 @@ export const buildV2Search = (
 
   const limit = params.$top ? Number(params.$top) : undefined;
   const withAttributes = Boolean(params.loadAttributes);
+  const attributeKeys = params.attributeKeys
+    ?.split(',')
+    .map((key) => key.trim());
+  const fromRecord = withAttributes && entity.attributeValuesFromRecord;
+  const requested = requestedRecord(params.$filter);
+  const searchTtl = ttl ?? (cache === false ? 0 : undefined);
+  const fields = params.$select
+    ? params.$select.split(',').map((field) => field.trim())
+    : entity.fields;
+  if (!fields.every((field) => FIELD_RE.test(field))) {
+    throw new Error('Unsupported $select');
+  }
   const select = [
-    ...entity.fields,
+    ...fields,
+    // The guards and per-record attribute reads need these even when $select doesn't.
+    ...(requested && !fields.includes(requested.field)
+      ? [requested.field]
+      : []),
+    ...(fromRecord && !fields.includes('Guid') ? ['Guid'] : []),
     ...(expand ? [expand] : []),
     // Read back so a search that ignored its `where` can't pass as a match.
     ...(isAttributeLookup
@@ -215,9 +292,10 @@ export const buildV2Search = (
           `${attributeValues}.Where(av => av.Key == "${escapeDynamicLinq(params.attributeKey!)}").Select(av => av.Value).FirstOrDefault() as LookupValue`,
         ]
       : []),
-    ...(withAttributes ? [selectAttributeValues(entity.entityName)] : []),
+    ...(withAttributes && !fromRecord
+      ? [selectAttributeValues(entity.entityName, attributeKeys)]
+      : []),
   ];
-  const requested = requestedRecord(params.$filter);
   const isPageLookup =
     isAttributeLookup &&
     PAGE_LOOKUP_KEYS.includes(params.attributeKey!.toLowerCase());
@@ -231,7 +309,7 @@ export const buildV2Search = (
       ...(params.$orderby && { sort: params.$orderby }),
       ...(limit !== undefined && { limit }),
     }),
-    ttl: ttl ?? (cache === false ? 0 : undefined),
+    ttl: searchTtl,
     index: entity.index
       ? (data: unknown) =>
           entity.index!(
@@ -241,7 +319,7 @@ export const buildV2Search = (
             params.$filter,
           )
       : undefined,
-    map: (data: unknown) => {
+    map: async (data: unknown) => {
       const now = new Date();
       let found = getSearchItems(data);
       // Throwing sends the read to v1 rather than show another record.
@@ -255,23 +333,41 @@ export const buildV2Search = (
         // Rock may not honor the paging field name yet; v1's $top still holds.
         .slice(0, limit)
         .map(({ LookupValue: _a, lookupValue: _b, ...row }) => {
-          const shaped = stripDateOffsets(projectedToV1Shape(row));
+          const shaped = stripDateOffsets(
+            projectedToV1Shape(nestExpandedFields(row)),
+          );
           return entity.mapRow ? entity.mapRow(shaped) : shaped;
         })
-        .map((row) => (withAttributes ? withAttributeKeys(row) : row))
         .filter(
           (row) =>
             !filterDateRangeInMemory ||
             isItemInDateRange(row as ItemWithDateRange, now),
         );
 
+      const withValues = await Promise.all(
+        rows.map(async (row) =>
+          withAttributes
+            ? withAttributeKeys(
+                fromRecord
+                  ? await withRecordAttributes(
+                      row,
+                      entity.model,
+                      attributeKeys,
+                      searchTtl,
+                    )
+                  : row,
+              )
+            : row,
+        ),
+      );
+
       // A page that exists must not 404 because a search misbehaved.
-      if (isPageLookup && rows.length === 0) {
+      if (isPageLookup && withValues.length === 0) {
         throw new Error(
           `No ${entity.model} matched ${params.attributeKey} lookup`,
         );
       }
-      return asV1Result(rows);
+      return asV1Result(withValues);
     },
   };
 };

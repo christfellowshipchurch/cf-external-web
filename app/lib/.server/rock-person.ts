@@ -1,10 +1,6 @@
+import { fetchPeople, fetchPhoneNumbers } from './rock-people-groups';
 import { parseISO, isValid, getMonth, getDate, getYear } from 'date-fns';
-import {
-  fetchRockData,
-  patchRockData,
-  postRockData,
-  TTL,
-} from './fetch-rock-data';
+import { patchRockData, postRockData, TTL } from './fetch-rock-data';
 import {
   createPhoneNumberInRock,
   parsePhoneNumberUtil,
@@ -51,7 +47,7 @@ export const updatePerson = async (
   // Collection form, not People/{id}: Rock ignores $select on by-id routes and
   // returns the whole entity. fetchRockData unwraps a single match to an object
   // and leaves a miss as an empty array, so handle both shapes.
-  const emailInRock = await fetchRockData({
+  const emailInRock = await fetchPeople({
     endpoint: 'People',
     queryParams: {
       $filter: `Id eq ${id}`,
@@ -77,7 +73,7 @@ export const updatePerson = async (
     fields.phoneNumber,
   );
 
-  const existingPhoneNumbers = await fetchRockData({
+  const existingPhoneNumbers = await fetchPhoneNumbers({
     endpoint: 'PhoneNumbers',
     queryParams: {
       $select: 'PersonId',

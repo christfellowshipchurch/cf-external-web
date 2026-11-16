@@ -1,9 +1,10 @@
 import { fetchRockData } from './fetch-rock-data';
+import { fetchPeople, fetchPersonAliases } from './rock-people-groups';
 import { fetchContentItems } from './rock-content-items';
 import { createImageUrlFromGuid } from '~/lib/utils';
 
 export const fetchAuthorData = async ({ authorId }: { authorId: string }) => {
-  return fetchRockData({
+  return fetchPeople({
     endpoint: 'People',
     queryParams: {
       $filter: `Id eq ${authorId}`,
@@ -13,6 +14,8 @@ export const fetchAuthorData = async ({ authorId }: { authorId: string }) => {
   });
 };
 
+// Stays on v1: a v2 people search by attribute value takes 8–24s (see the
+// setup doc's "Staying on v1").
 export const fetchAuthorByPathname = async (pathname: string) => {
   return fetchRockData({
     endpoint: 'People/GetByAttributeValue',
@@ -30,7 +33,7 @@ interface PersonAlias {
 }
 
 export const fetchPersonAliasGuid = async (primaryAliasId: string) => {
-  const personAlias: PersonAlias = await fetchRockData({
+  const personAlias: PersonAlias = await fetchPersonAliases({
     endpoint: 'PersonAlias',
     queryParams: {
       $filter: `Id eq ${primaryAliasId}`,
@@ -41,7 +44,7 @@ export const fetchPersonAliasGuid = async (primaryAliasId: string) => {
 };
 
 export const fetchAuthorId = async (authorId: string) => {
-  return fetchRockData({
+  return fetchPersonAliases({
     endpoint: 'PersonAlias',
     queryParams: {
       $filter: `Guid eq guid'${authorId}'`,

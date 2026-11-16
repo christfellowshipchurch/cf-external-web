@@ -1,3 +1,6 @@
+import { buildV2CacheKey } from '~/lib/.server/fetch-rock-v2';
+import { GROUPS_V2 } from '~/lib/.server/rock-people-groups';
+import { buildV2Search } from '~/lib/.server/rock-v2-search';
 import { type ActionFunction, type LoaderFunction, data } from 'react-router';
 import redis from '~/lib/.server/redis-config';
 import {
@@ -81,9 +84,11 @@ export const action: ActionFunction = async ({ request }) => {
         );
       }
       try {
-        const { endpoint, queryParams } = missionGroupRequest(groupGuid);
+        const request = missionGroupRequest(groupGuid);
+        // The loader reads v2 first, so clear both versions' keys.
         const deletedKeys = await redis.del(
-          buildCacheKey(endpoint, queryParams),
+          buildCacheKey(request.endpoint, request.queryParams),
+          buildV2CacheKey(buildV2Search(request, GROUPS_V2)),
         );
         return data({ success: true, target, groupGuid, deletedKeys });
       } catch {

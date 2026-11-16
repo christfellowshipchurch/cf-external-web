@@ -373,18 +373,81 @@ The search exists; until the controller grant is in place, church roles fall bac
 Each of these falls back to v1 if Rock rejects it, logging
 `⚠️ Rock v2 request failed`.
 
+## Step 4 (CFDP-4539): people, groups and signup reads
+
+Same approach as steps 2 and 3: call sites keep their `fetchRockData`
+options and swap the function name (`rock-people-groups.ts`):
+
+| Helper               | v1 endpoint                                | v2 search                            |
+| -------------------- | ------------------------------------------ | ------------------------------------ |
+| `fetchPeople`        | `People` (the Pathname lookup stays on v1) | `people`                             |
+| `fetchPersonAliases` | `PersonAlias`                              | `personaliases/search/personAliases` |
+| `fetchPhoneNumbers`  | `PhoneNumbers`                             | `phonenumbers`                       |
+| `fetchGroups`        | `Groups`                                   | `groups`                             |
+| `fetchGroupMembers`  | `GroupMembers`                             | `groupmembers`                       |
+| `fetchSchedules`     | `Schedules`                                | `schedules`                          |
+
+What `fetchViaV2Search` gained for these:
+
+- **`$select`** becomes the search `select`. The Id or Guid the wrong-record
+  guard checks is added when `$select` leaves it out.
+- **`attributeKeys`** limits the selected attribute values to those keys.
+- **`$expand`** maps to nested fields named `Nav__Field` (e.g.
+  `Person.Photo.Guid as Person__Photo__Guid`), rebuilt into v1's nested
+  objects. A navigation that's all null (no photo) becomes `null`, as on v1.
+- **`baseWhere`**: People reads add `IsDeceased == false`, because v1's
+  People endpoint never returns deceased people (checked 2026-11-16).
+- **People attribute values** come from `GET people/{guid}/attributevalues`
+  per person, as My Groups does. The `people` search answers 500 whenever it
+  selects `PersonAttributeValues` (see "Expected differences").
+- `GroupMemberStatus` is filtered by name and returned as v1's number.
+
+Special cases:
+
+- **Journey sessions:** v2 has no `AttributeValues` route (404). The upcoming
+  journey groups are found with the `groups` search,
+  `GroupAttributeValues.Any(av => av.AttributeId == … && av.Value.CompareTo("…") >= 0)`.
+- **Group single meeting location:** `Latitude` / `Longitude` are computed,
+  so it reads `GET locations/{guid}` through `fetchRockEntityByGuid`.
+- **Volunteer opportunity cache:** the admin `target=volunteer-opportunity`
+  clear deletes the mission group's v2 key too (`buildV2CacheKey`).
+- **Reads that feed a write** (signup person matching, existing membership
+  checks) keep `ttl: TTL.NONE`.
+
+**Selecting search attribute values needs a filter.** Group and group member
+searches that select attribute values work with a `where` or a `limit`, but
+answer 500 with neither (probably a timeout over every row). Every read here
+has one.
+
+**Not migrated:** the login code (`authentication/`, `routes/auth/`), which
+CFDP-4542 removes.
+
+**Rock setup.** `people`, `phonenumbers`, `groups`, `groupmembers` and
+`locations` already worked for apollos, as did
+`GET people/{guid}/attributevalues`. Added for this step (2026-11-16):
+
+| Where                                                                          | Permission for apollos |
+| ------------------------------------------------------------------------------ | ---------------------- |
+| Entity Search `personAliases` (Person Alias, Active, refinement on, max blank) | Execute › Allow        |
+| Entity Search `schedules` (Schedule, Active, refinement on, max blank)         | Execute › Allow        |
+| v2 PersonAliases and Schedules controllers, `POST search/{searchKey}` action   | Execute Read › Allow   |
+
+Both were checked live: alias reads (speakers, authors, campus pastors,
+outreach contacts) and group schedules match v1.
+
 ## Expected differences between v1 and v2
 
 These showed up on both pages. None affected what the pages display.
 
-| Difference                                                                                                                     | Notes                                                                                                                                                                                           |
-| ------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Dates carry a time-zone offset: v2 `2026-10-25T13:40:00-04:00`, v1 `2026-10-25T13:40:00`                                       | `parseRockDateTime` handles both. Code that formats with `new Date(value)` can show a different day for late-evening Eastern times on a UTC server. Check date display before switching a page. |
-| `valueFormatted` is plain text in v2 (file name, title or Guid) but rendered HTML in v1 for images, links, videos and matrices | `toV1Shape` maps v2's `textValue`. Raw `value` matches. A page that needs v1's HTML would need v2's `htmlValue` instead.                                                                        |
-| Empty attributes are `""` in v2, `null` in v1                                                                                  | Harmless where code already falls back with `?? ''`.                                                                                                                                            |
-| Navigation properties (e.g. `contentChannel`) and `attributes` are only in v1                                                  | v2 doesn't expand related records. Fetch them separately if a page needs them.                                                                                                                  |
-| Fields left out of a search `select` are only in v1                                                                            | Expected. Only select what the page reads.                                                                                                                                                      |
-| Some attributes show different `valueFormatted` text with the same `value`                                                     | Seen on two campus attributes. Possibly older cached text in v2. Check if a page displays that attribute.                                                                                       |
+| Difference                                                                                                                                                                              | Notes                                                                                                                                                                                           |
+| --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Dates carry a time-zone offset: v2 `2026-10-25T13:40:00-04:00`, v1 `2026-10-25T13:40:00`                                                                                                | `parseRockDateTime` handles both. Code that formats with `new Date(value)` can show a different day for late-evening Eastern times on a UTC server. Check date display before switching a page. |
+| `valueFormatted` is plain text in v2 (file name, title or Guid) but rendered HTML in v1 for images, links, videos and matrices                                                          | `toV1Shape` maps v2's `textValue`. Raw `value` matches. A page that needs v1's HTML would need v2's `htmlValue` instead.                                                                        |
+| Empty attributes are `""` in v2, `null` in v1                                                                                                                                           | Harmless where code already falls back with `?? ''`.                                                                                                                                            |
+| Navigation properties (e.g. `contentChannel`) and `attributes` are only in v1                                                                                                           | v2 doesn't expand related records. Fetch them separately if a page needs them.                                                                                                                  |
+| Fields left out of a search `select` are only in v1                                                                                                                                     | Expected. Only select what the page reads.                                                                                                                                                      |
+| Some attributes show different `valueFormatted` text with the same `value`                                                                                                              | Seen on two campus attributes. Possibly older cached text in v2. Check if a page displays that attribute.                                                                                       |
+| The `people` search answers 500 when it selects `PersonAttributeValues` (no limit, 1 and 10 fail; 1000 works). Selecting `PrimaryAlias.Guid` also fails (`PrimaryAlias` isn't a column) | People reads get attribute values from `GET people/{guid}/attributevalues`; alias reads use the `personAliases` search.                                                                         |
 
 ## Saved Entity Search keys
 
@@ -402,36 +465,38 @@ My Groups calls the same searches.
 Casing below is as recorded from My Groups' setup; check the key in Rock
 (**Admin Tools › Settings › Entity Search**) before relying on it.
 
-| Key now                   | Target key                          | Used by this site              |
-| ------------------------- | ----------------------------------- | ------------------------------ |
-| `campuses`                | `campuses`                          | Yes (step 1)                   |
-| `contentchannels`         | `contentChannels`                   | Yes (step 1)                   |
-| `attributematricesitem`   | `attributeMatricesItem`             | Yes (step 1)                   |
-| `definedvalues`           | `definedValues`                     | Yes (steps 1, 3)               |
-| `contentchannelitems`     | `contentChannelItems`               | Yes (steps 2, 3)               |
-| `people`                  | `people`                            | No (author lookup stays on v1) |
-| `connectionOpportunities` | `connectionOpportunities` (already) | Yes (step 3, church roles)     |
-| `locations`               | `locations`                         | No (My Groups)                 |
-| `groups`                  | `groups`                            | No (My Groups)                 |
-| `groupmembers`            | `groupMembers`                      | No (My Groups)                 |
-| `grouplocations`          | `groupLocations`                    | No (My Groups)                 |
-| `phonenumbers`            | `phoneNumbers`                      | No (My Groups)                 |
-| `relatedentities`         | `relatedEntities`                   | No (My Groups)                 |
-| `binaryfiles`             | `binaryFiles`                       | No (My Groups)                 |
-| `binaryfiletypes`         | `binaryFileTypes`                   | No (My Groups)                 |
-| `entitytypes`             | `entityTypes`                       | No (My Groups)                 |
-| `attributes`              | `attributes`                        | No (My Groups)                 |
+| Key now                   | Target key                          | Used by this site          |
+| ------------------------- | ----------------------------------- | -------------------------- |
+| `campuses`                | `campuses`                          | Yes (step 1)               |
+| `contentchannels`         | `contentChannels`                   | Yes (step 1)               |
+| `attributematricesitem`   | `attributeMatricesItem`             | Yes (step 1)               |
+| `definedvalues`           | `definedValues`                     | Yes (steps 1, 3)           |
+| `contentchannelitems`     | `contentChannelItems`               | Yes (steps 2, 3)           |
+| `people`                  | `people`                            | Yes (step 4)               |
+| `connectionOpportunities` | `connectionOpportunities` (already) | Yes (step 3, church roles) |
+| `personAliases`           | `personAliases` (already)           | Yes (step 4)               |
+| `schedules`               | `schedules`                         | Yes (step 4, group single) |
+| `locations`               | `locations`                         | Yes (steps 1, 4)           |
+| `groups`                  | `groups`                            | Yes (step 4)               |
+| `groupmembers`            | `groupMembers`                      | Yes (step 4)               |
+| `grouplocations`          | `groupLocations`                    | No (My Groups)             |
+| `phonenumbers`            | `phoneNumbers`                      | Yes (step 4)               |
+| `relatedentities`         | `relatedEntities`                   | No (My Groups)             |
+| `binaryfiles`             | `binaryFiles`                       | No (My Groups)             |
+| `binaryfiletypes`         | `binaryFileTypes`                   | No (My Groups)             |
+| `entitytypes`             | `entityTypes`                       | No (My Groups)             |
+| `attributes`              | `attributes`                        | No (My Groups)             |
 
 ## Staying on v1
 
-Reads that steps 1–3 deliberately leave on v1, and why. Steps 4–6 (people and
-groups, workflow launches, writes) haven't started, so their calls aren't
-listed here.
+Reads that steps 1–4 deliberately leave on v1, and why. Steps 5 and 6
+(workflow launches, writes) haven't started, so their calls aren't listed
+here. The login code isn't migrated; CFDP-4542 removes it.
 
-| Read                                                                                            | Why                                                                                                                                                                                                                           | Moves when                                                                                            |
-| ----------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
-| Sitemap (`sitemap[.]xml.ts`, `ContentChannelItems`)                                             | It pages with `$top` / `$skip`. Rock's v2 paging field names aren't confirmed, and if Rock ignored the offset every page would repeat the first one.                                                                          | A paged v2 read confirms `V2_PAGING_FIELDS`; then switch to `fetchContentItems`.                      |
-| Author by Pathname (`fetchAuthorByPathname` in `author-utils.ts`, `People/GetByAttributeValue`) | The `people` search answers 500 with no detail whenever it also selects `PersonAttributeValues`, unless `limit` is large: no limit, 1 and 10 fail, 1000 works (tested 2026-11-11). The lookup without attribute values works. | Step 4 (CFDP-4539), with Person reads: find out why Rock fails, or read attribute values another way. |
+| Read                                                                                            | Why                                                                                                                                                                                                                                                                                            | Moves when                                                                       |
+| ----------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
+| Sitemap (`sitemap[.]xml.ts`, `ContentChannelItems`)                                             | It pages with `$top` / `$skip`. Rock's v2 paging field names aren't confirmed, and if Rock ignored the offset every page would repeat the first one.                                                                                                                                           | A paged v2 read confirms `V2_PAGING_FIELDS`; then switch to `fetchContentItems`. |
+| Author by Pathname (`fetchAuthorByPathname` in `author-utils.ts`, `People/GetByAttributeValue`) | A v2 `people` search by attribute value is too slow: 8–24 s filtering on the attribute key, about 2 s on its Id, against 0.3–1 s on v1 (timed 2026-11-16). The home page runs several in parallel, which then time out with a 500. The other People reads (by Id, email, name) are fast on v2. | Rock speeds up attribute-value searches on Person, or v1 is retired.             |
 
 ## Cleanup after v2 is confirmed (CFDP-4546)
 
