@@ -31,10 +31,13 @@ export const AboutPartial = ({
           <h2 className='font-extrabold text-center text-[32px]'>
             {aboutTitle ?? 'About This Event'}
           </h2>
+          {/* About Section Summary: Rock HTML attribute */}
           {aboutContent && (
-            <p className='text-center text-[#717182] text-lg font-medium md:mx-4 max-w-[700px]'>
-              {aboutContent}
-            </p>
+            <HtmlRenderer
+              html={aboutContent}
+              // Lists sit centered as a block but stay left-aligned so bullets hug their text
+              className='text-center text-[#717182] text-lg font-medium md:mx-4 max-w-[700px] [&_p:not(:last-child)]:mb-3 [&_ol]:inline-block [&_ol]:text-left [&_ul]:inline-block [&_ul]:text-left'
+            />
           )}
 
           {/* Info Cards */}
