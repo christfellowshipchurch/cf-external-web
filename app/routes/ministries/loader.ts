@@ -1,5 +1,5 @@
+import { fetchContentItems } from '~/lib/.server/rock-content-items';
 import { LoaderFunction } from 'react-router';
-import { fetchRockData } from '~/lib/.server/fetch-rock-data';
 import { RockContentChannelItem } from '~/lib/types/rock-types';
 import { createImageUrlFromGuid, getImageUrl } from '~/lib/utils';
 
@@ -76,7 +76,7 @@ export const loader: LoaderFunction = async (): Promise<{
   ministries: Ministry[];
 }> => {
   try {
-    const ministriesData = await fetchRockData({
+    const ministriesData = await fetchContentItems({
       endpoint: 'ContentChannelItems',
       queryParams: {
         $filter: "ContentChannelId eq 171 and Status eq '2'", // Approved Ministries Content Channel Items

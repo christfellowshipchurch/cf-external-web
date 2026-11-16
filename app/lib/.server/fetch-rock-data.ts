@@ -3,10 +3,9 @@ import redis from './redis-config';
 import { parseRockDateTime, toRockDateTimeLiteral } from './rock-datetime';
 import {
   buildCacheKey,
-  childItemTagKey,
   extractContentItemIds,
   extractContentItemRelationships,
-  itemTagKey,
+  storeIndexedResponse,
   TTL,
   type TTLValue,
 } from './cache-utils';
@@ -75,7 +74,7 @@ export const isPreviewMode = (): boolean =>
 /**
  * Interface for Rock API query parameters
  */
-interface RockQueryParams {
+export interface RockQueryParams {
   /** Expands related entities inline */
   $expand?: string;
 
@@ -108,7 +107,7 @@ interface RockQueryParams {
 }
 
 /** Options for fetchRockData beyond query params */
-interface FetchRockDataOptions {
+export interface FetchRockDataOptions {
   endpoint: string;
   queryParams?: RockQueryParams;
   customHeaders?: Record<string, string>;
@@ -183,7 +182,7 @@ const isSingleItemAttributeValueFetch = (endpoint: string): boolean =>
  * Empty responses still need this reverse index. Otherwise a Pending item is
  * cached as `[]`, and approving that item cannot find the stale cache key.
  */
-const getRequestedContentItemId = (
+export const getRequestedContentItemId = (
   endpoint: string,
   filter: string | undefined,
 ): string | undefined => {
@@ -284,35 +283,34 @@ const applyDateRangeFilter = <T>(data: T, now: Date): T | [] => {
   return data;
 };
 
-export const fetchRockData = async ({
+/**
+ * The query Rock actually receives: the date-range and Approved clauses merged
+ * into `$filter`, minus Approved in preview mode. Shared with the v2 reads so
+ * both versions ask Rock the same question.
+ */
+export const resolveRockQuery = ({
   endpoint,
   queryParams = {},
-  customHeaders = {},
-  cache = true,
-  ttl,
   filterByDateRange = false,
   filterByStatusApproved = false,
-}: FetchRockDataOptions) => {
-  assertByIdEndpointHasNoIgnoredParams(endpoint, queryParams);
-
+}: Pick<
+  FetchRockDataOptions,
+  'endpoint' | 'queryParams' | 'filterByDateRange' | 'filterByStatusApproved'
+>): { queryParams: RockQueryParams; filterDateRangeInMemory: boolean } => {
   const previewMode = isPreviewMode();
-  // Local/dev: always bypass Redis so CMS edits (e.g. new child items) show up
-  // without waiting on TTL or manual cache invalidation.
-  const skipCache = previewMode || process.env.NODE_ENV === 'development';
   // Preview mode only bypasses the Status filter — date-range filtering still
   // applies, so a not-yet-scheduled or already-expired item stays hidden.
-  const effectiveFilterByDateRange = filterByDateRange;
   const effectiveFilterByStatusApproved =
     filterByStatusApproved && !previewMode;
 
   const mergedQueryParams = { ...queryParams };
-  const shouldFilterDateRangeInMemory =
-    effectiveFilterByDateRange && isSingleItemAttributeValueFetch(endpoint);
+  const filterDateRangeInMemory =
+    filterByDateRange && isSingleItemAttributeValueFetch(endpoint);
 
-  if (effectiveFilterByDateRange || effectiveFilterByStatusApproved) {
+  if (filterByDateRange || effectiveFilterByStatusApproved) {
     mergedQueryParams.$filter = buildMergedFilter(
       queryParams.$filter,
-      shouldFilterDateRangeInMemory ? false : effectiveFilterByDateRange,
+      filterDateRangeInMemory ? false : filterByDateRange,
       effectiveFilterByStatusApproved,
     );
   }
@@ -324,6 +322,33 @@ export const fetchRockData = async ({
       mergedQueryParams.$filter,
     );
   }
+
+  return { queryParams: mergedQueryParams, filterDateRangeInMemory };
+};
+
+export const fetchRockData = async ({
+  endpoint,
+  queryParams = {},
+  customHeaders = {},
+  cache = true,
+  ttl,
+  filterByDateRange = false,
+  filterByStatusApproved = false,
+}: FetchRockDataOptions) => {
+  assertByIdEndpointHasNoIgnoredParams(endpoint, queryParams);
+
+  // Local/dev: always bypass Redis so CMS edits (e.g. new child items) show up
+  // without waiting on TTL or manual cache invalidation.
+  const skipCache = isPreviewMode() || process.env.NODE_ENV === 'development';
+  const {
+    queryParams: mergedQueryParams,
+    filterDateRangeInMemory: shouldFilterDateRangeInMemory,
+  } = resolveRockQuery({
+    endpoint,
+    queryParams,
+    filterByDateRange,
+    filterByStatusApproved,
+  });
 
   const cacheKey = buildCacheKey(
     endpoint,
@@ -405,32 +430,14 @@ export const fetchRockData = async ({
             ...(requestedItemId ? [requestedItemId] : []),
           ]),
         ];
-        const relationships = extractContentItemRelationships(data);
-        if (itemIds.length === 0 && relationships.length === 0) {
-          await redis.set(cacheKey, JSON.stringify(data), 'EX', effectiveTtl);
-        } else {
-          // Cache the entry and record it in each item's reverse index in one
-          // round-trip. The index lets us later invalidate a single item by
-          // deleting exactly the keys that contain it. EXPIRE caps the index so
-          // it can't grow unbounded after the entries it references age out.
-          const pipeline = redis.pipeline();
-          pipeline.set(cacheKey, JSON.stringify(data), 'EX', effectiveTtl);
-          for (const id of itemIds) {
-            const tag = itemTagKey(id);
-            pipeline.sadd(tag, cacheKey);
-            pipeline.expire(tag, TTL.LONG);
-          }
-          for (const { parentId, childId } of relationships) {
-            // Parent saves must evict association query plus every cached child.
-            const parentTag = itemTagKey(parentId);
-            const childrenTag = childItemTagKey(parentId);
-            pipeline.sadd(parentTag, cacheKey);
-            pipeline.expire(parentTag, TTL.LONG);
-            pipeline.sadd(childrenTag, childId);
-            pipeline.expire(childrenTag, TTL.LONG);
-          }
-          await pipeline.exec();
-        }
+        await storeIndexedResponse(
+          redis,
+          cacheKey,
+          JSON.stringify(data),
+          effectiveTtl,
+          itemIds,
+          extractContentItemRelationships(data),
+        );
       } catch {
         console.error('⚠️ Redis cache storage failed');
       }

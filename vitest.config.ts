@@ -8,6 +8,8 @@ export default defineConfig({
     environment: 'jsdom',
     globals: true,
     setupFiles: ['./vitest.setup.ts'],
+    // Existing tests mock v1 calls; Rock v2 tests turn it on with vi.stubEnv.
+    env: { ROCK_V2_ENABLED: 'false' },
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html'],

@@ -1,26 +1,10 @@
+import { fetchContentItems } from '~/lib/.server/rock-content-items';
 import type { LoaderFunction } from 'react-router';
-import mapValues from 'lodash/mapValues';
-import {
-  fetchRockData,
-  isItemInDateRange,
-  isPreviewMode,
-  TTL,
-  type ItemWithDateRange,
-} from '~/lib/.server/fetch-rock-data';
+import { fetchRockData, TTL } from '~/lib/.server/fetch-rock-data';
 import { fetchDefinedValueByGuid } from '~/lib/.server/rock-defined-values';
-import {
-  buildV2SearchBody,
-  escapeDynamicLinq,
-  fetchRockV2,
-  getSearchItems,
-  requestRockV2,
-  toV1Shape,
-  type RockV2AttributeValue,
-} from '~/lib/.server/fetch-rock-v2';
 import {
   createImageUrlFromGuid,
   ensureArray,
-  normalize,
   parseRockKeyValueList,
 } from '~/lib/utils';
 import type { MessageCardType, MessageType } from '../types';
@@ -112,7 +96,7 @@ export const fetchSectionMessageData = async (
   };
 
   const seriesRequest = seriesGuid
-    ? fetchRockData({
+    ? fetchContentItems({
         endpoint: 'ContentChannelItems/GetByAttributeValue',
         ...commonOptions,
         queryParams: {
@@ -124,7 +108,7 @@ export const fetchSectionMessageData = async (
     : Promise.resolve([]);
 
   const relatedRequest = primaryTopicGuid
-    ? fetchRockData({
+    ? fetchContentItems({
         endpoint: 'ContentChannelItems/GetByAttributeValue',
         ...commonOptions,
         queryParams: {
@@ -133,7 +117,7 @@ export const fetchSectionMessageData = async (
           value: primaryTopicGuid,
         },
       })
-    : fetchRockData({
+    : fetchContentItems({
         endpoint: 'ContentChannelItems',
         ...commonOptions,
       });
@@ -258,8 +242,8 @@ export const mapRockDataToMessage = async (
   };
 };
 
-export const fetchMessageByPathV1 = async (path: string) => {
-  const rockData = await fetchRockData({
+const fetchMessageByPath = async (path: string) => {
+  const rockData = await fetchContentItems({
     endpoint: 'ContentChannelItems/GetByAttributeValue',
     queryParams: {
       attributeKey: 'Url',
@@ -284,58 +268,6 @@ export const fetchMessageByPathV1 = async (path: string) => {
 
   return messages[0];
 };
-
-/** Rock Entity Search (ContentChannelItem, refinement allowed, Execute for the REST key). */
-const MESSAGE_SEARCH_KEY = 'cf-web-message-by-url';
-
-/**
- * v2 replacement for GetByAttributeValue (Url), which has no v2 endpoint.
- * The attribute filter follows Rock's documented PersonAttributeValues
- * example; check the ContentChannelItem name in Rock's Model Map.
- */
-const messageWhere = (path: string) =>
-  [
-    `ContentChannelId == ${MESSAGE_CHANNEL_ID}`,
-    // Preview shows unapproved items, like v1's preview mode.
-    ...(isPreviewMode() ? [] : ['Status == "Approved"']),
-    `ContentChannelItemAttributeValues.Any(av => av.Key == "Url" && av.Value == "${escapeDynamicLinq(path)}")`,
-  ].join(' && ');
-
-export const messageV2Read = (path: string) => ({
-  path: `contentchannelitems/search/${MESSAGE_SEARCH_KEY}`,
-  method: 'POST' as const,
-  body: buildV2SearchBody({ where: messageWhere(path) }),
-  map: async (data: unknown): Promise<RockContentChannelItem> => {
-    // Date range is checked here, as v1 does for GetByAttributeValue.
-    const now = new Date();
-    const [message] = getSearchItems(data).filter((item) =>
-      isItemInDateRange(item as ItemWithDateRange, now),
-    );
-    // Throwing (not returning null) sends a miss to v1, so a bad search can't 404 a real message.
-    if (!message) throw new Error(`Message "${path}" not found in Rock v2`);
-
-    const { guid } = normalize(message) as { guid: string };
-    const attributeValues = await requestRockV2({
-      path: `contentchannelitems/${guid}/attributevalues`,
-    });
-    const shaped = toV1Shape(
-      message,
-      attributeValues as Record<string, RockV2AttributeValue>,
-    );
-
-    return {
-      ...shaped,
-      // v2 has no attribute definitions; getImages only reads their keys.
-      attributes: mapValues(shaped.attributeValues as object, () => ({})),
-    } as unknown as RockContentChannelItem;
-  },
-});
-
-const fetchMessageByPath = (path: string) =>
-  fetchRockV2<RockContentChannelItem | null>({
-    ...messageV2Read(path),
-    fallback: () => fetchMessageByPathV1(path),
-  });
 
 // TODO: Centralize this function to work with articles, messages, series, authors, etc.
 const fetchSpeakerData = async (guid: string) => {
