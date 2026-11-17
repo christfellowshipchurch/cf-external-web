@@ -30,7 +30,7 @@ export const action: ActionFunction = async ({ request }) => {
 
     await postRockWorkflowLaunchWithApiInitiator({
       workflowTypeId: '1874',
-      workflowName: 'CFDP%20App%20Share%20My%20Skills',
+      workflowName: 'CFDP App Share My Skills',
       body: shareMySkillsSubmission,
       instanceName: `${firstName} ${lastName}`.trim(),
     });

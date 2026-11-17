@@ -4,7 +4,7 @@ import {
   fetchPeople,
   fetchPhoneNumbers,
 } from './rock-people-groups';
-import { patchRockData, postRockData, TTL } from './fetch-rock-data';
+import { patchRockData, TTL } from './fetch-rock-data';
 import {
   createUserProfile,
   fetchUserLogin,
@@ -16,6 +16,7 @@ import {
 import { updatePerson } from './rock-person';
 import { fetchCampuses } from './rock-campuses';
 import { escapeOData } from './rock-utils';
+import { launchRockWorkflow } from './rock-workflow';
 
 export interface SignupPersonInput {
   firstName: string;
@@ -251,8 +252,9 @@ export const launchClassSignupWorkflow = async (
   groupId: string,
   personId: string,
 ): Promise<void> => {
-  await postRockData({
-    endpoint: `Workflows/LaunchWorkflow/0?workflowTypeId=654&workflowName=Add%20To%20Group/Class`,
+  await launchRockWorkflow({
+    workflowTypeId: '654',
+    workflowName: 'Add To Group/Class',
     body: { GroupId: groupId, PersonId: personId },
   });
 };
@@ -300,8 +302,9 @@ export const launchGroupSignupWorkflow = async (
     throw new Error('ROCK_GROUP_SIGNUP_WORKFLOW_ID is not configured');
   }
 
-  await postRockData({
-    endpoint: `Workflows/LaunchWorkflow/0?workflowTypeId=${workflowTypeId}&workflowName=Website%20Adult%20Group%20Signup`,
+  await launchRockWorkflow({
+    workflowTypeId,
+    workflowName: 'Website Adult Group Signup',
     body: { GroupId: groupId, PersonId: personId },
   });
 };
@@ -338,9 +341,9 @@ export const launchCommunityServingSignupWorkflow = async (
 ): Promise<void> => {
   const campusGuid = await resolveRockCampusGuidByName(input.campus);
 
-  await postRockData({
-    endpoint:
-      'Workflows/LaunchWorkflow/0?workflowTypeId=1840&workflowName=Community%20Serving%20Opportunity%20Sign%20Up',
+  await launchRockWorkflow({
+    workflowTypeId: '1840',
+    workflowName: 'Community Serving Opportunity Sign Up',
     body: {
       Group: input.groupGuid,
       FirstName: input.firstName,
