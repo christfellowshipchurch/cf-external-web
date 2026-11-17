@@ -11,7 +11,7 @@ import {
   type JourneySessionOption,
   type JourneySessionSelection,
 } from '~/lib/journey-sessions';
-import { SESSION_DESCRIPTIONS } from './plan-your-journey-step.component';
+import { getJourneyCopy, type JourneyCopy } from './journey-copy';
 
 /** Rock doesn't store an end time for Journey sessions; calendar entries assume 90 minutes. */
 const SESSION_LENGTH_MINUTES = 90;
@@ -23,6 +23,7 @@ const SESSION_ACTION_CLASSES =
 interface JourneyConfirmationProps {
   campuses: JourneyCampus[];
   registered: JourneySessionSelection;
+  isSpanish: boolean;
   onScheduleAnother: () => void;
   onRegisterSomeoneElse: () => void;
 }
@@ -36,12 +37,13 @@ const campusAddress = (campus?: JourneyCampus) =>
  */
 const buildCalendarEvent = (
   option: JourneySessionOption,
-  campus?: JourneyCampus,
+  campus: JourneyCampus | undefined,
+  copy: JourneyCopy,
 ) => {
   const start = parseISO(option.startsAt);
   return {
-    title: `CF Journey Session ${option.sessionNumber}${campus?.name ? ` · ${campus.name}` : ''}`,
-    description: SESSION_DESCRIPTIONS[option.sessionNumber],
+    title: `${copy.calendarTitle(option.sessionNumber)}${campus?.name ? ` · ${campus.name}` : ''}`,
+    description: copy.sessionDescriptions[option.sessionNumber],
     address: campusAddress(campus) || campus?.name || '',
     startTime: option.startsAt,
     endTime: format(
@@ -54,9 +56,11 @@ const buildCalendarEvent = (
 export const JourneyConfirmation = ({
   campuses,
   registered,
+  isSpanish,
   onScheduleAnother,
   onRegisterSomeoneElse,
 }: JourneyConfirmationProps) => {
+  const copy = getJourneyCopy(isSpanish);
   const sessions = JOURNEY_SESSION_NUMBERS.flatMap((n) =>
     registered[n] ? [registered[n]] : [],
   );
@@ -67,15 +71,14 @@ export const JourneyConfirmation = ({
     <div className='mx-auto flex w-full max-w-[560px] flex-col items-center gap-4'>
       <Icon name='checkCircle' size={56} className='text-success' />
       <div className='text-center'>
-        <h3 className='text-xl font-bold text-black'>You&apos;re Registered</h3>
-        <p className='text-sm text-neutral-default'>
-          We&apos;ll email your confirmation and send reminders before each
-          scheduled session.
-        </p>
+        <h3 className='text-xl font-bold text-black'>
+          {copy.confirmationHeading}
+        </h3>
+        <p className='text-sm text-neutral-default'>{copy.confirmationIntro}</p>
       </div>
 
       <div className='flex w-full flex-col gap-3 rounded-xl border border-neutral-lighter bg-white p-4'>
-        <h4 className='font-bold text-black'>Registered Sessions</h4>
+        <h4 className='font-bold text-black'>{copy.registeredSessions}</h4>
         <div className='flex flex-wrap items-center justify-between gap-2'>
           <p className='flex items-center gap-2 text-sm text-neutral-default'>
             <Icon name='map' size={14} className='text-ocean' />
@@ -89,12 +92,12 @@ export const JourneyConfirmation = ({
               className={SESSION_ACTION_CLASSES}
             >
               <Icon name='locationArrow' size={16} className='mr-2' />
-              Get Directions
+              {copy.getDirections}
             </a>
           )}
         </div>
         {sessions.map((option) => {
-          const event = buildCalendarEvent(option, campus);
+          const event = buildCalendarEvent(option, campus, copy);
           return (
             <div
               key={option.sessionNumber}
@@ -102,13 +105,13 @@ export const JourneyConfirmation = ({
             >
               <p className='flex items-center gap-2 font-semibold text-black'>
                 <Icon name='checkCircle' size={16} className='text-success' />
-                Session {option.sessionNumber}
+                {copy.session(option.sessionNumber)}
               </p>
               {/* Details sit under the title text, not the check icon (16px icon + 8px gap). */}
               <div className='flex flex-col gap-1.5 pl-6 text-sm text-neutral-default'>
                 <p className='flex items-center gap-2'>
                   <Icon name='calendarAlt' size={14} className='text-ocean' />
-                  {formatSessionDateHeading(option.startsAt)}
+                  {formatSessionDateHeading(option.startsAt, isSpanish)}
                 </p>
                 <p className='flex items-center gap-2'>
                   <Icon name='timeFive' size={14} className='text-ocean' />
@@ -120,6 +123,7 @@ export const JourneyConfirmation = ({
                     getIcsUrl={() => icsLink(event)}
                     eventDate={parseISO(option.startsAt)}
                     buttonSize='sm'
+                    label={copy.addToCalendar}
                     buttonClassName={SESSION_ACTION_CLASSES}
                   />
                 </div>
@@ -132,8 +136,7 @@ export const JourneyConfirmation = ({
       {sessions.length < 3 && (
         <div className='flex w-full flex-col items-center gap-3 rounded-xl border border-neutral-lighter bg-white p-4 text-center'>
           <p className='text-sm text-black'>
-            You&apos;ve scheduled {sessions.length} of 3 Journey sessions. You
-            can schedule the remaining sessions now or return later.
+            {copy.scheduledOfThree(sessions.length)}
           </p>
           <Button
             intent='secondary'
@@ -141,7 +144,7 @@ export const JourneyConfirmation = ({
             className='rounded-md'
             onClick={onScheduleAnother}
           >
-            Schedule Another Session
+            {copy.scheduleAnother}
           </Button>
         </div>
       )}
@@ -152,7 +155,7 @@ export const JourneyConfirmation = ({
         className='w-full rounded-xl'
         onClick={onRegisterSomeoneElse}
       >
-        Register Someone Else
+        {copy.registerSomeoneElse}
       </Button>
     </div>
   );
