@@ -29,7 +29,7 @@
 
 1. Run this repo's checks (see Commands) and fix what fails.
 2. Run /code-review. Fix each finding, or say in the PR why not.
-3. Write the PR from the diff against main, using `.github/PULL_REQUEST_TEMPLATE.md`:
+3. Write the PR from the diff against main, using the org PR template (`PULL_REQUEST_TEMPLATE.md` in christfellowshipchurch/.github; `gh api repos/christfellowshipchurch/.github/contents/PULL_REQUEST_TEMPLATE.md -H "Accept: application/vnd.github.raw"`):
    - Risk tier, and which files put it there.
    - Testing: numbered steps for a reviewer who hasn't seen the change, each with its expected result. Say what wasn't tested and why.
    - How to revert.
