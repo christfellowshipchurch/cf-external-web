@@ -85,7 +85,7 @@ describe('buildConnectCardSubmission', () => {
       LastName: 'Doe',
       Campus: 'campus-guid',
       PhoneNumber: '555-000-0000',
-      Email: 'jane@example.com',
+      EmailAddress: 'jane@example.com',
       AllThatApplies: 'guid-a,guid-b,journey-guid,baptism-guid',
     });
   });
@@ -138,7 +138,7 @@ describe('connect-card action', () => {
         LastName: 'Doe',
         Campus: 'campus-guid',
         PhoneNumber: '555-000-0000',
-        Email: 'jane@example.com',
+        EmailAddress: 'jane@example.com',
         AllThatApplies: '',
       },
       instanceName: 'Jane Doe',

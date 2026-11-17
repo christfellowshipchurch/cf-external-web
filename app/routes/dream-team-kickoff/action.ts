@@ -1,5 +1,5 @@
 import { data, type ActionFunction } from 'react-router';
-import { postRockData } from '~/lib/.server/fetch-rock-data';
+import { launchRockWorkflow } from '~/lib/.server/rock-workflow';
 import type { DreamTeamKickoffFormType } from './types';
 
 export const action: ActionFunction = async ({ request }) => {
@@ -25,9 +25,9 @@ export const action: ActionFunction = async ({ request }) => {
       submission.Group = group;
     }
 
-    await postRockData({
-      endpoint:
-        'Workflows/LaunchWorkflow/0?workflowTypeId=1568&workflowName=Dream%20Team%20Kickoff%20Sign%20Up',
+    await launchRockWorkflow({
+      workflowTypeId: '1568',
+      workflowName: 'Dream Team Kickoff Sign Up',
       body: submission,
     });
 

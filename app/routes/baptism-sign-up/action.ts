@@ -6,6 +6,7 @@ import {
   postRockData,
   TTL,
 } from '~/lib/.server/fetch-rock-data';
+import { launchRockWorkflow } from '~/lib/.server/rock-workflow';
 
 type RockLocation = {
   guid: string;
@@ -205,8 +206,9 @@ export const action: ActionFunction = async ({ request }) => {
       console.warn('[Baptism sign-up] Rock payload', debugPayload);
     }
 
-    await postRockData({
-      endpoint: `Workflows/LaunchWorkflow/0?workflowTypeId=${workflowTypeId}&workflowName=Baptism%20Finder%20Sign%20Up`,
+    await launchRockWorkflow({
+      workflowTypeId,
+      workflowName: 'Baptism Finder Sign Up',
       body: baptismSignUpSubmission,
     });
 
