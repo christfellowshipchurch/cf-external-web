@@ -4,7 +4,9 @@ import {
   fetchPeople,
   fetchPhoneNumbers,
 } from './rock-people-groups';
-import { patchRockData, TTL } from './fetch-rock-data';
+import { patchRockData, postRockData, TTL } from './fetch-rock-data';
+import { RockAPIError } from './error-types';
+import { requireV2Guid, sendRockV2, writeRockV2 } from './fetch-rock-v2';
 import {
   createUserProfile,
   fetchUserLogin,
@@ -203,11 +205,87 @@ export const updateRockPersonCampusForSignup = async (
     throw new Error('Primary family not found in Rock');
   }
 
-  await patchRockData({
-    endpoint: `Groups/${person.primaryFamilyId}`,
-    body: { CampusId: campus.id },
+  const familyId = person.primaryFamilyId;
+  const body = { CampusId: campus.id };
+  await writeRockV2({
+    label: 'family campus',
+    v2: async () => {
+      const family = await fetchGroups({
+        endpoint: 'Groups',
+        queryParams: { $filter: `Id eq ${familyId}`, $select: 'Guid' },
+        ttl: TTL.NONE,
+      });
+      const guid = (Array.isArray(family) ? family[0] : family)?.guid;
+      await sendRockV2(
+        'PATCH',
+        `groups/${requireV2Guid(guid, 'family')}`,
+        body,
+      );
+    },
+    fallback: async () => {
+      await patchRockData({ endpoint: `Groups/${familyId}`, body });
+    },
   });
 };
+
+interface NewGroupMember {
+  groupId: number;
+  personId: string | number;
+  groupRoleId: number;
+  groupMemberStatus: number;
+}
+
+/**
+ * Adds a person to a group. Returns the new member's Id, and its Guid when it
+ * was created on v2 (v1 returns only the Id).
+ */
+export const addRockGroupMember = async ({
+  groupId,
+  personId,
+  groupRoleId,
+  groupMemberStatus,
+}: NewGroupMember): Promise<{ id: number | null; guid?: string }> =>
+  writeRockV2({
+    label: 'group member',
+    v2: async () => {
+      // v2 requires the group's type, which v1 fills in itself.
+      const group = await fetchGroups({
+        endpoint: 'Groups',
+        queryParams: { $filter: `Id eq ${groupId}`, $select: 'GroupTypeId' },
+      });
+      const groupTypeId = (Array.isArray(group) ? group[0] : group)
+        ?.groupTypeId;
+      if (!groupTypeId) {
+        throw new RockAPIError('No group type for the group member', 404);
+      }
+      const created = (await sendRockV2('POST', 'groupmembers', {
+        GroupId: groupId,
+        GroupTypeId: groupTypeId,
+        PersonId: Number(personId),
+        GroupRoleId: groupRoleId,
+        GroupMemberStatus: groupMemberStatus,
+        IsArchived: false,
+        IsSystem: false,
+      })) as { id?: number; guid?: string } | null;
+      return { id: created?.id ?? null, guid: created?.guid };
+    },
+    fallback: async () => {
+      const created = await postRockData({
+        endpoint: 'GroupMembers',
+        body: {
+          GroupId: groupId,
+          PersonId: personId,
+          GroupRoleId: groupRoleId,
+          GroupMemberStatus: groupMemberStatus,
+          IsArchived: false,
+        },
+      });
+      // v1 returns the new entity's Id as a plain number.
+      return {
+        id: typeof created === 'number' ? created : (created?.id ?? null),
+      };
+    },
+  });
 
 export const resolveGroupClassSignupTarget = async (
   groupId: string,

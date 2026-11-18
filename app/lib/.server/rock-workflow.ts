@@ -6,7 +6,7 @@ import {
 } from './fetch-rock-data';
 import { rockV1LaunchWorkflowPath, WorkflowTypeGuids } from '~/lib/rock-config';
 import { RockAPIError } from './error-types';
-import { isRockV2Enabled, postRockV2 } from './fetch-rock-v2';
+import { isRockV2Enabled, sendRockV2 } from './fetch-rock-v2';
 import { escapeOData } from './rock-utils';
 
 /**
@@ -250,7 +250,7 @@ const launchOnRockV2 = async (
   }
 
   try {
-    await postRockV2(`workflows/actions/launch/${typeGuid}`, {
+    await sendRockV2('POST', `workflows/actions/launch/${typeGuid}`, {
       name: workflowName,
       attributeValues: toWorkflowAttributeValues(body),
     });

@@ -1,7 +1,15 @@
 import { fetchGroupMembers } from '~/lib/.server/rock-people-groups';
 import type { ActionFunction } from 'react-router';
-import { buildRockUrl, postRockData, TTL } from '~/lib/.server/fetch-rock-data';
-import { findOrCreateRockPersonForSignup } from '~/lib/.server/rock-signup';
+import { buildRockUrl, TTL } from '~/lib/.server/fetch-rock-data';
+import {
+  requireV2Guid,
+  sendRockV2,
+  writeRockV2,
+} from '~/lib/.server/fetch-rock-v2';
+import {
+  addRockGroupMember,
+  findOrCreateRockPersonForSignup,
+} from '~/lib/.server/rock-signup';
 import { fetchCampuses } from '~/lib/.server/rock-campuses';
 
 const GROUP_ROLE_ID = 379;
@@ -50,7 +58,7 @@ const getFirstRecord = <T>(result: T | T[] | null | undefined): T | null => {
  *
  * Create vs. update is handled by Rock — no need to look up an existing value.
  */
-async function setGroupMemberClassPreference(
+async function setGroupMemberClassPreferenceOnV1(
   memberId: number,
   classValueGuid: string,
 ): Promise<void> {
@@ -68,6 +76,24 @@ async function setGroupMemberClassPreference(
     );
   }
 }
+
+/** v2's `attributevalues` PATCH also resolves the key against this member. */
+const setGroupMemberClassPreference = (
+  member: { id: number; guid?: string },
+  classValueGuid: string,
+): Promise<void> =>
+  writeRockV2({
+    label: 'group member class preference',
+    v2: async () => {
+      await sendRockV2(
+        'PATCH',
+        `groupmembers/${requireV2Guid(member.guid, 'group member')}/attributevalues`,
+        { ClassPreference: classValueGuid },
+      );
+    },
+    fallback: () =>
+      setGroupMemberClassPreferenceOnV1(member.id, classValueGuid),
+  });
 
 export const action: ActionFunction = async ({ request }) => {
   try {
@@ -121,31 +147,25 @@ export const action: ActionFunction = async ({ request }) => {
       endpoint: 'GroupMembers',
       queryParams: {
         $filter: `GroupId eq ${groupId} and PersonId eq ${personId}`,
-        $select: 'Id',
+        $select: 'Id,Guid',
       },
       ttl: TTL.NONE,
     });
 
-    const existing = getFirstRecord<{ id: number }>(existingMembership);
-    let memberId = existing?.id ?? null;
+    const member =
+      getFirstRecord<{ id: number; guid?: string }>(existingMembership) ??
+      (await addRockGroupMember({
+        groupId,
+        personId,
+        groupRoleId: GROUP_ROLE_ID,
+        groupMemberStatus: PENDING_GROUP_MEMBER_STATUS,
+      }));
 
-    if (!memberId) {
-      const created = await postRockData({
-        endpoint: 'GroupMembers',
-        body: {
-          GroupId: groupId,
-          PersonId: personId,
-          GroupRoleId: GROUP_ROLE_ID,
-          GroupMemberStatus: PENDING_GROUP_MEMBER_STATUS,
-          IsArchived: false,
-        },
-      });
-      // Rock returns the new entity ID as a plain integer, not an object.
-      memberId = typeof created === 'number' ? created : (created?.id ?? null);
-    }
-
-    if (memberId && classValueGuid) {
-      await setGroupMemberClassPreference(memberId, classValueGuid);
+    if (member.id && classValueGuid) {
+      await setGroupMemberClassPreference(
+        { id: member.id, guid: member.guid },
+        classValueGuid,
+      );
     }
 
     return Response.json({ success: true });
