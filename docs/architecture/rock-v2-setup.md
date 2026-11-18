@@ -495,6 +495,57 @@ Each created exactly one workflow with the form's values and apollos as
 initiator, with no v1 fallback. The test person's group memberships were
 archived afterwards.
 
+## Step 6 (CFDP-4541): writes
+
+Each write goes through `writeRockV2` (`fetch-rock-v2.ts`) with its old v1
+call as the fallback, and `sendRockV2` for the v2 call:
+
+| Write                          | Where                                   | v2 call                                     |
+| ------------------------------ | --------------------------------------- | ------------------------------------------- |
+| Person email (when it's empty) | `updatePerson` (`rock-person.ts`)       | `PATCH people/{guid}`                       |
+| Family campus                  | `updateRockPersonCampusForSignup`       | `PATCH groups/{familyGuid}`                 |
+| Group member                   | `addRockGroupMember` (`rock-signup.ts`) | `POST groupmembers`                         |
+| Class preference               | `class-interest/action.ts`              | `PATCH groupmembers/{guid}/attributevalues` |
+| Baptism address                | `baptism-sign-up/action.ts`             | `POST locations`                            |
+
+- **No double write:** as with launches, v1 runs only when v2 is off, the
+  record has no Guid, or Rock refused with 400, 401, 403 or 404 before writing.
+  Anything else throws.
+- **Guids:** the reads before each write also select `Guid`. The family's Guid
+  comes from a `groups` read by its Id.
+- **Group members:** v2 requires `GroupTypeId` (v1 fills it in), so
+  `addRockGroupMember` reads the group's type first. v2's create returns the
+  new member's Guid, so the class preference goes on v2 too. After a v1 create
+  it has no Guid, so the class preference also goes on v1.
+- **Class preference:** v2's `attributevalues` resolves `ClassPreference`
+  against the member, like v1's `GroupMembers/AttributeValue`. The group type
+  has two attributes with that key: 225397 on Group Member (the one written)
+  and 109167 on Group.
+- **Body keys** are PascalCase, like v1's. v2 accepts them.
+
+Rock setup: none. apollos could already write all five over v2. Rock 18.7's
+"apollos must be able to edit both the old and the new campus" check didn't
+refuse the Palm Beach Gardens ↔ Jupiter move; other campuses weren't tried.
+
+Checked live on production Rock (2026-11-18) through a local dev server, as the
+test person:
+
+- group finder notify: blanked the test person's email first; the email was
+  put back on v2 and the member created on v2 (Rock filled in its group type);
+- class interest: member created and `ClassPreference` set on v2; a second
+  submission found the member and only set the preference, with no duplicate;
+- group finder class sign-up: family campus moved to Jupiter and back to Palm
+  Beach Gardens on v2;
+- baptism sign-up with a new address: location created on v2.
+
+The first run, before `GroupTypeId` was sent, got 400 on both member creates:
+both fell back to v1 as designed, with no duplicate. The test person's
+memberships were archived afterwards.
+
+**Still on v1:** creating a person and a phone number for a sign-up
+(`createUserProfile`, `createPhoneNumberInRock` in `authentication/`) and the
+login writes. CFDP-4542 removes or moves that code.
+
 ## Expected differences between v1 and v2
 
 These showed up on both pages. None affected what the pages display.
@@ -549,9 +600,8 @@ Casing below is as recorded from My Groups' setup; check the key in Rock
 
 ## Staying on v1
 
-Reads that steps 1–4 deliberately leave on v1, and why. Steps 5 and 6
-(workflow launches, writes) haven't started, so their calls aren't listed
-here. The login code isn't migrated; CFDP-4542 removes it.
+Reads that steps 1–4 deliberately leave on v1, and why. The writes left on v1
+are listed under step 6. The login code isn't migrated; CFDP-4542 removes it.
 
 | Read                                                                                            | Why                                                                                                                                                                                                                                                                                            | Moves when                                                                       |
 | ----------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------- |

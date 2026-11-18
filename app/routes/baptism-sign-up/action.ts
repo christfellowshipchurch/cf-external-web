@@ -6,6 +6,7 @@ import {
   postRockData,
   TTL,
 } from '~/lib/.server/fetch-rock-data';
+import { sendRockV2, writeRockV2 } from '~/lib/.server/fetch-rock-v2';
 import { launchRockWorkflow } from '~/lib/.server/rock-workflow';
 
 type RockLocation = {
@@ -66,18 +67,21 @@ const findOrCreateRockLocation = async (address: AddressInput) => {
   const existingLocationGuid = await findMatchingRockLocation(address);
   if (existingLocationGuid) return existingLocationGuid;
 
-  const createdLocation = (await postRockData({
-    endpoint: 'locations',
-    body: {
-      Street1: address.street1,
-      Street2: address.street2,
-      City: address.city,
-      State: address.state,
-      PostalCode: address.postalCode,
-      Country: address.country,
-    },
-  })) as { guid?: string; Guid?: string };
-  const locationGuid = createdLocation.guid ?? createdLocation.Guid;
+  const body = {
+    Street1: address.street1,
+    Street2: address.street2,
+    City: address.city,
+    State: address.state,
+    PostalCode: address.postalCode,
+    Country: address.country,
+  };
+  // v1 returns only the new Id, so its Guid comes from the re-read below.
+  const createdLocation = (await writeRockV2({
+    label: 'location',
+    v2: () => sendRockV2('POST', 'locations', body),
+    fallback: () => postRockData({ endpoint: 'locations', body }),
+  })) as { guid?: string; Guid?: string } | null;
+  const locationGuid = createdLocation?.guid ?? createdLocation?.Guid;
   if (locationGuid) return locationGuid;
 
   const createdLocationGuid = await findMatchingRockLocation(address);

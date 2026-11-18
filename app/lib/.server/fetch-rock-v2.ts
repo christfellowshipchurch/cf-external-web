@@ -278,21 +278,23 @@ export const requestRockV2 = async ({
 };
 
 /**
- * A v2 POST that changes data, e.g. a workflow launch: never cached and never
- * retried. A Rock error throws a RockAPIError with Rock's status (not its body,
- * which can echo the posted values). A success isn't read, so an odd response
- * body can't turn a done launch into an error.
+ * A v2 call that changes data (a create, a PATCH, a workflow launch): never
+ * cached and never retried. A Rock error throws a RockAPIError with Rock's
+ * status (not its body, which can echo the posted values). Returns the parsed
+ * body, e.g. a create's `{ id, guid, idKey }`, or null when there is none or it
+ * isn't JSON, so an odd body can't turn a done write into an error.
  */
-export const postRockV2 = async (
+export const sendRockV2 = async (
+  method: 'POST' | 'PATCH',
   path: string,
   body: Record<string, unknown>,
-): Promise<void> => {
+): Promise<unknown> => {
   const normalizedPath = path.replace(/^\/+|\/+$/g, '');
   assertNoNumberId(normalizedPath);
 
   const endpoint = `v2/models/${normalizedPath}`;
   const res = await fetch(buildRockUrl(endpoint), {
-    method: 'POST',
+    method,
     headers: {
       'Content-Type': 'application/json',
       'Authorization-Token': `${process.env.ROCK_TOKEN}`,
@@ -302,9 +304,64 @@ export const postRockV2 = async (
 
   if (!res.ok) {
     throw new RockAPIError(
-      `Rock v2 POST ${endpoint} failed: ${res.status}`,
+      `Rock v2 ${method} ${endpoint} failed: ${res.status}`,
       res.status,
     );
+  }
+
+  try {
+    const text = await res.text();
+    return text ? JSON.parse(text) : null;
+  } catch {
+    return null;
+  }
+};
+
+/** Rock answers these before it writes anything, so v1 can write safely. */
+export const V2_NOT_WRITTEN_STATUSES = new Set([400, 401, 403, 404]);
+
+/**
+ * The Guid a v2 write path needs. A missing one throws a 404 RockAPIError, so
+ * `writeRockV2` falls back to v1, which takes the number Id.
+ */
+export const requireV2Guid = (
+  guid: string | null | undefined,
+  what: string,
+): string => {
+  if (!guid) throw new RockAPIError(`No Guid for the ${what}`, 404);
+  return guid;
+};
+
+/**
+ * Runs a write on v2, or on its v1 `fallback` when v2 is off or Rock refused
+ * before writing (`V2_NOT_WRITTEN_STATUSES`). Any other failure may come after
+ * Rock wrote, so it throws rather than writing a second time on v1.
+ */
+export const writeRockV2 = async <T>({
+  label,
+  v2,
+  fallback,
+}: {
+  /** For logs: what is written, never a value */
+  label: string;
+  v2: () => Promise<T>;
+  fallback: () => Promise<T>;
+}): Promise<T> => {
+  if (!isRockV2Enabled()) return fallback();
+
+  try {
+    return await v2();
+  } catch (error) {
+    if (
+      error instanceof RockAPIError &&
+      V2_NOT_WRITTEN_STATUSES.has(error.statusCode)
+    ) {
+      console.error(
+        `⚠️ Rock v2 refused the ${label} write (${error.statusCode}), writing on v1`,
+      );
+      return fallback();
+    }
+    throw error;
   }
 };
 

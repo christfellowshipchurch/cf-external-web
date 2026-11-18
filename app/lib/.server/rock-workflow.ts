@@ -6,7 +6,11 @@ import {
 } from './fetch-rock-data';
 import { WorkflowTypeGuids } from '~/lib/rock-config';
 import { RockAPIError } from './error-types';
-import { isRockV2Enabled, postRockV2 } from './fetch-rock-v2';
+import {
+  isRockV2Enabled,
+  sendRockV2,
+  V2_NOT_WRITTEN_STATUSES,
+} from './fetch-rock-v2';
 import { escapeOData } from './rock-utils';
 
 /**
@@ -196,9 +200,6 @@ export const scheduleRockWorkflowBackgroundWork = (
   void work.catch(logBackgroundPatchFailure);
 };
 
-/** Rock answers these before it queues anything, so v1 can launch safely. */
-const V2_NOT_LAUNCHED_STATUSES = new Set([400, 401, 403, 404]);
-
 /** v1's launch reads its body as strings, turning `true` into "True". */
 const toWorkflowAttributeValues = (
   body: Record<string, unknown>,
@@ -238,7 +239,7 @@ const launchOnRockV2 = async (
   }
 
   try {
-    await postRockV2(`workflows/actions/launch/${typeGuid}`, {
+    await sendRockV2('POST', `workflows/actions/launch/${typeGuid}`, {
       name: workflowName,
       attributeValues: toWorkflowAttributeValues(body),
     });
@@ -246,7 +247,7 @@ const launchOnRockV2 = async (
   } catch (error) {
     if (
       error instanceof RockAPIError &&
-      V2_NOT_LAUNCHED_STATUSES.has(error.statusCode)
+      V2_NOT_WRITTEN_STATUSES.has(error.statusCode)
     ) {
       console.error(
         `⚠️ Rock v2 refused workflow type ${workflowTypeId} (${error.statusCode}), launching on v1`,
