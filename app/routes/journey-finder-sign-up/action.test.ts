@@ -1,10 +1,10 @@
 import type { ActionFunctionArgs } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { postRockWorkflowLaunchWithApiInitiator } from '~/lib/.server/rock-workflow';
+import { launchRockWorkflow } from '~/lib/.server/rock-workflow';
 import { action } from './action';
 
 vi.mock('~/lib/.server/rock-workflow', () => ({
-  postRockWorkflowLaunchWithApiInitiator: vi.fn(),
+  launchRockWorkflow: vi.fn(),
 }));
 
 const createRequest = (language?: 'English' | 'Spanish') => {
@@ -33,15 +33,13 @@ const createRequest = (language?: 'English' | 'Spanish') => {
 describe('journey finder sign up action', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(postRockWorkflowLaunchWithApiInitiator).mockResolvedValue(
-      undefined,
-    );
+    vi.mocked(launchRockWorkflow).mockResolvedValue(undefined);
   });
 
-  it('posts English submissions to workflow ID 1833 by default', async () => {
+  it('launches English submissions as workflow type 1833 by default', async () => {
     await action({ request: createRequest() } as ActionFunctionArgs);
 
-    expect(postRockWorkflowLaunchWithApiInitiator).toHaveBeenCalledWith({
+    expect(launchRockWorkflow).toHaveBeenCalledWith({
       workflowTypeId: '1833',
       workflowName: 'Journey Finder Sign Up',
       body: expect.objectContaining({
@@ -49,16 +47,15 @@ describe('journey finder sign up action', () => {
         LaunchSource: 'app',
         Reason: '3',
       }),
-      instanceName: 'Test Person',
     });
   });
 
-  it('posts Spanish submissions to workflow ID 1835', async () => {
+  it('launches Spanish submissions as workflow type 1835', async () => {
     await action({
       request: createRequest('Spanish'),
     } as ActionFunctionArgs);
 
-    expect(postRockWorkflowLaunchWithApiInitiator).toHaveBeenCalledWith({
+    expect(launchRockWorkflow).toHaveBeenCalledWith({
       workflowTypeId: '1835',
       workflowName: 'Journey Finder Sign Up',
       body: expect.objectContaining({
@@ -66,7 +63,33 @@ describe('journey finder sign up action', () => {
         LaunchSource: 'app',
         Reason: '3',
       }),
-      instanceName: 'Test Person',
+    });
+  });
+
+  it('does not launch the workflow without a Group', async () => {
+    const request = new Request('http://localhost/journey-finder-sign-up', {
+      method: 'POST',
+      body: await createRequest().formData(),
+    });
+
+    const response = await action({ request } as ActionFunctionArgs);
+
+    expect(response).toMatchObject({ init: { status: 400 } });
+    expect(launchRockWorkflow).not.toHaveBeenCalled();
+  });
+
+  it('returns 400 when the workflow launch fails', async () => {
+    vi.mocked(launchRockWorkflow).mockRejectedValue(
+      new Error('Rock v2 failed'),
+    );
+
+    const response = await action({
+      request: createRequest(),
+    } as ActionFunctionArgs);
+
+    expect(response).toMatchObject({
+      data: { error: 'Rock v2 failed' },
+      init: { status: 400 },
     });
   });
 });

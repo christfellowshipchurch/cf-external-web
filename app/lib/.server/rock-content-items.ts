@@ -1,6 +1,5 @@
 import { extractContentItemIds } from './cache-utils';
 import {
-  fetchRockData,
   getRequestedContentItemId,
   isPreviewMode,
   type FetchRockDataOptions,
@@ -69,56 +68,22 @@ export const CONTENT_ITEMS_V2: V2SearchEntity = {
 
 /**
  * A `ContentChannelItems` or `ContentChannelItems/GetByAttributeValue` read:
- * `fetchRockData`'s options and result, run on v2 when it's on.
+ * `fetchRockData`'s options and result, run on v2.
  */
 export const fetchContentItems = (options: FetchRockDataOptions) =>
   fetchViaV2Search(options, CONTENT_ITEMS_V2);
 
 type ContentItem = Record<string, unknown> & { id: string; status?: number };
 
-const toArray = <T>(value: T | T[] | null | undefined): T[] =>
-  !value ? [] : Array.isArray(value) ? value : [value];
-
-const fetchChildContentItemsV1 = async (
-  parentId: string,
-): Promise<ContentItem[]> => {
-  const childReferences = toArray<{ childContentChannelItemId: string }>(
-    await fetchRockData({
-      endpoint: 'ContentChannelItemAssociations',
-      queryParams: {
-        loadAttributes: 'simple',
-        $filter: `ContentChannelItemId eq ${parentId}`,
-        $orderby: 'Order',
-      },
-    }),
-  );
-
-  const children = await Promise.all(
-    childReferences.map(({ childContentChannelItemId }) =>
-      fetchRockData({
-        endpoint: 'ContentChannelItems',
-        queryParams: {
-          $filter: `Id eq ${childContentChannelItemId}`,
-          loadAttributes: 'simple',
-        },
-        filterByStatusApproved: true,
-      }),
-    ),
-  );
-
-  return children.flatMap((child) => toArray<ContentItem>(child));
-};
-
 /**
  * A parent item's children in association order, Approved only (any status in
- * preview). v2 reads them in one search through `ParentItems` instead of the
- * association list plus one read per child.
+ * preview), in one search through `ParentItems`.
  */
-export const fetchChildContentItems = (
+export const fetchChildContentItems = async (
   parentId: string,
 ): Promise<ContentItem[]> => {
-  const fallback = () => fetchChildContentItemsV1(parentId);
-  if (!/^\d+$/.test(parentId)) return fallback();
+  // The id goes into the `where` unquoted.
+  if (!/^\d+$/.test(parentId)) return [];
 
   const association = `ParentItems.Where(a => a.ContentChannelItemId == ${parentId})`;
   return fetchRockV2<ContentItem[]>({
@@ -148,6 +113,5 @@ export const fetchChildContentItems = (
         .sort((a, b) => Number(a.associationOrder) - Number(b.associationOrder))
         .map(({ associationOrder: _order, ...item }) => item as ContentItem)
         .filter((item) => isPreviewMode() || item.status === APPROVED),
-    fallback,
   });
 };

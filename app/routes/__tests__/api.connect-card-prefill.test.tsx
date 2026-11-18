@@ -1,15 +1,25 @@
 import type { LoaderFunctionArgs } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { fetchRockData, postRockData } from '~/lib/.server/fetch-rock-data';
+import { postRockData } from '~/lib/.server/fetch-rock-data';
+import { fetchCampuses } from '~/lib/.server/rock-campuses';
+import { fetchPhoneNumbers } from '~/lib/.server/rock-people-groups';
 import { loader } from '../api.connect-card-prefill';
 
 vi.mock('~/lib/.server/fetch-rock-data', () => ({
-  fetchRockData: vi.fn(),
   postRockData: vi.fn(),
   TTL: { NONE: 0 },
 }));
 
-const mockFetchRockData = vi.mocked(fetchRockData);
+vi.mock('~/lib/.server/rock-people-groups', () => ({
+  fetchPhoneNumbers: vi.fn(),
+}));
+
+vi.mock('~/lib/.server/rock-campuses', () => ({
+  fetchCampuses: vi.fn(),
+}));
+
+const mockFetchPhoneNumbers = vi.mocked(fetchPhoneNumbers);
+const mockFetchCampuses = vi.mocked(fetchCampuses);
 const mockPostRockData = vi.mocked(postRockData);
 
 const createArgs = (search = '') =>
@@ -26,8 +36,7 @@ const readStatus = (response: unknown) =>
 
 describe('connect card prefill API', () => {
   beforeEach(() => {
-    mockFetchRockData.mockReset();
-    mockPostRockData.mockReset();
+    vi.clearAllMocks();
   });
 
   it('returns invalid-id for missing or malformed token values', async () => {
@@ -36,7 +45,8 @@ describe('connect card prefill API', () => {
 
     expect(readData(missing)).toEqual({ status: 'invalid-id' });
     expect(readData(invalid)).toEqual({ status: 'invalid-id' });
-    expect(mockFetchRockData).not.toHaveBeenCalled();
+    expect(mockFetchPhoneNumbers).not.toHaveBeenCalled();
+    expect(mockFetchCampuses).not.toHaveBeenCalled();
     expect(mockPostRockData).not.toHaveBeenCalled();
   });
 
@@ -51,7 +61,8 @@ describe('connect card prefill API', () => {
       body: '{% assign person = "token-123" | PersonTokenRead %}{{ person | ToJSON }}',
       contentType: 'text/plain',
     });
-    expect(mockFetchRockData).not.toHaveBeenCalled();
+    expect(mockFetchPhoneNumbers).not.toHaveBeenCalled();
+    expect(mockFetchCampuses).not.toHaveBeenCalled();
   });
 
   it('parses a JSON string returned by Lava RenderTemplate', async () => {
@@ -62,11 +73,10 @@ describe('connect card prefill API', () => {
         primaryCampusId: 10,
       }),
     );
-    mockFetchRockData
-      .mockResolvedValueOnce({
-        numberFormatted: '555-123-4567',
-      })
-      .mockResolvedValueOnce([{ id: 10, guid: 'campus-guid' }]);
+    mockFetchPhoneNumbers.mockResolvedValueOnce({
+      numberFormatted: '555-123-4567',
+    });
+    mockFetchCampuses.mockResolvedValueOnce([{ id: 10, guid: 'campus-guid' }]);
 
     const response = await loader(createArgs('?rckpid=token-123'));
 
@@ -86,11 +96,10 @@ describe('connect card prefill API', () => {
       firstName: 'Jane',
       primaryCampusId: 10,
     });
-    mockFetchRockData
-      .mockResolvedValueOnce({
-        numberFormatted: '555-123-4567',
-      })
-      .mockResolvedValueOnce([{ id: 10, guid: 'campus-guid' }]);
+    mockFetchPhoneNumbers.mockResolvedValueOnce({
+      numberFormatted: '555-123-4567',
+    });
+    mockFetchCampuses.mockResolvedValueOnce([{ id: 10, guid: 'campus-guid' }]);
 
     const response = await loader(createArgs('?rckpid=token-123'));
 
@@ -119,22 +128,21 @@ describe('connect card prefill API', () => {
       primaryCampusId: 10,
       recordStatusValueId: 3,
     });
-    mockFetchRockData
-      .mockResolvedValueOnce([
-        {
-          number: '5551234567',
-          numberFormatted: '555-123-4567',
-          extension: '999',
-        },
-      ])
-      .mockResolvedValueOnce([
-        {
-          id: 10,
-          name: 'Palm Beach Gardens',
-          guid: 'campus-guid',
-          extra: 'not returned',
-        },
-      ]);
+    mockFetchPhoneNumbers.mockResolvedValueOnce([
+      {
+        number: '5551234567',
+        numberFormatted: '555-123-4567',
+        extension: '999',
+      },
+    ]);
+    mockFetchCampuses.mockResolvedValueOnce([
+      {
+        id: 10,
+        name: 'Palm Beach Gardens',
+        guid: 'campus-guid',
+        extra: 'not returned',
+      },
+    ]);
 
     const response = await loader(createArgs('?rckipid=token-123'));
 
@@ -148,7 +156,7 @@ describe('connect card prefill API', () => {
         campus: 'campus-guid',
       },
     });
-    expect(mockFetchRockData).toHaveBeenNthCalledWith(1, {
+    expect(mockFetchPhoneNumbers).toHaveBeenCalledWith({
       endpoint: 'PhoneNumbers',
       queryParams: {
         $filter: 'PersonId eq 123',
@@ -156,15 +164,11 @@ describe('connect card prefill API', () => {
       },
       ttl: 0,
     });
-    expect(mockFetchRockData).toHaveBeenNthCalledWith(2, {
-      endpoint: 'Campuses',
-      queryParams: {
-        $filter: 'IsActive eq true',
-        $select: 'Id, Name, Guid',
-        $orderby: 'Order',
-      },
-      ttl: 0,
-    });
+    expect(mockFetchCampuses).toHaveBeenCalledWith(
+      { active: true },
+      ['Id', 'Name', 'Guid'],
+      0,
+    );
   });
 
   it('uses a person campus guid when Rock returns one directly', async () => {
@@ -173,7 +177,8 @@ describe('connect card prefill API', () => {
       firstName: 'Jane',
       primaryCampus: { guid: 'direct-campus-guid' },
     });
-    mockFetchRockData.mockResolvedValueOnce([]).mockResolvedValueOnce([]);
+    mockFetchPhoneNumbers.mockResolvedValueOnce([]);
+    mockFetchCampuses.mockResolvedValueOnce([]);
 
     const response = await loader(createArgs('?rckipid=token-123'));
 

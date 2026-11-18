@@ -1,6 +1,6 @@
 import { type ActionFunction, data } from 'react-router';
 import { getJourneySessionOptions } from '~/lib/.server/journey-sessions';
-import { postRockWorkflowLaunchWithApiInitiator } from '~/lib/.server/rock-workflow';
+import { launchRockWorkflow } from '~/lib/.server/rock-workflow';
 import {
   childcareFieldName,
   JOURNEY_CHILDCARE_AGE_RANGES,
@@ -122,7 +122,7 @@ export const action: ActionFunction = async ({ request }) => {
       if (offersChildcare && count > 0) childcareFields[key] = String(count);
     }
 
-    await postRockWorkflowLaunchWithApiInitiator({
+    await launchRockWorkflow({
       workflowTypeId: JOURNEY_SESSION_WORKFLOW_TYPE_ID,
       workflowName: 'Journey Sign Up',
       body: {
@@ -137,7 +137,6 @@ export const action: ActionFunction = async ({ request }) => {
         ...sessionFields,
         ...childcareFields,
       },
-      instanceName: `${firstName} ${lastName}`.trim(),
     });
 
     return data({ success: true });

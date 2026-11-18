@@ -36,44 +36,36 @@ nothing new:
 - `fetchRockV2`, `requestRockV2`, `toV1Shape`, `buildV2SearchBody`,
   `getSearchItems` and `escapeDynamicLinq` in `app/lib/.server/fetch-rock-v2.ts`.
   New reads reuse them.
-- The `ROCK_V2_ENABLED` environment variable, the v1 fallback and the dev-only
-  `🔍 Rock v2 vs v1` comparison are built in. Like My Groups, v2 is **on unless
-  `ROCK_V2_ENABLED=false`**: unset or `true` means on. Set it to `false` in an
-  environment to run every read on its v1 fallback, no deploy needed.
-- Tests run on v1 (`vitest.config.ts` sets `ROCK_V2_ENABLED=false`). A v2 test
-  turns it on with `vi.stubEnv`.
+- v2 is the only path. The `ROCK_V2_ENABLED` switch, the v1 fallbacks and the
+  dev-only `🔍 Rock v2 vs v1` comparison were removed in CFDP-4546, once every
+  step below was confirmed in production. Rolling back to v1 now means
+  reverting that PR.
 
 ## How the code works
 
-- `fetchRockV2` (`app/lib/.server/fetch-rock-v2.ts`) runs a v2 read, with the
-  existing v1 call as its `fallback`.
-- When `ROCK_V2_ENABLED` is `false`, only the fallback runs. Pages behave
-  exactly as on v1.
-- When v2 is on and **any** v2 call in the read fails, the whole read falls back
-  to v1. A missing permission can't take a page down; it only logs
-  `⚠️ Rock v2 request failed, using v1 fallback`.
+- `fetchRockV2` (`app/lib/.server/fetch-rock-v2.ts`) runs one v2 read and maps
+  it with `map`. Any failure throws, like `fetchRockData` does: a missing
+  permission fails the read (and usually the page) instead of falling back.
 - A read can span several calls: a search, then `/attributevalues`, then a
   related record. Follow-up calls go through `requestRockV2` inside the `map`
-  function, so a failure there also falls back to v1 for the whole read.
+  function.
 - `toV1Shape` converts a v2 entity and its attribute values to the shape loaders
-  already read: camelCase keys and `attributeValues.{key}.value` /
-  `.valueFormatted`.
-- In development, every successful v2 read also runs v1 and logs the fields that
-  differ:
-
-  ```
-  🔍 Rock v2 vs v1 (campuses/search/cf-web-campus-by-url): 26 differences
-  attributeValues.campusImage.valueFormatted: v1="<img …" v2="jupiter.jpg"
-  Only in v1: isActive, timeZoneId, …
-  ```
-
-  It only compares fields v2 returns. Fields only v1 has are listed on the last
-  line.
+  read: camelCase keys and `attributeValues.{key}.value` / `.valueFormatted`.
+- **Wrong-record guards** stay: a search row that doesn't match the requested
+  Guid, Id, Url or name (Rock ignored the `where`) throws rather than show or
+  write to another record.
+- A lookup that finds nothing returns nothing (an empty array or `null`), so
+  the page 404s as it did on v1.
+- `getAttributeMatrixItems` and `fetchChurchRolesByPreferenceAreaGuid` return
+  `[]` on any failure, so a broken matrix or church-roles list renders empty
+  instead of failing the page.
+- Writes and workflow launches go through `sendRockV2`: never cached, never
+  retried (a timeout may come after Rock saved), errors throw.
 
 ### Rules for v2 paths
 
-- **Use a Guid or IdKey, never a number ID.** `fetchRockV2` throws outside
-  production on a number ID in the path. Rock refuses number IDs in more places
+- **Use a Guid or IdKey, never a number ID.** `requestRockV2` and `sendRockV2`
+  throw on a number ID in the path. Rock refuses number IDs in more places
   when Disable Predictable IDs is on.
 - **v2 has no list or filter endpoints like v1's `$filter`.** To look a record
   up by anything other than its ID (a Url, a slug, an attribute value), create a
@@ -144,14 +136,16 @@ caches permissions, so new grants may not apply until you do.
 
 ### 6. Test locally
 
-With `ROCK_V2_ENABLED` unset (or `true`), start the dev server as usual, load the page and read the terminal:
+Start the dev server as usual, load the page and read the terminal:
 
-- `🔍 Rock v2 vs v1 … N differences`: v2 works. Check every difference against
-  what the page actually reads (see "Expected differences" below).
-- `⚠️ Rock v2 request failed … 401`: a permission is missing. The URL in the
-  error tells you which call; work through the layers below.
+- The page renders: v2 works. Compare it with production (or with a v1
+  response in Postman) field by field for what the page reads; see "Expected
+  differences" below.
+- `Rock v2 … failed: 401`: a permission is missing. The URL in the error tells
+  you which call; work through the layers below.
 - `400` or `500`: the request itself is wrong, usually the search `where` or
-  `select` syntax. The error body says why.
+  `select` syntax. GET errors include Rock's body; search (POST) errors don't,
+  since a `where` can hold a name or email.
 
 ## When v2 still answers 401: check each layer
 
@@ -221,8 +215,7 @@ collection's exact name in **Admin Tools › Settings › Model Map**.
 ## Step 1 (CFDP-4478): simple cached reads
 
 Every Campus, Defined Value, Content Channel, Media Element and Attribute
-Matrix read on the site now goes through one shared helper with its v1 call
-as the fallback.
+Matrix read on the site goes through one shared helper.
 
 It follows My Groups' setup (`my-church-platform`,
 `docs/architecture/rock-v2-setup.md`), which uses the same REST user on the same
@@ -247,37 +240,25 @@ Rock:
 | `getAttributeMatrixItems`                   | `rock-utils.ts`          | search `attributematricesitem` with attribute values                            |
 
 `attributematricesitem` is Rock's v2 route name for AttributeMatrixItem. The
-matrix read also selects `AttributeMatrix.Guid` and falls back to v1 if any
+matrix read also selects `AttributeMatrix.Guid` and returns nothing if any
 row belongs to another matrix, in case Rock ignored the `where`.
 
-Malformed Guids now return nothing without calling Rock, on v1 and v2.
+Malformed Guids return nothing without calling Rock.
 
 **Already in place** (from My Groups and the prototype): the `campuses`,
 `contentchannels` and `attributematricesitem` searches with Execute for apollos;
 `POST search/{searchKey}` Execute Read on those three controllers;
 `GET {id}` on MediaElements and Locations.
 
-**Rock setup still to do:**
+**Rock setup** (in place):
 
 | Where                                                                           | Permission for apollos |
 | ------------------------------------------------------------------------------- | ---------------------- |
 | Entity Search `definedvalues` (Defined Value, Active, refinement on, max blank) | Execute › Allow        |
 | v2 DefinedValues controller, `POST search/{searchKey}` action                   | Execute Read › Allow   |
 
-Until it's done, Defined Value reads fall back to v1.
-
-`cf-web-campus-by-url` is no longer called, and the campus read no longer uses
-`GET campuses/{id}/attributevalues`, so its Execute Unrestricted Read grant can
-go too. Remove both once this ships.
-
-**To confirm on the first run:**
-
-- `CampusAttributeValues` and `DefinedValueAttributeValues` exist (Model Map).
-  `AttributeMatrixItemAttributeValues` already works in My Groups.
-- `limit` (hero actions ask for 2) and `sort: "Order desc"`. This is the first
-  read that pages, so it settles `V2_PAGING_FIELDS`.
-- Calls per page: a campus details read is 1 + 1 per campus (the Location),
-  about 15 for the active list. Every other read is one call.
+Calls per page: a campus details read is 1 + 1 per campus (the Location),
+about 15 for the active list. Every other read is one call.
 
 The admin `target=attribute-matrices` flush also clears the
 `attributematricesitem` search's cache entries.
@@ -285,17 +266,14 @@ The admin `target=attribute-matrices` flush also clears the
 ## Steps 2 and 3 (CFDP-4537, CFDP-4538): content items and attribute lookups
 
 Every `ContentChannelItems`, `ContentChannelItemAssociations` and
-`…/GetByAttributeValue` read now tries v2 first, except the sitemap (below).
+`…/GetByAttributeValue` read runs on v2, except the sitemap (below).
 
 **How:** `fetchViaV2Search` (`rock-v2-search.ts`) takes the **same options a
-`fetchRockData` call already had** and runs them as a saved-search request.
-Call sites only swap the function name; the v1 call is unchanged and is the
-fallback.
+`fetchRockData` call had** and runs them as a saved-search request.
 
 - `$filter` becomes the `where` through `odataFilterToLinq`. It accepts only
   the subset the site uses (`eq ne lt le gt ge and or not`, parentheses,
-  numbers, strings, `guid'…'`, `datetime'…'`, `null`). Anything else goes
-  straight to v1 with a warning.
+  numbers, strings, `guid'…'`, `datetime'…'`, `null`). Anything else throws.
 - `filterByStatusApproved`, `filterByDateRange` and preview mode are resolved
   by the same code as v1 (`resolveRockQuery`), so both versions ask Rock the
   same question.
@@ -304,17 +282,15 @@ fallback.
   As on v1, the date range for an attribute lookup is checked in code after
   `$top`.
 - `$top` becomes `limit`, and the result is also cut to `$top` in code.
-- `$skip`, `$select` and `attributeKeys` aren't translated. A read that uses
-  one stays on v1.
+- `$skip` isn't translated (it throws); `$select` and `attributeKeys` are
+  (step 4).
 - Rows come back in v1's shape: one row unwrapped, `Status` as a number, dates
   without the `-04:00` offset (so `new Date(value)` formats as on v1), and
   `attributes` built from the attribute value keys.
 - **Wrong-record guard**, as in step 1: an attribute lookup also selects the
   looked-up value (`LookupValue`), and an `Id eq` / `Guid eq` read checks each
-  row's Id or Guid. A row that doesn't match sends the read to v1.
-- A lookup by `Url` or `Pathname` that finds nothing throws, so v1 answers and
-  a misbehaving search can't 404 a real page. Other empty results are
-  returned as empty.
+  row's Id or Guid. A row that doesn't match fails the read.
+- A lookup that finds nothing returns empty, so a missing page 404s.
 
 | Helper                                 | File                     | v2 call                          |
 | -------------------------------------- | ------------------------ | -------------------------------- |
@@ -343,35 +319,12 @@ the cache index.
 cache key is hashed, as v1 does for its date-range clause. Without it every
 request would get its own key.
 
-This was the gate for turning `ROCK_V2_ENABLED` on in production.
-
 **Stays on v1:** the sitemap. It pages with `$skip`, and Rock's paging field
 names aren't confirmed yet (see "Still to confirm").
 
-**Rock setup.** `contentchannelitems` and `definedvalues` searches already
-exist with Execute for apollos. Still to do:
-
-| Where                                                                                                           | Permission for apollos    |
-| --------------------------------------------------------------------------------------------------------------- | ------------------------- |
-| Entity Search `connectionOpportunities` (Connection Opportunity, Active, refinement on, max blank): **created** | Execute › Allow (confirm) |
-| v2 ConnectionOpportunities controller, `POST search/{searchKey}` action                                         | Execute Read › Allow      |
-
-The search exists; until the controller grant is in place, church roles fall back to v1. Once this ships, delete the
-`cf-web-message-by-url` search.
-
-**To confirm on the first run:**
-
-- `DateTime(2026, 11, 10, 16, 5, 9)` in a `where` (date-range reads: navbar,
-  podcasts, daily devo, volunteer trips, group finder notify).
-- `ParentItems` and `.Min(a => a.Order)` in the children search (page builder,
-  link tree, ministry builder, podcast show).
-- `ContentChannelItemAttributeValues`, `PersonAttributeValues` and
-  `ConnectionOpportunityAttributeValues` (Model Map).
-- `Status == "Approved"` compares against the enum, and `Status` comes back as
-  a name or a number (both are handled).
-
-Each of these falls back to v1 if Rock rejects it, logging
-`⚠️ Rock v2 request failed`.
+**Rock setup** (in place): the `contentchannelitems`, `definedvalues` and
+`connectionOpportunities` searches with Execute for apollos, and Execute Read
+on each controller's `POST search/{searchKey}` action.
 
 ## Step 4 (CFDP-4539): people, groups and signup reads
 
@@ -394,9 +347,9 @@ What `fetchViaV2Search` gained for these:
   items (the `cfitem:{id}` cache index reads it).
 - **Wrong-record guard:** every `Field eq value` the `$filter` ANDs together
   (a name and an email, a group and a person) is checked on each row,
-  case-insensitively like v1. A row that doesn't match sends the read to v1,
-  so a search that ignored its `where` can't feed a signup's writes with
-  another person or membership. Filters with `or` or `not`, and enum columns,
+  case-insensitively like v1. A row that doesn't match fails the read, so a
+  search that ignored its `where` can't feed a signup's writes with another
+  person or membership. Filters with `or` or `not`, and enum columns,
   aren't checked.
 - **`attributeKeys`** limits the selected attribute values to those keys.
 - **`$expand`** maps to nested fields named `Nav__Field` (e.g.
@@ -413,8 +366,6 @@ What `fetchViaV2Search` gained for these:
   selects `PersonAttributeValues` (see "Expected differences").
 - `GroupMemberStatus` is filtered by name and returned as v1's number
   (`numericEnum`, shared with content item `Status`).
-- The dev-only v1 comparison logs the paths that differ, not their values,
-  since People and phone reads go through it.
 
 Special cases:
 
@@ -433,9 +384,6 @@ searches that select attribute values work with a `where` or a `limit`, but
 answer 500 with neither (probably a timeout over every row). Every read here
 has one.
 
-**Not migrated:** the login code (`authentication/`, `routes/auth/`), which
-CFDP-4542 removes.
-
 **Rock setup.** `people`, `phonenumbers`, `groups`, `groupmembers` and
 `locations` already worked for apollos, as did
 `GET people/{guid}/attributevalues`. Added for this step (2026-11-16):
@@ -451,30 +399,24 @@ outreach contacts) and group schedules match v1.
 
 ## Step 5 (CFDP-4540): workflow launches
 
-Every form launch goes through `rock-workflow.ts`: `launchRockWorkflow` for
-the direct launches, `postRockWorkflowLaunchWithApiInitiator` for the rest. Both
-try v2 first:
+Every form launch goes through `launchRockWorkflow` (`rock-workflow.ts`):
 
 `POST workflows/actions/launch/{typeGuid}` with
-`{ name, attributeValues }`, in the background like v1's `LaunchWorkflow`
-(Rock answers 204 and runs it within a minute).
+`{ name, attributeValues }`, in the background (Rock answers 204 and runs it
+within a minute).
 
 - **Type Guids:** v2 paths take a Guid, so each type Id the forms launch is
   mapped in `WorkflowTypeGuids` (`rock-config.ts`). A type missing there
-  launches on v1. `ROCK_GROUP_SIGNUP_WORKFLOW_ID` (set in Vercel, not in
+  throws. `ROCK_GROUP_SIGNUP_WORKFLOW_ID` (set in Vercel, not in
   Infisical) is 1941, "Website Adult Group Signup"; if it changes, add the new
-  type's Guid.
-- **Attribute values** are sent as v1's launch reads them: strings, booleans
-  as `True`/`False`, `null` as `""`, `undefined` left out.
-- **Initiator:** v2 sets it to the REST user (apollos), so there's no "poll
-  for the newest workflow, then patch its initiator" step. On v1 the old patch
-  to `API_ALIAS_PERSON_ID` still runs.
-- **No double launch:** v1 launches only when v2 is off, the type has no Guid,
-  a value isn't text (v2 takes strings only; v1 gets the JSON as before), or
-  Rock refused with 401, 403 or 404, before it looks at the workflow. A 400,
-  a 500, a timeout (10 s) or a dropped connection may come after Rock saved
-  the workflow, so it throws and the form shows its error instead of launching
-  again on v1.
+  type's Guid first.
+- **Attribute values** are strings: booleans as `True`/`False`, `null` as
+  `""`, `undefined` left out. A non-text (object) value throws.
+- **Initiator:** v2 sets it to the REST user (apollos). `API_ALIAS_PERSON_ID`
+  is no longer read.
+- **Errors throw and are never retried:** a 400, 500, timeout (10 s) or dropped
+  connection may come after Rock saved the workflow, so the form shows its
+  error rather than risk a second launch.
 - **Initiator:** none of the launched types' actions reference the initiator
   (checked 2026-11-18 by searching their action settings for `Initiator`), so
   apollos as initiator changes nothing they do.
@@ -516,8 +458,7 @@ archived afterwards.
 
 ## Step 6 (CFDP-4541): writes
 
-Each write goes through `writeRockV2` (`fetch-rock-v2.ts`) with its old v1
-call as the fallback, and `sendRockV2` for the v2 call:
+Each write is a `sendRockV2` call (`fetch-rock-v2.ts`):
 
 | Write                          | Where                                   | v2 call                                     |
 | ------------------------------ | --------------------------------------- | ------------------------------------------- |
@@ -527,17 +468,13 @@ call as the fallback, and `sendRockV2` for the v2 call:
 | Class preference               | `class-interest/action.ts`              | `PATCH groupmembers/{guid}/attributevalues` |
 | Baptism address                | `baptism-sign-up/action.ts`             | `POST locations`                            |
 
-- **No double write:** v1 runs only when v2 is off, the record has no Guid, or
-  Rock refused with 400, 401, 403 or 404 before writing. Unlike launches, a
-  400 counts: on a create or PATCH it's a validation failure before the save
-  (the missing `GroupTypeId` below answered 400 and created nothing).
-  Anything else, including the 10 s timeout, throws.
+- **Errors throw**, including the 10 s timeout. A record without a Guid
+  throws (`requireV2Guid`) before anything is sent.
 - **Guids:** the reads before each write also select `Guid`. The family's Guid
   comes from a `groups` read by its Id.
-- **Group members:** v2 requires `GroupTypeId` (v1 fills it in), so
-  `addRockGroupMember` reads the group's type first. v2's create returns the
-  new member's Guid, so the class preference goes on v2 too. After a v1 create
-  it has no Guid, so the class preference also goes on v1.
+- **Group members:** v2 requires `GroupTypeId`, so `addRockGroupMember` reads
+  the group's type first. v2's create returns the new member's Guid, which the
+  class preference PATCH uses.
 - **Class preference:** v2's `attributevalues` resolves `ClassPreference`
   against the member, like v1's `GroupMembers/AttributeValue`. The group type
   has two attributes with that key: 225397 on Group Member (the one written)
@@ -559,13 +496,10 @@ test person:
   Beach Gardens on v2;
 - baptism sign-up with a new address: location created on v2.
 
-The first run, before `GroupTypeId` was sent, got 400 on both member creates:
-both fell back to v1 as designed, with no duplicate. The test person's
-memberships were archived afterwards.
+The test person's memberships were archived afterwards.
 
 **Still on v1:** creating a person and a phone number for a sign-up
-(`createUserProfile`, `createPhoneNumberInRock` in `authentication/`) and the
-login writes. CFDP-4542 removes or moves that code.
+(`createUserProfile`, `createPhoneNumberInRock`).
 
 ## Expected differences between v1 and v2
 
@@ -621,28 +555,32 @@ Casing below is as recorded from My Groups' setup; check the key in Rock
 
 ## Staying on v1
 
-Reads that steps 1–4 deliberately leave on v1, and why. The writes left on v1
-are listed under step 6. The login code isn't migrated; CFDP-4542 removes it.
+Reads that deliberately stay on v1 (`fetchRockData`), and why. The writes left
+on v1 are listed under step 6.
 
 | Read                                                                                            | Why                                                                                                                                                                                                                                                                                            | Moves when                                                                       |
 | ----------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
 | Sitemap (`sitemap[.]xml.ts`, `ContentChannelItems`)                                             | It pages with `$top` / `$skip`. Rock's v2 paging field names aren't confirmed, and if Rock ignored the offset every page would repeat the first one.                                                                                                                                           | A paged v2 read confirms `V2_PAGING_FIELDS`; then switch to `fetchContentItems`. |
 | Author by Pathname (`fetchAuthorByPathname` in `author-utils.ts`, `People/GetByAttributeValue`) | A v2 `people` search by attribute value is too slow: 8–24 s filtering on the attribute key, about 2 s on its Id, against 0.3–1 s on v1 (timed 2026-11-16). The home page runs several in parallel, which then time out with a 500. The other People reads (by Id, email, name) are fast on v2. | Rock speeds up attribute-value searches on Person, or v1 is retired.             |
 
-## Cleanup after v2 is confirmed (CFDP-4546)
+## Cleanup (CFDP-4546)
 
-Once a read is confirmed working on v2 in production:
+Done in code: every v1 fallback for a v2 read, write and launch, the v1
+helpers only they used, the dev-only `🔍 Rock v2 vs v1` comparison, the
+fallback warnings, `ROCK_V2_ENABLED` and the v1 workflow initiator patch.
+Reads under "Staying on v1" keep their v1 call. The camelCase search key
+renames are a separate PR (both apps).
 
-- remove its v1 fallback and the v1 helpers only it uses;
-- remove the extra logging: the dev-only `🔍 Rock v2 vs v1` comparison and
-  fallback warnings that no longer apply;
-- remove `ROCK_V2_ENABLED` once nothing reads it;
-- rename the search keys to camelCase (table above);
-- delete unused Rock searches and grants (`cf-web-campus-by-url`,
-  `cf-web-message-by-url`, the Campuses `attributevalues` Unrestricted Read
-  grant) and settled "Still to confirm" items.
+Still to do in Rock, after this ships:
 
-Reads listed under "Staying on v1" keep their v1 call.
+- delete the Entity Searches `cf-web-campus-by-url` and
+  `cf-web-message-by-url` (no longer called);
+- remove apollos' Execute Unrestricted Read on the v2 Campuses
+  `GET …/{id}/attributevalues` action;
+- remove Execute Write on the v2 **Workflows** controller (step 5: only
+  **Workflows Actions** is needed);
+- remove `API_ALIAS_PERSON_ID` and `ROCK_V2_ENABLED` from the hosting
+  environments (Vercel, Netlify) if set.
 
 ## Still to confirm
 

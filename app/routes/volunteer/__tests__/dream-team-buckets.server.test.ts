@@ -1,8 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 vi.mock('~/lib/.server/fetch-rock-data', () => ({
-  fetchRockData: vi.fn(),
   TTL: { DEFAULT: 3600, SHORT: 600, LONG: 86400, NONE: 0 },
+}));
+
+vi.mock('~/lib/.server/rock-defined-values', () => ({
+  fetchDefinedValues: vi.fn(),
 }));
 
 vi.mock('~/lib/utils', async (importOriginal) => ({
@@ -11,10 +14,10 @@ vi.mock('~/lib/utils', async (importOriginal) => ({
     `https://cdn.example.com/GetImage.ashx?guid=${guid}`,
 }));
 
-import { fetchRockData } from '~/lib/.server/fetch-rock-data';
+import { fetchDefinedValues } from '~/lib/.server/rock-defined-values';
 import { fetchDreamTeamBuckets } from '../dream-team-buckets.server';
 
-const mockFetch = fetchRockData as ReturnType<typeof vi.fn>;
+const mockFetch = fetchDefinedValues as ReturnType<typeof vi.fn>;
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -86,21 +89,19 @@ describe('fetchDreamTeamBuckets', () => {
     );
   });
 
-  it('handles a single Rock object (not an array)', async () => {
-    mockFetch.mockResolvedValueOnce({
-      guid: 'single-guid-1111-2222-333333333333',
-      value: 'Solo Bucket',
-      attributeValues: {
-        publicDescription: { value: 'Solo desc' },
-        label: { value: 'Solo Tag' },
-        image: { value: 'img-guid-1111-2222-333333333333' },
-      },
-    });
+  it('asks Rock for active Dream Team buckets in Order, with attributes', async () => {
+    mockFetch.mockResolvedValueOnce([]);
 
-    const result = await fetchDreamTeamBuckets();
+    await fetchDreamTeamBuckets();
 
-    expect(result).toHaveLength(1);
-    expect(result[0].name).toBe('Solo Bucket');
+    expect(mockFetch).toHaveBeenCalledWith(
+      expect.objectContaining({
+        definedTypeId: 616,
+        activeOnly: true,
+        orderBy: 'Order',
+        attributes: 'simple',
+      }),
+    );
   });
 
   it('skips items with no guid', async () => {
@@ -123,8 +124,8 @@ describe('fetchDreamTeamBuckets', () => {
     expect(result[0].name).toBe('Valid item');
   });
 
-  it('returns empty array when Rock returns null/undefined', async () => {
-    mockFetch.mockResolvedValueOnce(null);
+  it('returns empty array when Rock returns no values', async () => {
+    mockFetch.mockResolvedValueOnce([]);
 
     const result = await fetchDreamTeamBuckets();
 

@@ -1,5 +1,4 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { fetchRockData } from '../fetch-rock-data';
 import {
   definedValuesV2Read,
   fetchDefinedValueByGuid,
@@ -7,10 +6,6 @@ import {
 } from '../rock-defined-values';
 
 vi.mock('../redis-config', () => ({ default: null }));
-vi.mock('../fetch-rock-data', async (importOriginal) => ({
-  ...(await importOriginal<object>()),
-  fetchRockData: vi.fn(),
-}));
 
 const GUID = '1b5c2e3d-4f5a-6b7c-8d9e-0f1a2b3c4d5e';
 
@@ -22,7 +17,8 @@ const jsonResponse = (data: unknown) => ({
 
 beforeEach(() => {
   vi.clearAllMocks();
-  vi.stubEnv('ROCK_V2_ENABLED', 'false');
+  vi.stubEnv('NODE_ENV', 'test');
+  vi.stubEnv('ROCK_API', 'https://rock.example.com/api/');
   vi.spyOn(console, 'error').mockImplementation(() => {});
 });
 
@@ -31,12 +27,11 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-const stubRockV2Fetch = (fetchMock: ReturnType<typeof vi.fn>) => {
-  vi.stubEnv('ROCK_V2_ENABLED', 'true');
-  vi.stubEnv('NODE_ENV', 'test');
-  vi.stubEnv('ROCK_API', 'https://rock.example.com/api/');
+const stubRock = (fetchMock: ReturnType<typeof vi.fn>) =>
   vi.stubGlobal('fetch', fetchMock);
-};
+
+const sentBody = () =>
+  JSON.parse(String(vi.mocked(global.fetch).mock.calls[0][1]?.body));
 
 describe('definedValuesV2Read', () => {
   it('reads a lone Guid through the shared definedvalues search', () => {
@@ -46,11 +41,17 @@ describe('definedValuesV2Read', () => {
     expect(read.body.where).toBe(`Guid == "${GUID}"`);
   });
 
-  // fetchRockV2 turns the throw into a v1 read.
-  it('throws when a Guid lookup misses', () => {
-    expect(() =>
+  // The wrong-record guard reads the Guid off each row.
+  it('selects the Guid for a Guid lookup even when fields leave it out', () => {
+    expect(
+      definedValuesV2Read({ guid: GUID, fields: ['Value'] }).body.select,
+    ).toBe('new (Value, Guid)');
+  });
+
+  it('returns an empty list when a Guid lookup misses', () => {
+    expect(
       definedValuesV2Read({ guid: GUID }).map({ count: 0, items: [] }),
-    ).toThrow(/No defined value matched/);
+    ).toEqual([]);
   });
 
   it('searches by type, active state and Guid together', () => {
@@ -74,9 +75,33 @@ describe('definedValuesV2Read', () => {
 });
 
 describe('fetchDefinedValues', () => {
+  it('sends the filter, order, limit and attributes in one search', async () => {
+    stubRock(vi.fn().mockResolvedValueOnce(jsonResponse({ items: [] })));
+
+    await fetchDefinedValues({
+      definedTypeId: 631,
+      activeOnly: true,
+      orderBy: 'Order desc',
+      limit: 2,
+      attributes: 'simple',
+      ttl: 0,
+    });
+
+    expect(vi.mocked(global.fetch).mock.calls[0][0]).toBe(
+      'https://rock.example.com/api/v2/models/definedvalues/search/definedvalues',
+    );
+    const body = sentBody();
+    expect(body.where).toBe('DefinedTypeId == 631 && IsActive == true');
+    expect(body.sort).toBe('Order desc');
+    expect(body.limit).toBe(2);
+    expect(body.select).toMatch(
+      /^new \(Id, Guid, Value, Description, Order, IsActive, DefinedTypeId, DefinedValueAttributeValues\.Select\(/,
+    );
+  });
+
   // Rock's paging field names are unconfirmed; the hero must still show only 2.
-  it('caps v2 results at the limit even if Rock ignores it', async () => {
-    stubRockV2Fetch(
+  it('caps results at the limit even if Rock ignores it', async () => {
+    stubRock(
       vi.fn().mockResolvedValueOnce(
         jsonResponse({
           count: 3,
@@ -90,8 +115,23 @@ describe('fetchDefinedValues', () => {
     ).resolves.toEqual([{ value: 'a' }, { value: 'b' }]);
   });
 
-  it('falls back to v1 when a Guid search returns another value', async () => {
-    stubRockV2Fetch(
+  it('returns an array even when one value matches', async () => {
+    stubRock(
+      vi
+        .fn()
+        .mockResolvedValueOnce(
+          jsonResponse({ count: 1, items: [{ guid: GUID, value: 'Grid' }] }),
+        ),
+    );
+
+    await expect(fetchDefinedValues({ guid: GUID })).resolves.toEqual([
+      { guid: GUID, value: 'Grid' },
+    ]);
+  });
+
+  // A search that ignored its `where` must not pass off another value.
+  it('rejects when a Guid search returns another value', async () => {
+    stubRock(
       vi.fn().mockResolvedValueOnce(
         jsonResponse({
           count: 1,
@@ -99,53 +139,30 @@ describe('fetchDefinedValues', () => {
         }),
       ),
     );
-    vi.mocked(fetchRockData).mockResolvedValue([{ value: 'Grid' }]);
 
-    await expect(fetchDefinedValueByGuid(GUID)).resolves.toEqual({
-      value: 'Grid',
-    });
+    await expect(fetchDefinedValueByGuid(GUID)).rejects.toThrow(
+      /Guid doesn't match/,
+    );
   });
 
-  it('sends v1 the same filter, order, top, select and attributes', async () => {
-    vi.mocked(fetchRockData).mockResolvedValue([]);
+  it('returns null when a Guid lookup finds nothing', async () => {
+    stubRock(
+      vi.fn().mockResolvedValueOnce(jsonResponse({ count: 0, items: [] })),
+    );
 
-    await fetchDefinedValues({
-      definedTypeId: 631,
-      activeOnly: true,
-      orderBy: 'Order desc',
-      limit: 2,
-      attributes: 'simple',
-      ttl: 0,
-    });
-
-    expect(fetchRockData).toHaveBeenCalledWith({
-      endpoint: 'DefinedValues',
-      queryParams: {
-        $filter: 'DefinedTypeId eq 631 and IsActive eq true',
-        $orderby: 'Order desc',
-        $top: '2',
-        loadAttributes: 'simple',
-      },
-      ttl: 0,
-    });
-  });
-
-  it('returns an array even when v1 unwraps a single match', async () => {
-    vi.mocked(fetchRockData).mockResolvedValue({ value: 'Grid' });
-
-    await expect(fetchDefinedValues({ guid: GUID })).resolves.toEqual([
-      { value: 'Grid' },
-    ]);
+    await expect(fetchDefinedValueByGuid(GUID)).resolves.toBeNull();
   });
 
   // Guids come from CMS attributes and URLs, so a malformed one never reaches Rock.
   it('skips Rock for a malformed Guid', async () => {
+    stubRock(vi.fn());
+
     await expect(fetchDefinedValueByGuid("x' or 1 eq 1")).resolves.toBeNull();
-    expect(fetchRockData).not.toHaveBeenCalled();
+    expect(global.fetch).not.toHaveBeenCalled();
   });
 
   it('reads attribute values in the same search, in the v1 shape', async () => {
-    stubRockV2Fetch(
+    stubRock(
       vi.fn().mockResolvedValueOnce(
         jsonResponse({
           count: 1,
@@ -170,22 +187,16 @@ describe('fetchDefinedValues', () => {
       attributeValues: { url: { value: 'series-url', valueFormatted: 'x' } },
     });
     expect(global.fetch).toHaveBeenCalledTimes(1);
-    expect(
-      JSON.parse(String(vi.mocked(global.fetch).mock.calls[0][1]?.body)).select,
-    ).toContain('DefinedValueAttributeValues.Select(');
-    expect(fetchRockData).not.toHaveBeenCalled();
+    expect(sentBody().select).toContain('DefinedValueAttributeValues.Select(');
   });
 
-  it('falls back to v1 when v2 fails', async () => {
-    stubRockV2Fetch(
+  it('rejects when Rock fails', async () => {
+    stubRock(
       vi
         .fn()
         .mockResolvedValue({ ok: false, status: 401, text: async () => '' }),
     );
-    vi.mocked(fetchRockData).mockResolvedValue([{ value: 'Grid' }]);
 
-    await expect(fetchDefinedValueByGuid(GUID)).resolves.toEqual({
-      value: 'Grid',
-    });
+    await expect(fetchDefinedValueByGuid(GUID)).rejects.toThrow(/failed: 401/);
   });
 });

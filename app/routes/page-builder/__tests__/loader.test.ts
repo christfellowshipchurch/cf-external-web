@@ -1,11 +1,15 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 
 vi.mock('~/lib/.server/fetch-rock-data', () => ({
-  fetchRockData: vi.fn(),
   isItemInDateRange: vi.fn(),
   TTL: {
     NONE: 0,
   },
+}));
+
+vi.mock('~/lib/.server/rock-content-items', () => ({
+  fetchChildContentItems: vi.fn(),
+  fetchContentItems: vi.fn(),
 }));
 
 vi.mock('../../podcasts/podcast-routing.server', () => ({
@@ -25,10 +29,8 @@ vi.mock('~/lib/.server/rock-utils', () => ({
   getAttributeMatrixItems: vi.fn(),
 }));
 
-import {
-  fetchRockData,
-  isItemInDateRange,
-} from '~/lib/.server/fetch-rock-data';
+import { isItemInDateRange } from '~/lib/.server/fetch-rock-data';
+import { fetchChildContentItems } from '~/lib/.server/rock-content-items';
 import {
   buildPodcastRoutingIndex,
   PODCAST_SHOW_CHANNEL_ID,
@@ -49,7 +51,9 @@ const mockFetchDefinedValueByGuid = fetchDefinedValueByGuid as ReturnType<
   typeof vi.fn
 >;
 
-const mockFetchRockData = fetchRockData as ReturnType<typeof vi.fn>;
+const mockFetchChildContentItems = fetchChildContentItems as ReturnType<
+  typeof vi.fn
+>;
 const mockIsItemInDateRange = isItemInDateRange as ReturnType<typeof vi.fn>;
 const mockBuildPodcastRoutingIndex = buildPodcastRoutingIndex as ReturnType<
   typeof vi.fn
@@ -75,15 +79,10 @@ describe('fetchChildItems', () => {
       contentChannelId: '22',
     };
 
-    mockFetchRockData
-      .mockResolvedValueOnce([
-        { childContentChannelItemId: '101' },
-        { childContentChannelItemId: '102' },
-      ])
-      .mockResolvedValueOnce(childItem)
-      .mockResolvedValueOnce([]);
+    mockFetchChildContentItems.mockResolvedValueOnce([childItem]);
 
     await expect(fetchChildItems('10')).resolves.toEqual([childItem]);
+    expect(mockFetchChildContentItems).toHaveBeenCalledWith('10');
   });
 });
 
@@ -152,9 +151,7 @@ describe('mapPageBuilderChildItems – collection startDate', () => {
     );
 
     mockBuildPodcastRoutingIndex.mockResolvedValueOnce(emptyIndex());
-    mockFetchRockData
-      .mockResolvedValueOnce([{ childContentChannelItemId: 'article-1' }])
-      .mockResolvedValueOnce(articleItem);
+    mockFetchChildContentItems.mockResolvedValueOnce([articleItem]);
 
     const sections = await mapPageBuilderChildItems([section]);
 
@@ -172,9 +169,7 @@ describe('mapPageBuilderChildItems – collection startDate', () => {
     );
 
     mockBuildPodcastRoutingIndex.mockResolvedValueOnce(emptyIndex());
-    mockFetchRockData
-      .mockResolvedValueOnce([{ childContentChannelItemId: 'ministry-1' }])
-      .mockResolvedValueOnce(ministryItem);
+    mockFetchChildContentItems.mockResolvedValueOnce([ministryItem]);
 
     const sections = await mapPageBuilderChildItems([section]);
 
@@ -195,9 +190,7 @@ describe('mapPageBuilderChildItems – collection startDate', () => {
     );
 
     mockBuildPodcastRoutingIndex.mockResolvedValueOnce(emptyIndex());
-    mockFetchRockData
-      .mockResolvedValueOnce([{ childContentChannelItemId: 'event-1' }])
-      .mockResolvedValueOnce(eventItem);
+    mockFetchChildContentItems.mockResolvedValueOnce([eventItem]);
 
     const sections = await mapPageBuilderChildItems([section]);
 
@@ -215,9 +208,7 @@ describe('mapPageBuilderChildItems – collection startDate', () => {
     );
 
     mockBuildPodcastRoutingIndex.mockResolvedValueOnce(emptyIndex());
-    mockFetchRockData
-      .mockResolvedValueOnce([{ childContentChannelItemId: 'event-1' }])
-      .mockResolvedValueOnce(eventItem);
+    mockFetchChildContentItems.mockResolvedValueOnce([eventItem]);
 
     const sections = await mapPageBuilderChildItems([section]);
 
@@ -239,12 +230,7 @@ describe('mapPageBuilderChildItems – podcast routing', () => {
 
     mockBuildPodcastRoutingIndex.mockResolvedValueOnce(emptyIndex());
 
-    // Rock calls: section associations → section children
-    mockFetchRockData
-      // associations for section s1
-      .mockResolvedValueOnce([{ childContentChannelItemId: 'i1' }])
-      // fetch item i1
-      .mockResolvedValueOnce(showItem);
+    mockFetchChildContentItems.mockResolvedValueOnce([showItem]);
 
     const sections = await mapPageBuilderChildItems([section]);
 
@@ -260,9 +246,7 @@ describe('mapPageBuilderChildItems – podcast routing', () => {
     });
 
     mockBuildPodcastRoutingIndex.mockResolvedValueOnce(emptyIndex());
-    mockFetchRockData
-      .mockResolvedValueOnce([{ childContentChannelItemId: 'i2' }])
-      .mockResolvedValueOnce(showItem);
+    mockFetchChildContentItems.mockResolvedValueOnce([showItem]);
 
     const sections = await mapPageBuilderChildItems([section]);
 
@@ -280,9 +264,7 @@ describe('mapPageBuilderChildItems – podcast routing', () => {
     mockBuildPodcastRoutingIndex.mockResolvedValueOnce(
       indexWith('181', 'crew-cast'),
     );
-    mockFetchRockData
-      .mockResolvedValueOnce([{ childContentChannelItemId: 'i3' }])
-      .mockResolvedValueOnce(episodeItem);
+    mockFetchChildContentItems.mockResolvedValueOnce([episodeItem]);
 
     const sections = await mapPageBuilderChildItems([section]);
 
@@ -304,9 +286,7 @@ describe('mapPageBuilderChildItems – podcast routing', () => {
     mockBuildPodcastRoutingIndex.mockResolvedValueOnce(
       indexWith('181', 'crew-cast'),
     );
-    mockFetchRockData
-      .mockResolvedValueOnce([{ childContentChannelItemId: 'i3b' }])
-      .mockResolvedValueOnce(episodeItem);
+    mockFetchChildContentItems.mockResolvedValueOnce([episodeItem]);
 
     const sections = await mapPageBuilderChildItems([section]);
 
@@ -323,9 +303,7 @@ describe('mapPageBuilderChildItems – podcast routing', () => {
     });
 
     mockBuildPodcastRoutingIndex.mockResolvedValueOnce(emptyIndex());
-    mockFetchRockData
-      .mockResolvedValueOnce([{ childContentChannelItemId: 'i4' }])
-      .mockResolvedValueOnce(episodeItem);
+    mockFetchChildContentItems.mockResolvedValueOnce([episodeItem]);
 
     const sections = await mapPageBuilderChildItems([section]);
 
@@ -339,9 +317,7 @@ describe('mapPageBuilderChildItems – podcast routing', () => {
     });
 
     mockBuildPodcastRoutingIndex.mockResolvedValueOnce(emptyIndex());
-    mockFetchRockData
-      .mockResolvedValueOnce([{ childContentChannelItemId: 'i5' }])
-      .mockResolvedValueOnce(episodeItem);
+    mockFetchChildContentItems.mockResolvedValueOnce([episodeItem]);
 
     const sections = await mapPageBuilderChildItems([section]);
 
@@ -366,9 +342,7 @@ describe('mapPageBuilderChildItems – podcast routing', () => {
     mockBuildPodcastRoutingIndex.mockResolvedValueOnce(
       indexWith('999', 'new-brand-show'),
     );
-    mockFetchRockData
-      .mockResolvedValueOnce([{ childContentChannelItemId: 'i6' }])
-      .mockResolvedValueOnce(episodeItem);
+    mockFetchChildContentItems.mockResolvedValueOnce([episodeItem]);
 
     const sections = await mapPageBuilderChildItems([section]);
 
@@ -386,9 +360,7 @@ describe('mapPageBuilderChildItems – podcast routing', () => {
     });
 
     mockBuildPodcastRoutingIndex.mockResolvedValueOnce(emptyIndex());
-    mockFetchRockData
-      .mockResolvedValueOnce([{ childContentChannelItemId: 'i7' }])
-      .mockResolvedValueOnce(showItem);
+    mockFetchChildContentItems.mockResolvedValueOnce([showItem]);
 
     const sections = await mapPageBuilderChildItems([section]);
 
@@ -410,9 +382,7 @@ describe('mapPageBuilderChildItems – podcast routing', () => {
     mockBuildPodcastRoutingIndex.mockResolvedValueOnce(
       indexWith('181', 'crew-cast'),
     );
-    mockFetchRockData
-      .mockResolvedValueOnce([{ childContentChannelItemId: 'i8' }])
-      .mockResolvedValueOnce(episodeItem);
+    mockFetchChildContentItems.mockResolvedValueOnce([episodeItem]);
 
     const sections = await mapPageBuilderChildItems([section]);
 
@@ -428,9 +398,7 @@ describe('mapPageBuilderChildItems – podcast routing', () => {
     // mapPageBuilderChildItems expects a valid section type, so we skip this
     // scenario as it would throw on invalid section type.
     // Instead, verify the index is NOT called for a section with no children.
-    mockFetchRockData
-      // associations return empty → no children
-      .mockResolvedValueOnce([]);
+    mockFetchChildContentItems.mockResolvedValue([]);
 
     const section = makeSection('s9');
     await mapPageBuilderChildItems([section]);
@@ -452,12 +420,9 @@ describe('mapPageBuilderChildItems – podcast routing', () => {
     mockBuildPodcastRoutingIndex.mockResolvedValue(
       indexWith('181', 'crew-cast'),
     );
-    // s1 associations + item + s2 associations + item
-    mockFetchRockData
-      .mockResolvedValueOnce([{ childContentChannelItemId: 'ia' }])
-      .mockResolvedValueOnce(ep1)
-      .mockResolvedValueOnce([{ childContentChannelItemId: 'ib' }])
-      .mockResolvedValueOnce(ep2);
+    mockFetchChildContentItems
+      .mockResolvedValueOnce([ep1])
+      .mockResolvedValueOnce([ep2]);
 
     await mapPageBuilderChildItems([s1, s2]);
 
@@ -570,17 +535,16 @@ describe('mapPageBuilderChildItems – section date range', () => {
       (item: { id: string }) => item.id !== 'expired-section',
     );
     mockBuildPodcastRoutingIndex.mockResolvedValueOnce(emptyIndex());
-    mockFetchRockData
-      .mockResolvedValueOnce([{ childContentChannelItemId: 'article-1' }])
-      .mockResolvedValueOnce(
-        makeCollectionItem('article-1', '43', { pathname: '/articles/a' }),
-      );
+    mockFetchChildContentItems.mockResolvedValueOnce([
+      makeCollectionItem('article-1', '43', { pathname: '/articles/a' }),
+    ]);
 
     const sections = await mapPageBuilderChildItems([live, expired]);
 
     expect(sections.map((s) => s.id)).toEqual(['live-section']);
     // The expired section's items are never fetched.
-    expect(mockFetchRockData).toHaveBeenCalledTimes(2);
+    expect(mockFetchChildContentItems).toHaveBeenCalledTimes(1);
+    expect(mockFetchChildContentItems).toHaveBeenCalledWith('live-section');
   });
 });
 

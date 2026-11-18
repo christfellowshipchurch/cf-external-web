@@ -325,7 +325,6 @@ async function fetchMeetingLocation(locationGuid: string | undefined): Promise<{
   try {
     // Latitude/Longitude are computed, so v2 reads the whole record by Guid.
     const location = await fetchRockEntityByGuid<RockLocation>({
-      v1Endpoint: 'Locations',
       v2Model: 'locations',
       guid: locationGuid,
       ttl: TTL.NONE,

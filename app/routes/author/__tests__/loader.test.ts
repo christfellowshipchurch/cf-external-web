@@ -4,10 +4,24 @@ vi.mock('~/lib/.server/fetch-rock-data', () => ({
   fetchRockData: vi.fn(),
 }));
 
+vi.mock('~/lib/.server/rock-people-groups', () => ({
+  fetchPeople: vi.fn(),
+  fetchPersonAliases: vi.fn(),
+}));
+
+vi.mock('~/lib/.server/rock-content-items', () => ({
+  fetchContentItems: vi.fn(),
+}));
+
 import { fetchRockData } from '~/lib/.server/fetch-rock-data';
+import { fetchContentItems } from '~/lib/.server/rock-content-items';
+import { fetchPersonAliases } from '~/lib/.server/rock-people-groups';
 import { getAuthorDetailsByPathname } from '../loader';
 
+// The author lookup by pathname stays on v1; the alias and articles reads are v2.
 const mockFetch = fetchRockData as ReturnType<typeof vi.fn>;
+const mockFetchPersonAliases = fetchPersonAliases as ReturnType<typeof vi.fn>;
+const mockFetchContentItems = fetchContentItems as ReturnType<typeof vi.fn>;
 
 const PERSON = {
   id: 85081,
@@ -34,26 +48,19 @@ const ARTICLE = {
 };
 
 /**
- * fetchRockData collapses a single-item array response into a bare object, so
- * the articles fetch returns an object — not a list — for an author with
- * exactly one approved article. Routing the responses by endpoint lets each
- * test control that shape independently.
+ * The articles read collapses a single-item array response into a bare object,
+ * so it returns an object — not a list — for an author with exactly one
+ * approved article.
  */
 function mockRockResponses(articlesResponse: unknown) {
-  mockFetch.mockImplementation(({ endpoint }: { endpoint: string }) => {
-    if (endpoint === 'People/GetByAttributeValue')
-      return Promise.resolve(PERSON);
-    if (endpoint === 'PersonAlias')
-      return Promise.resolve({ guid: 'alias-guid' });
-    if (endpoint === 'ContentChannelItems/GetByAttributeValue')
-      return Promise.resolve(articlesResponse);
-    throw new Error(`unexpected endpoint: ${endpoint}`);
-  });
+  mockFetch.mockResolvedValue(PERSON);
+  mockFetchPersonAliases.mockResolvedValue({ guid: 'alias-guid' });
+  mockFetchContentItems.mockResolvedValue(articlesResponse);
 }
 
 describe('getAuthorDetailsByPathname', () => {
   beforeEach(() => {
-    mockFetch.mockReset();
+    vi.clearAllMocks();
   });
 
   // Regression: CFDP-4181. Authors with exactly one approved article received a
@@ -65,6 +72,17 @@ describe('getAuthorDetailsByPathname', () => {
     const author = await getAuthorDetailsByPathname('ryan-mcdermott');
 
     expect(author.fullName).toBe('Ryan McDermott');
+    expect(mockFetch).toHaveBeenCalledWith(
+      expect.objectContaining({ endpoint: 'People/GetByAttributeValue' }),
+    );
+    expect(mockFetchContentItems).toHaveBeenCalledWith(
+      expect.objectContaining({
+        queryParams: expect.objectContaining({
+          attributeKey: 'Author',
+          value: 'alias-guid',
+        }),
+      }),
+    );
     expect(author.authorAttributes.publications.articles).toHaveLength(1);
     expect(author.authorAttributes.publications.articles[0]).toMatchObject({
       title: 'Unbound',

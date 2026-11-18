@@ -1,7 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-vi.mock('~/lib/.server/fetch-rock-data', () => ({
-  fetchRockData: vi.fn(),
+vi.mock('~/lib/.server/rock-content-items', () => ({
+  fetchContentItems: vi.fn(),
+}));
+
+vi.mock('~/lib/.server/rock-campuses', () => ({
+  fetchCampusWithDetails: vi.fn().mockResolvedValue(null),
 }));
 
 vi.mock('~/lib/.server/algolia-indexes.server', () => ({
@@ -14,10 +18,10 @@ vi.mock('~/routes/podcasts/podcast-routing.server', () => ({
   }),
 }));
 
-import { fetchRockData } from '~/lib/.server/fetch-rock-data';
+import { fetchContentItems } from '~/lib/.server/rock-content-items';
 import { loader } from '../loader';
 
-const mockFetchRockData = fetchRockData as ReturnType<typeof vi.fn>;
+const mockFetchContentItems = fetchContentItems as ReturnType<typeof vi.fn>;
 
 const ARTICLE = {
   title: 'Latest Article',
@@ -40,7 +44,7 @@ const FUTURE_EPISODE = {
  * use `[]` to represent an episode excluded by the approved/in-window filters.
  */
 function mockRockResponses({ episodes }: { episodes: unknown }) {
-  mockFetchRockData.mockImplementation(
+  mockFetchContentItems.mockImplementation(
     ({ queryParams }: { queryParams: { $filter?: string } }) => {
       const filter = queryParams?.$filter ?? '';
       if (filter.includes('ContentChannelId eq 43')) return ARTICLE;
@@ -61,8 +65,8 @@ describe('navbar feature cards', () => {
 
     await loader();
 
-    expect(mockFetchRockData).toHaveBeenCalled();
-    for (const [options] of mockFetchRockData.mock.calls) {
+    expect(mockFetchContentItems).toHaveBeenCalled();
+    for (const [options] of mockFetchContentItems.mock.calls) {
       expect(options.filterByDateRange).toBe(true);
       expect(options.filterByStatusApproved).toBe(true);
       // The flags above are what apply the date window; an inline Status clause

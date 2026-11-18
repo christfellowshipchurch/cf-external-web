@@ -1,13 +1,13 @@
 import type { ActionFunctionArgs } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { postRockData } from '~/lib/.server/fetch-rock-data';
+import { launchRockWorkflow } from '~/lib/.server/rock-workflow';
 import { action } from '../action';
 
-vi.mock('~/lib/.server/fetch-rock-data', () => ({
-  postRockData: vi.fn(),
+vi.mock('~/lib/.server/rock-workflow', () => ({
+  launchRockWorkflow: vi.fn(),
 }));
 
-const mockPostRockData = vi.mocked(postRockData);
+const mockLaunchRockWorkflow = vi.mocked(launchRockWorkflow);
 
 const createRequest = (group?: string) => {
   const formData = new FormData();
@@ -31,8 +31,8 @@ const createRequest = (group?: string) => {
 
 describe('dream team kickoff action', () => {
   beforeEach(() => {
-    mockPostRockData.mockReset();
-    mockPostRockData.mockResolvedValue({});
+    vi.clearAllMocks();
+    mockLaunchRockWorkflow.mockResolvedValue(undefined);
   });
 
   it('includes Group in the Rock workflow payload when provided', async () => {
@@ -41,12 +41,15 @@ describe('dream team kickoff action', () => {
     } as ActionFunctionArgs)) as Response;
 
     expect(response.status).toBe(200);
-    expect(mockPostRockData).toHaveBeenCalledWith({
-      endpoint:
-        'Workflows/LaunchWorkflow/0?workflowTypeId=1568&workflowName=Dream%20Team%20Kickoff%20Sign%20Up',
+    expect(mockLaunchRockWorkflow).toHaveBeenCalledWith({
+      workflowTypeId: '1568',
+      workflowName: 'Dream Team Kickoff Sign Up',
       body: expect.objectContaining({
         Group: 'group-guid-123',
         LaunchSource: 'app',
+        CompletedJourney: '1',
+        FilledOutApplication: '2',
+        ActiveOnDreamTeam: '1',
       }),
     });
   });
@@ -57,12 +60,25 @@ describe('dream team kickoff action', () => {
     } as ActionFunctionArgs)) as Response;
 
     expect(response.status).toBe(200);
-    expect(mockPostRockData).toHaveBeenCalledWith({
-      endpoint:
-        'Workflows/LaunchWorkflow/0?workflowTypeId=1568&workflowName=Dream%20Team%20Kickoff%20Sign%20Up',
+    expect(mockLaunchRockWorkflow).toHaveBeenCalledWith({
+      workflowTypeId: '1568',
+      workflowName: 'Dream Team Kickoff Sign Up',
       body: expect.not.objectContaining({
         Group: expect.any(String),
       }),
+    });
+  });
+
+  it('returns 400 when the workflow launch fails', async () => {
+    mockLaunchRockWorkflow.mockRejectedValue(new Error('Rock v2 failed'));
+
+    const response = await action({
+      request: createRequest(),
+    } as ActionFunctionArgs);
+
+    expect(response).toMatchObject({
+      data: { error: 'Rock v2 failed' },
+      init: { status: 400 },
     });
   });
 });
