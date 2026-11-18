@@ -10,7 +10,8 @@ vi.mock('~/lib/.server/fetch-rock-data', () => ({
   TTL: { NONE: 0 },
 }));
 
-vi.mock('~/lib/.server/rock-signup', () => ({
+vi.mock('~/lib/.server/rock-signup', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('~/lib/.server/rock-signup')>()),
   findOrCreateRockPersonForSignup: vi.fn(),
 }));
 

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   buildJourneySessionOptions,
+  upcomingJourneyGroupIdsV2Read,
   type RockJourneyGroup,
 } from '../journey-sessions';
 
@@ -195,5 +196,26 @@ describe('buildJourneySessionOptions', () => {
     });
 
     expect(options.map((o) => o.sessionNumber)).toEqual([1, 2]);
+  });
+});
+
+describe('upcomingJourneyGroupIdsV2Read', () => {
+  // v2 has no AttributeValues route; the groups search must ask the same thing.
+  it('finds groups whose Class Three date is on or after the date', () => {
+    const read = upcomingJourneyGroupIdsV2Read('2026-11-16');
+
+    expect(read.path).toBe('groups/search/groups');
+    expect(read.body.where).toBe(
+      'GroupAttributeValues.Any(av => av.AttributeId == 225431 && av.Value.CompareTo("2026-11-16") >= 0)',
+    );
+  });
+
+  it('returns v1’s AttributeValues shape, so the group batches still get ids', () => {
+    expect(
+      upcomingJourneyGroupIdsV2Read('2026-11-16').map({
+        count: 2,
+        items: [{ id: 10 }, { id: 11 }],
+      }),
+    ).toEqual([{ entityId: 10 }, { entityId: 11 }]);
   });
 });

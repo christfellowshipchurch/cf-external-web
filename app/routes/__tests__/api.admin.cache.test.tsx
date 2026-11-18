@@ -1,6 +1,9 @@
 import type { ActionFunctionArgs, LoaderFunctionArgs } from 'react-router';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { buildCacheKey } from '~/lib/.server/cache-utils';
+import { fetchGroups } from '~/lib/.server/rock-people-groups';
+import { buildV2Search } from '~/lib/.server/rock-v2-search';
+import { missionGroupRequest } from '~/routes/volunteer/outreach-opportunity/outreach-mission-rock.server';
 import { action, loader } from '../api.admin.cache';
 
 const mocks = vi.hoisted(() => ({
@@ -8,8 +11,10 @@ const mocks = vi.hoisted(() => ({
   deleteByPrefix: vi.fn(),
   collectItemCacheFootprint: vi.fn(),
   redis: null as unknown as {
-    pipeline: ReturnType<typeof vi.fn>;
+    pipeline?: ReturnType<typeof vi.fn>;
     del?: ReturnType<typeof vi.fn>;
+    get?: ReturnType<typeof vi.fn>;
+    set?: ReturnType<typeof vi.fn>;
   } | null,
 }));
 
@@ -26,6 +31,12 @@ vi.mock('~/lib/.server/cache-utils', async (importOriginal) => ({
   deleteByPrefix: mocks.deleteByPrefix,
   collectItemCacheFootprint: mocks.collectItemCacheFootprint,
 }));
+
+vi.mock('~/lib/.server/rock-v2-search', async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import('~/lib/.server/rock-v2-search')>();
+  return { ...actual, buildV2Search: vi.fn(actual.buildV2Search) };
+});
 
 const createArgs = (
   secret = 'test-secret',
@@ -265,7 +276,7 @@ describe('admin cache invalidation (POST target=volunteer-opportunity)', () => {
       volunteerArgs(`?target=volunteer-opportunity&groupGuid=${GUID}`),
     );
 
-    expect(del).toHaveBeenCalledWith(groupsKey(GUID));
+    expect(del).toHaveBeenCalledWith(groupsKey(GUID), expect.any(String));
     expect(store.has(groupsKey(GUID))).toBe(false);
     expect(readData(response)).toEqual({
       success: true,
@@ -273,6 +284,52 @@ describe('admin cache invalidation (POST target=volunteer-opportunity)', () => {
       groupGuid: GUID,
       deletedKeys: 1,
     });
+  });
+
+  // The page reads v2 first; its cached search must clear too.
+  it('also deletes the v2 groups search key the page reads', async () => {
+    vi.stubEnv('ROCK_V2_ENABLED', 'true');
+    vi.stubEnv('ROCK_API', 'https://rock.example.com/api/');
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ count: 0, items: [] }),
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    const cached: string[] = [];
+    mocks.redis = {
+      get: vi.fn(async () => null),
+      set: vi.fn(async (key: string) => cached.push(key)),
+    };
+    // What the opportunity page caches when it reads the group on v2.
+    await fetchGroups({ ...missionGroupRequest(GUID), ttl: 60 });
+    const [v2Key] = cached;
+    expect(v2Key).toMatch(/^rock:v2\/models\/groups\//);
+
+    const { store } = seedRedis([groupsKey(GUID), v2Key]);
+    const response = await action(
+      volunteerArgs(`?target=volunteer-opportunity&groupGuid=${GUID}`),
+    );
+
+    expect(store.size).toBe(0);
+    expect(readData(response)).toMatchObject({ deletedKeys: 2 });
+    vi.unstubAllEnvs();
+    vi.unstubAllGlobals();
+  });
+
+  it('still deletes the v1 key when the v2 search key can’t be built', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    vi.mocked(buildV2Search).mockImplementationOnce(() => {
+      throw new Error('Unsupported $expand');
+    });
+    const { store, del } = seedRedis([groupsKey(GUID)]);
+
+    const response = await action(
+      volunteerArgs(`?target=volunteer-opportunity&groupGuid=${GUID}`),
+    );
+
+    expect(del).toHaveBeenCalledWith(groupsKey(GUID));
+    expect(store.size).toBe(0);
+    expect(readData(response)).toMatchObject({ success: true, deletedKeys: 1 });
   });
 
   it('uppercases a lowercase GUID — the page loader caches under the uppercase key', async () => {

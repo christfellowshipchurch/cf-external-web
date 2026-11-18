@@ -1,10 +1,10 @@
+import { fetchGroupMembers } from '~/lib/.server/rock-people-groups';
 import type { ActionFunction } from 'react-router';
+import { TTL } from '~/lib/.server/fetch-rock-data';
 import {
-  fetchRockData,
-  postRockData,
-  TTL,
-} from '~/lib/.server/fetch-rock-data';
-import { findOrCreateRockPersonForSignup } from '~/lib/.server/rock-signup';
+  addRockGroupMember,
+  findOrCreateRockPersonForSignup,
+} from '~/lib/.server/rock-signup';
 import { fetchCampuses } from '~/lib/.server/rock-campuses';
 
 const GROUP_ROLE_ID = 359;
@@ -86,7 +86,7 @@ export const action: ActionFunction = async ({ request }) => {
       phoneNumber: PhoneNumber,
     });
 
-    const existingMembership = await fetchRockData({
+    const existingMembership = await fetchGroupMembers({
       endpoint: 'GroupMembers',
       queryParams: {
         $filter: `GroupId eq ${groupId} and PersonId eq ${personId}`,
@@ -96,15 +96,11 @@ export const action: ActionFunction = async ({ request }) => {
     });
 
     if (!getFirstRecord(existingMembership)) {
-      await postRockData({
-        endpoint: 'GroupMembers',
-        body: {
-          GroupId: groupId,
-          PersonId: personId,
-          GroupRoleId: GROUP_ROLE_ID,
-          GroupMemberStatus: ACTIVE_GROUP_MEMBER_STATUS,
-          IsArchived: false,
-        },
+      await addRockGroupMember({
+        groupId,
+        personId,
+        groupRoleId: GROUP_ROLE_ID,
+        groupMemberStatus: ACTIVE_GROUP_MEMBER_STATUS,
       });
     }
 

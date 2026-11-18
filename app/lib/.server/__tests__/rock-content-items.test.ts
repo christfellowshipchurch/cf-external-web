@@ -50,6 +50,7 @@ import {
 } from '../rock-content-items';
 import { odataFilterToLinq } from '../rock-v2-search';
 import { fetchDefinedValuesByAttribute } from '../rock-defined-values';
+import { fetchPeople } from '../rock-people-groups';
 import { fetchChurchRolesByPreferenceAreaGuid } from '~/routes/volunteer/church-serving-area/church-roles.server';
 import type {
   attributeProps,
@@ -234,6 +235,18 @@ describe('fetchContentItems', () => {
     ).resolves.toEqual([{ id: 1 }, { id: 2 }]);
   });
 
+  // The cfitem:{id} reverse index reads the Id off each row.
+  it('selects the Id even when $select leaves it out', async () => {
+    stubSearch([{ id: 1, title: 'A' }]);
+
+    await fetchContentItems({
+      endpoint: 'ContentChannelItems',
+      queryParams: { $filter: 'ContentChannelId eq 63', $select: 'Title' },
+    });
+
+    expect(sentBody().select).toBe('new (Title, ContentChannelId, Id)');
+  });
+
   describe('attribute lookups', () => {
     const lookup = (attributeKey: string) => ({
       endpoint: 'ContentChannelItems/GetByAttributeValue',
@@ -246,7 +259,14 @@ describe('fetchContentItems', () => {
     });
 
     it('filters on the attribute value inside the search', async () => {
-      stubSearch([{ id: 1, startDateTime: PAST, lookupValue: 'my-"page"' }]);
+      stubSearch([
+        {
+          id: 1,
+          contentChannelId: 63,
+          startDateTime: PAST,
+          lookupValue: 'my-"page"',
+        },
+      ]);
 
       await expect(
         fetchContentItems(lookup('Url')),
@@ -262,11 +282,18 @@ describe('fetchContentItems', () => {
       stubSearch([
         {
           id: 1,
+          contentChannelId: 63,
           title: 'Scheduled',
           startDateTime: FUTURE,
           lookupValue: 'my-"page"',
         },
-        { id: 2, title: 'Live', startDateTime: PAST, lookupValue: 'my-"page"' },
+        {
+          id: 2,
+          contentChannelId: 63,
+          title: 'Live',
+          startDateTime: PAST,
+          lookupValue: 'my-"page"',
+        },
       ]);
 
       await expect(fetchContentItems(lookup('Url'))).resolves.toMatchObject({
@@ -276,7 +303,14 @@ describe('fetchContentItems', () => {
 
     // A search that ignored its `where` must not render another page.
     it('asks v1 when a row has another attribute value', async () => {
-      stubSearch([{ id: 1, startDateTime: PAST, lookupValue: 'other-page' }]);
+      stubSearch([
+        {
+          id: 1,
+          contentChannelId: 63,
+          startDateTime: PAST,
+          lookupValue: 'other-page',
+        },
+      ]);
 
       await expect(fetchContentItems(lookup('Url'))).resolves.toBe('v1');
     });
@@ -437,5 +471,35 @@ describe('other attribute lookups', () => {
     expect(vi.mocked(global.fetch).mock.calls[0][0]).toMatch(
       /connectionopportunities\/search\/connectionOpportunities$/,
     );
+  });
+});
+
+// Reads that feed a write pass TTL.NONE; nothing about them may be cached.
+describe('per-person attribute values', () => {
+  const read = (ttl: number) => {
+    global.fetch = vi
+      .fn()
+      .mockResolvedValueOnce(
+        okResponse({
+          count: 1,
+          items: [{ id: 7, guid: '1b5c2e3d-4f5a-6b7c-8d9e-0f1a2b3c4d5e' }],
+        }),
+      )
+      .mockResolvedValueOnce(okResponse({ Bio: { value: 'x' } }));
+    return fetchPeople({
+      endpoint: 'People',
+      queryParams: { $filter: 'Id eq 7', loadAttributes: 'simple' },
+      ttl,
+    });
+  };
+
+  it('caches nothing when the caller asks for no cache', async () => {
+    await read(0);
+    expect(redisStore.values.size).toBe(0);
+  });
+
+  it('caches the search and the attribute values with the caller’s TTL', async () => {
+    await read(60);
+    expect(redisStore.values.size).toBe(2);
   });
 });

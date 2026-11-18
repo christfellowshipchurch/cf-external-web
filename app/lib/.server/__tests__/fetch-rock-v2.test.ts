@@ -18,8 +18,12 @@ import {
   keepMatchingRows,
   projectedToV1Shape,
   requestRockV2,
+  requireV2Guid,
+  sendRockV2,
   toV1Shape,
+  writeRockV2,
 } from '../fetch-rock-v2';
+import { RockAPIError } from '../error-types';
 import redis from '../redis-config';
 
 const CAMPUS_GUID = '1b5c2e3d-4f5a-6b7c-8d9e-0f1a2b3c4d5e';
@@ -170,7 +174,7 @@ describe('multi-call v2 reads', () => {
  * development every v2 read is compared with v1, and the page still gets v2.
  */
 describe('v1 comparison in development', () => {
-  it('logs the fields where v2 differs from v1 and returns the v2 result', async () => {
+  it('logs the fields (not values) where v2 differs from v1 and returns the v2 result', async () => {
     vi.stubEnv('NODE_ENV', 'development');
     fetchMock().mockResolvedValueOnce(
       okResponse({ name: 'Jupiter', phoneNumber: '561' }),
@@ -185,7 +189,9 @@ describe('v1 comparison in development', () => {
     expect(result).toEqual({ name: 'Jupiter', phoneNumber: '561' });
     const output = String(warnSpy.mock.calls[0][0]);
     expect(output).toContain('1 differences');
-    expect(output).toContain('phoneNumber: v1="562" v2="561"');
+    expect(output).toContain('phoneNumber');
+    // Paths only: People and phone reads go through this log.
+    expect(output).not.toContain('562');
     expect(output).toContain('Only in v1: id');
   });
 });
@@ -346,7 +352,7 @@ describe('keepMatchingRows', () => {
         'Guid',
         CAMPUS_GUID,
       ),
-    ).toThrow(/isn't/);
+    ).toThrow(/doesn't match/);
   });
 });
 
@@ -376,5 +382,134 @@ describe('isRockV2Enabled', () => {
     vi.stubEnv('ROCK_V2_ENABLED', value);
 
     expect(isRockV2Enabled()).toBe(expected);
+  });
+});
+
+// CLAUDE.md: never log names or emails. A search error body can quote its where.
+describe('requestRockV2 errors', () => {
+  it('leaves Rock’s response body out of search errors', async () => {
+    fetchMock().mockResolvedValue({
+      ok: false,
+      status: 400,
+      text: async () => 'Bad where: Email == "ann@example.com"',
+    });
+
+    const error = await requestRockV2({
+      path: 'people/search/people',
+      method: 'POST',
+      body: { where: 'Email == "ann@example.com"' },
+    }).catch((e: Error) => e);
+
+    expect(String(error)).toContain('failed: 400');
+    expect(String(error)).not.toContain('ann@example.com');
+  });
+});
+
+describe('sendRockV2', () => {
+  it('returns a create’s ids', async () => {
+    fetchMock().mockResolvedValue({
+      ok: true,
+      status: 201,
+      text: async () => JSON.stringify({ id: 7, guid: CAMPUS_GUID }),
+    });
+
+    await expect(
+      sendRockV2('POST', 'groupmembers', { GroupId: 1 }),
+    ).resolves.toEqual({ id: 7, guid: CAMPUS_GUID });
+    expect(fetchMock()).toHaveBeenCalledWith(
+      'https://rock.example.com/api/v2/models/groupmembers',
+      expect.objectContaining({ method: 'POST' }),
+    );
+  });
+
+  it('returns null for an empty or non-JSON success, not an error', async () => {
+    fetchMock().mockResolvedValueOnce({
+      ok: true,
+      status: 204,
+      text: async () => '',
+    });
+    fetchMock().mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      text: async () => '<html>',
+    });
+
+    await expect(
+      sendRockV2('PATCH', `people/${CAMPUS_GUID}`, { Email: 'a@b.c' }),
+    ).resolves.toBeNull();
+    await expect(
+      sendRockV2('PATCH', `people/${CAMPUS_GUID}`, { Email: 'a@b.c' }),
+    ).resolves.toBeNull();
+  });
+
+  it('throws Rock’s status without its body', async () => {
+    fetchMock().mockResolvedValue({
+      ok: false,
+      status: 400,
+      text: async () => 'Bad value ann@example.com',
+    });
+
+    const error = await sendRockV2('PATCH', `people/${CAMPUS_GUID}`, {
+      Email: 'ann@example.com',
+    }).catch((e: unknown) => e);
+
+    expect(error).toBeInstanceOf(RockAPIError);
+    expect((error as RockAPIError).statusCode).toBe(400);
+    expect(String(error)).not.toContain('ann@example.com');
+  });
+});
+
+describe('writeRockV2', () => {
+  const run = (v2: () => Promise<string>) => {
+    const fallback = vi.fn(async () => 'v1');
+    return {
+      fallback,
+      result: writeRockV2({ label: 'test', v2, fallback }),
+    };
+  };
+
+  it('writes only on v1 when v2 is off', async () => {
+    vi.stubEnv('ROCK_V2_ENABLED', 'false');
+    const v2 = vi.fn(async () => 'v2');
+    const { result } = run(v2);
+
+    await expect(result).resolves.toBe('v1');
+    expect(v2).not.toHaveBeenCalled();
+  });
+
+  it('does not write on v1 after a v2 write', async () => {
+    const { result, fallback } = run(async () => 'v2');
+
+    await expect(result).resolves.toBe('v2');
+    expect(fallback).not.toHaveBeenCalled();
+  });
+
+  it.each([400, 401, 403, 404])(
+    'writes on v1 when Rock refused with %i',
+    async (status) => {
+      const { result } = run(async () => {
+        throw new RockAPIError('refused', status);
+      });
+
+      await expect(result).resolves.toBe('v1');
+    },
+  );
+
+  it('writes on v1 when the record has no Guid', async () => {
+    const { result } = run(async () => requireV2Guid(undefined, 'person'));
+
+    await expect(result).resolves.toBe('v1');
+  });
+
+  it.each([
+    ['a 500', new RockAPIError('failed', 500)],
+    ['a dropped connection', new TypeError('fetch failed')],
+  ])('throws on %s, which may come after Rock wrote', async (_, error) => {
+    const { result, fallback } = run(async () => {
+      throw error;
+    });
+
+    await expect(result).rejects.toBe(error);
+    expect(fallback).not.toHaveBeenCalled();
   });
 });

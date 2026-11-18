@@ -10,6 +10,7 @@ import {
   type ContentItemRelationship,
   type TTLValue,
 } from './cache-utils';
+import { RockAPIError } from './error-types';
 import { buildRockUrl, fetchRockData, isPreviewMode } from './fetch-rock-data';
 
 /**
@@ -92,8 +93,15 @@ export const searchPath = (model: string, searchKey = model): string =>
  * per-record `/attributevalues` call (or its Unrestricted Read grant).
  * `entityName` is the C# name, e.g. `Campus`, `DefinedValue`.
  */
-export const selectAttributeValues = (entityName: string): string =>
-  `${entityName}AttributeValues.Select(av => new (av.Key, av.Value, av.PersistedTextValue as TextValue)) as AttributeValues`;
+export const selectAttributeValues = (
+  entityName: string,
+  keys?: string[],
+): string => {
+  const only = keys?.length
+    ? `.Where(av => ${keys.map((key) => `av.Key == "${escapeDynamicLinq(key)}"`).join(' || ')})`
+    : '';
+  return `${entityName}AttributeValues${only}.Select(av => new (av.Key, av.Value, av.PersistedTextValue as TextValue)) as AttributeValues`;
+};
 
 /**
  * Converts a search row to the v1 shape. Rows that selected
@@ -132,8 +140,9 @@ export const keepMatchingRows = (
       String(row[field] ?? row[camelField] ?? '').toLowerCase() === wanted,
   );
   if (matching.length !== rows.length) {
+    // No value: it can be a name or an email.
     throw new Error(
-      `Rock v2 search returned rows whose ${field} isn't "${expected}"`,
+      `Rock v2 search returned rows whose ${field} doesn't match`,
     );
   }
   return matching;
@@ -189,6 +198,19 @@ export interface ItemIndex {
 const stableCacheBody = (body: Record<string, unknown>): string =>
   JSON.stringify(body).replace(/DateTime\([\d, ]+\)/g, 'DateTime(now)');
 
+/** The Redis key a v2 request is cached under. */
+export const buildV2CacheKey = ({
+  path,
+  method = 'GET',
+  body,
+}: Pick<RockV2Request, 'path' | 'method' | 'body'>): string =>
+  // v2 searches are POSTs whose query lives in the body, so the key hashes
+  // method + body. The `v2/models/` endpoint keeps keys apart from v1's.
+  buildCacheKey(`v2/models/${path.replace(/^\/+|\/+$/g, '')}`, {
+    method,
+    body: body ? stableCacheBody(body) : undefined,
+  });
+
 /**
  * One cached v2 call that throws on failure. Use it inside a fetchRockV2 `map`
  * for follow-up reads (e.g. `/attributevalues`), so any failure there still
@@ -205,12 +227,7 @@ export const requestRockV2 = async ({
   assertNoNumberId(normalizedPath);
 
   const endpoint = `v2/models/${normalizedPath}`;
-  // v2 searches are POSTs whose query lives in the body, so the key hashes
-  // method + body. The `v2/models/` endpoint keeps keys apart from v1's.
-  const cacheKey = buildCacheKey(endpoint, {
-    method,
-    body: body ? stableCacheBody(body) : undefined,
-  });
+  const cacheKey = buildV2CacheKey({ path: normalizedPath, method, body });
   const skipCache = isPreviewMode() || process.env.NODE_ENV === 'development';
   const effectiveTtl = skipCache ? TTL.NONE : ttl;
 
@@ -229,8 +246,11 @@ export const requestRockV2 = async ({
   });
 
   if (!res.ok) {
+    // A search's error body can quote its `where`, which may hold a person's
+    // name or email, so only GET errors carry Rock's details.
+    const details = method === 'GET' ? `, details: ${await res.text()}` : '';
     throw new Error(
-      `Rock v2 ${method} ${endpoint} failed: ${res.status}, details: ${await res.text()}`,
+      `Rock v2 ${method} ${endpoint} failed: ${res.status}${details}`,
     );
   }
 
@@ -258,6 +278,103 @@ export const requestRockV2 = async ({
   return data;
 };
 
+const V2_WRITE_TIMEOUT_MS = 10_000;
+
+/**
+ * A v2 call that changes data (a create, a PATCH, a workflow launch): never
+ * cached and never retried. A Rock error throws a RockAPIError with Rock's
+ * status (not its body, which can echo the posted values). Returns the parsed
+ * body, e.g. a create's `{ id, guid, idKey }`, or null when there is none or it
+ * isn't JSON, so an odd body can't turn a done write into an error.
+ */
+export const sendRockV2 = async (
+  method: 'POST' | 'PATCH',
+  path: string,
+  body: Record<string, unknown>,
+): Promise<unknown> => {
+  const normalizedPath = path.replace(/^\/+|\/+$/g, '');
+  assertNoNumberId(normalizedPath);
+
+  const endpoint = `v2/models/${normalizedPath}`;
+  const res = await fetch(buildRockUrl(endpoint), {
+    method,
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization-Token': `${process.env.ROCK_TOKEN}`,
+    },
+    body: JSON.stringify(body),
+    // A timeout throws without a status, so the caller treats it as "may have
+    // written" and doesn't retry on v1.
+    signal: globalThis.AbortSignal.timeout(V2_WRITE_TIMEOUT_MS),
+  });
+
+  if (!res.ok) {
+    throw new RockAPIError(
+      `Rock v2 ${method} ${endpoint} failed: ${res.status}`,
+      res.status,
+    );
+  }
+
+  try {
+    const text = await res.text();
+    return text ? JSON.parse(text) : null;
+  } catch {
+    return null;
+  }
+};
+
+/**
+ * Rock answers these before it writes anything, so v1 can write safely. A
+ * create or PATCH's 400 is a validation failure before the save (seen live:
+ * no record). Launches leave 400 out (`rock-workflow.ts`).
+ */
+export const V2_NOT_WRITTEN_STATUSES = new Set([400, 401, 403, 404]);
+
+/**
+ * The Guid a v2 write path needs. A missing one throws a 404 RockAPIError, so
+ * `writeRockV2` falls back to v1, which takes the number Id.
+ */
+export const requireV2Guid = (
+  guid: string | null | undefined,
+  what: string,
+): string => {
+  if (!guid) throw new RockAPIError(`No Guid for the ${what}`, 404);
+  return guid;
+};
+
+/**
+ * Runs a write on v2, or on its v1 `fallback` when v2 is off or Rock refused
+ * before writing (`V2_NOT_WRITTEN_STATUSES`). Any other failure may come after
+ * Rock wrote, so it throws rather than writing a second time on v1.
+ */
+export const writeRockV2 = async <T>({
+  label,
+  v2,
+  fallback,
+}: {
+  /** For logs: what is written, never a value */
+  label: string;
+  v2: () => Promise<T>;
+  fallback: () => Promise<T>;
+}): Promise<T> => {
+  if (!isRockV2Enabled()) return fallback();
+
+  try {
+    return await v2();
+  } catch (error) {
+    if (
+      error instanceof RockAPIError &&
+      V2_NOT_WRITTEN_STATUSES.has(error.statusCode)
+    ) {
+      console.error(
+        `⚠️ Rock v2 refused the ${label} write (${error.statusCode}), writing on v1`,
+      );
+      return fallback();
+    }
+    throw error;
+  }
+};
+
 interface FetchRockV2Options<T> extends RockV2Request {
   /** Converts the raw v2 response to the caller's (v1) shape, usually via toV1Shape */
   map: (data: unknown) => T | Promise<T>;
@@ -265,10 +382,10 @@ interface FetchRockV2Options<T> extends RockV2Request {
   fallback: () => Promise<T>;
 }
 
-const preview = (value: unknown): string =>
-  JSON.stringify(value)?.slice(0, 120) ?? 'undefined';
-
-/** Where the v2 result differs from v1, over the fields v2 returns. */
+/**
+ * The paths where the v2 result differs from v1, over the fields v2 returns.
+ * Paths only: People and phone reads go through here, so values can't be logged.
+ */
 export const diffAgainstV1 = (
   v2: unknown,
   v1: unknown,
@@ -284,7 +401,7 @@ export const diffAgainstV1 = (
       ),
     );
   }
-  return [`${path || '(root)'}: v1=${preview(v1)} v2=${preview(v2)}`];
+  return [path || '(root)'];
 };
 
 /** Dev only: also runs the v1 read and logs how the v2 result differs. */

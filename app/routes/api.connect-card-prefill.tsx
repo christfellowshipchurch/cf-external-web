@@ -1,9 +1,6 @@
+import { fetchPhoneNumbers } from '~/lib/.server/rock-people-groups';
 import { type LoaderFunction, data } from 'react-router';
-import {
-  fetchRockData,
-  postRockData,
-  TTL,
-} from '~/lib/.server/fetch-rock-data';
+import { postRockData, TTL } from '~/lib/.server/fetch-rock-data';
 import { fetchCampuses } from '~/lib/.server/rock-campuses';
 import type {
   ConnectCardPrefill,
@@ -209,7 +206,7 @@ const buildPrefill = async (
   }
 
   const [phoneNumbers, campuses] = await Promise.all([
-    fetchRockData({
+    fetchPhoneNumbers({
       endpoint: 'PhoneNumbers',
       queryParams: {
         $filter: `PersonId eq ${personId}`,
