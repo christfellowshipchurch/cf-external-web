@@ -15,6 +15,7 @@ import {
 } from './fetch-rock-v2';
 import {
   fetchViaV2Search,
+  numericEnum,
   stripDateOffsets,
   withAttributeKeys,
   type V2SearchEntity,
@@ -26,9 +27,7 @@ const STATUS_NAMES: Record<string, string> = {
   '2': 'Approved',
   '3': 'Denied',
 };
-const STATUS_NUMBERS = Object.fromEntries(
-  Object.entries(STATUS_NAMES).map(([number, name]) => [name, Number(number)]),
-);
+const STATUS = numericEnum('Status', STATUS_NAMES);
 const APPROVED = 2;
 
 const CONTENT_ITEM_FIELDS = [
@@ -47,18 +46,12 @@ const CONTENT_ITEM_FIELDS = [
 ];
 
 /** v1 sends Status as a number; v2 may send the enum name. */
-const withNumericStatus = (row: Record<string, unknown>) => ({
-  ...row,
-  status: STATUS_NUMBERS[String(row.status)] ?? row.status,
-});
-
 export const CONTENT_ITEMS_V2: V2SearchEntity = {
   v1Endpoint: 'ContentChannelItems',
   model: 'contentchannelitems',
   entityName: 'ContentChannelItem',
   fields: CONTENT_ITEM_FIELDS,
-  enums: { Status: STATUS_NAMES },
-  mapRow: withNumericStatus,
+  ...STATUS,
   // Same reverse index as v1, so the admin single-item clear finds v2 keys too.
   index: (rows, filter) => {
     const requestedId = getRequestedContentItemId(
@@ -149,7 +142,7 @@ export const fetchChildContentItems = (
       getSearchItems(data)
         .map((row) =>
           withAttributeKeys(
-            withNumericStatus(stripDateOffsets(projectedToV1Shape(row))),
+            STATUS.mapRow(stripDateOffsets(projectedToV1Shape(row))),
           ),
         )
         .sort((a, b) => Number(a.associationOrder) - Number(b.associationOrder))

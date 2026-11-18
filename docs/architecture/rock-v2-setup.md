@@ -389,18 +389,32 @@ options and swap the function name (`rock-people-groups.ts`):
 
 What `fetchViaV2Search` gained for these:
 
-- **`$select`** becomes the search `select`. The Id or Guid the wrong-record
-  guard checks is added when `$select` leaves it out.
+- **`$select`** becomes the search `select`. Fields the wrong-record guard
+  checks are added when `$select` leaves them out, and so is `Id` for content
+  items (the `cfitem:{id}` cache index reads it).
+- **Wrong-record guard:** every `Field eq value` the `$filter` ANDs together
+  (a name and an email, a group and a person) is checked on each row,
+  case-insensitively like v1. A row that doesn't match sends the read to v1,
+  so a search that ignored its `where` can't feed a signup's writes with
+  another person or membership. Filters with `or` or `not`, and enum columns,
+  aren't checked.
 - **`attributeKeys`** limits the selected attribute values to those keys.
 - **`$expand`** maps to nested fields named `Nav__Field` (e.g.
   `Person.Photo.Guid as Person__Photo__Guid`), rebuilt into v1's nested
   objects. A navigation that's all null (no photo) becomes `null`, as on v1.
 - **`baseWhere`**: People reads add `IsDeceased == false`, because v1's
   People endpoint never returns deceased people (checked 2026-11-16).
+  Checked 2026-11-18 that v2 already matches v1's other defaults, so no
+  other `baseWhere` is needed: archived group members and groups are hidden
+  on both; nameless people and anonymous visitors are hidden on both; REST
+  users and businesses are returned by both.
 - **People attribute values** come from `GET people/{guid}/attributevalues`
   per person, as My Groups does. The `people` search answers 500 whenever it
   selects `PersonAttributeValues` (see "Expected differences").
-- `GroupMemberStatus` is filtered by name and returned as v1's number.
+- `GroupMemberStatus` is filtered by name and returned as v1's number
+  (`numericEnum`, shared with content item `Status`).
+- The dev-only v1 comparison logs the paths that differ, not their values,
+  since People and phone reads go through it.
 
 Special cases:
 
