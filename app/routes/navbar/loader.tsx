@@ -1,12 +1,9 @@
 import { fetchContentItems } from '~/lib/.server/rock-content-items';
 // This loader is used to fetch the feature cards for the navbar and is stored in the root loader to be used across the app
 
-import type { LoaderFunctionArgs } from 'react-router';
 // import { fetchTopSearches } from "~/lib/.server/fetch-top-searches";
 import type { FeatureCard } from '~/components/navbar/types';
 import { createImageUrlFromGuid, parseRockKeyValueList } from '~/lib/utils';
-import { getUserFromRequest } from '~/lib/.server/authentication/get-user-from-request';
-import type { User } from '~/providers/auth-provider';
 import { getServerAlgoliaIndexes } from '~/lib/.server/algolia-indexes.server';
 import type { AlgoliaIndexMap } from '~/lib/algolia-indexes';
 import { ContentChannelIds } from '~/lib/rock-config';
@@ -19,7 +16,6 @@ import { fetchIsOnlineServiceLive } from './live-service.server';
 
 // Define the return type for the loader
 export interface RootLoaderData {
-  userData: User | null;
   ministries: {
     featureCards: FeatureCard[];
   };
@@ -247,48 +243,10 @@ const fetchSiteBanner = async (): Promise<RockContentChannelItem | null> => {
   }
 };
 
-export async function loader({
-  request,
-}: LoaderFunctionArgs): Promise<RootLoaderData> {
+export async function loader(): Promise<RootLoaderData> {
   const algoliaIndexes = getServerAlgoliaIndexes();
 
   try {
-    // Todo: fix user data for mobile/desktop nav menus. right now it's not returning the full user object, but is at least notifying is user is logged in or not. We will wait until the UI for the logged in experience is complete to fix this.
-    const userData = await getUserFromRequest(request);
-
-    // Handle the Response object
-    let parsedUserData: User | null = null;
-    if (userData instanceof Response) {
-      const data = await userData.json();
-      if (
-        typeof data === 'object' &&
-        data !== null &&
-        'id' in data &&
-        'fullName' in data &&
-        'email' in data &&
-        'phoneNumber' in data &&
-        'guid' in data &&
-        'gender' in data &&
-        'birthDate' in data &&
-        'photo' in data
-      ) {
-        parsedUserData = data as User;
-      }
-    } else if (
-      userData &&
-      typeof userData === 'object' &&
-      'id' in userData &&
-      'fullName' in userData &&
-      'email' in userData &&
-      'phoneNumber' in userData &&
-      'guid' in userData &&
-      'gender' in userData &&
-      'birthDate' in userData &&
-      'photo' in userData
-    ) {
-      parsedUserData = userData as User;
-    }
-
     const [
       rawFeatureCards,
       rawSiteBanner,
@@ -319,7 +277,6 @@ export async function loader({
       //   12,
       // );
       return {
-        userData: parsedUserData,
         ministries: { featureCards: [] },
         watchReadListen: { featureCards: [] },
         algolia: {
@@ -394,7 +351,6 @@ export async function loader({
 
     return {
       // Navbar Data
-      userData: parsedUserData,
       ministries: {
         featureCards: ministryCards,
       },
@@ -418,7 +374,6 @@ export async function loader({
     // Return empty arrays instead of throwing to prevent UI from breaking
     return {
       // Navbar Data
-      userData: null,
       ministries: { featureCards: [] },
       watchReadListen: { featureCards: [] },
       algolia: {

@@ -1,20 +1,20 @@
 import {
-  fetchRockData,
-  patchRockData,
-  postRockData,
-  TTL,
-} from './fetch-rock-data';
-import {
-  createUserProfile,
-  fetchUserLogin,
-} from './authentication/rock-authentication';
+  fetchGroupMembers,
+  fetchGroups,
+  fetchPeople,
+  fetchPhoneNumbers,
+} from './rock-people-groups';
+import { patchRockData, postRockData, TTL } from './fetch-rock-data';
+import { RockAPIError } from './error-types';
+import { requireV2Guid, sendRockV2, writeRockV2 } from './fetch-rock-v2';
 import {
   createPhoneNumberInRock,
   parsePhoneNumberUtil,
-} from './authentication/sms-authentication';
-import { updatePerson } from './rock-person';
+} from './rock-phone-numbers';
+import { createUserProfile, fetchUserLogin, updatePerson } from './rock-person';
 import { fetchCampuses } from './rock-campuses';
 import { escapeOData } from './rock-utils';
+import { launchRockWorkflow } from './rock-workflow';
 
 export interface SignupPersonInput {
   firstName: string;
@@ -46,7 +46,7 @@ const personNameMatches = async (
   firstName: string,
   lastName: string,
 ): Promise<boolean> => {
-  const personDetails = await fetchRockData({
+  const personDetails = await fetchPeople({
     endpoint: 'People',
     queryParams: {
       $filter: `Id eq ${personId}`,
@@ -110,7 +110,7 @@ export const findOrCreateRockPersonForSignup = async (
   }
 
   // Step 3: Query People by first name, last name, and email
-  const peopleByEmail = await fetchRockData({
+  const peopleByEmail = await fetchPeople({
     endpoint: 'People',
     queryParams: {
       $filter: `FirstName eq '${escapeOData(firstName)}' and LastName eq '${escapeOData(lastName)}' and Email eq '${escapeOData(email)}'`,
@@ -129,7 +129,7 @@ export const findOrCreateRockPersonForSignup = async (
   }
 
   // Step 4: Query PhoneNumbers by significant number, then verify name match
-  const phoneEntries = await fetchRockData({
+  const phoneEntries = await fetchPhoneNumbers({
     endpoint: 'PhoneNumbers',
     queryParams: {
       $select: 'PersonId',
@@ -182,7 +182,7 @@ export const updateRockPersonCampusForSignup = async (
       ['Id'],
       TTL.NONE,
     ),
-    fetchRockData({
+    fetchPeople({
       endpoint: 'People',
       queryParams: {
         $filter: `Id eq ${personId}`,
@@ -201,11 +201,87 @@ export const updateRockPersonCampusForSignup = async (
     throw new Error('Primary family not found in Rock');
   }
 
-  await patchRockData({
-    endpoint: `Groups/${person.primaryFamilyId}`,
-    body: { CampusId: campus.id },
+  const familyId = person.primaryFamilyId;
+  const body = { CampusId: campus.id };
+  await writeRockV2({
+    label: 'family campus',
+    v2: async () => {
+      const family = await fetchGroups({
+        endpoint: 'Groups',
+        queryParams: { $filter: `Id eq ${familyId}`, $select: 'Guid' },
+        ttl: TTL.NONE,
+      });
+      const guid = (Array.isArray(family) ? family[0] : family)?.guid;
+      await sendRockV2(
+        'PATCH',
+        `groups/${requireV2Guid(guid, 'family')}`,
+        body,
+      );
+    },
+    fallback: async () => {
+      await patchRockData({ endpoint: `Groups/${familyId}`, body });
+    },
   });
 };
+
+interface NewGroupMember {
+  groupId: number;
+  personId: string | number;
+  groupRoleId: number;
+  groupMemberStatus: number;
+}
+
+/**
+ * Adds a person to a group. Returns the new member's Id, and its Guid when it
+ * was created on v2 (v1 returns only the Id).
+ */
+export const addRockGroupMember = async ({
+  groupId,
+  personId,
+  groupRoleId,
+  groupMemberStatus,
+}: NewGroupMember): Promise<{ id: number | null; guid?: string }> =>
+  writeRockV2({
+    label: 'group member',
+    v2: async () => {
+      // v2 requires the group's type, which v1 fills in itself.
+      const group = await fetchGroups({
+        endpoint: 'Groups',
+        queryParams: { $filter: `Id eq ${groupId}`, $select: 'GroupTypeId' },
+      });
+      const groupTypeId = (Array.isArray(group) ? group[0] : group)
+        ?.groupTypeId;
+      if (!groupTypeId) {
+        throw new RockAPIError('No group type for the group member', 404);
+      }
+      const created = (await sendRockV2('POST', 'groupmembers', {
+        GroupId: groupId,
+        GroupTypeId: groupTypeId,
+        PersonId: Number(personId),
+        GroupRoleId: groupRoleId,
+        GroupMemberStatus: groupMemberStatus,
+        IsArchived: false,
+        IsSystem: false,
+      })) as { id?: number; guid?: string } | null;
+      return { id: created?.id ?? null, guid: created?.guid };
+    },
+    fallback: async () => {
+      const created = await postRockData({
+        endpoint: 'GroupMembers',
+        body: {
+          GroupId: groupId,
+          PersonId: personId,
+          GroupRoleId: groupRoleId,
+          GroupMemberStatus: groupMemberStatus,
+          IsArchived: false,
+        },
+      });
+      // v1 returns the new entity's Id as a plain number.
+      return {
+        id: typeof created === 'number' ? created : (created?.id ?? null),
+      };
+    },
+  });
 
 export const resolveGroupClassSignupTarget = async (
   groupId: string,
@@ -214,7 +290,7 @@ export const resolveGroupClassSignupTarget = async (
     throw new Error('Invalid signup group');
   }
 
-  const result = await fetchRockData({
+  const result = await fetchGroups({
     endpoint: 'Groups',
     queryParams: {
       $filter: `Id eq ${groupId}`,
@@ -250,8 +326,9 @@ export const launchClassSignupWorkflow = async (
   groupId: string,
   personId: string,
 ): Promise<void> => {
-  await postRockData({
-    endpoint: `Workflows/LaunchWorkflow/0?workflowTypeId=654&workflowName=Add%20To%20Group/Class`,
+  await launchRockWorkflow({
+    workflowTypeId: '654',
+    workflowName: 'Add To Group/Class',
     body: { GroupId: groupId, PersonId: personId },
   });
 };
@@ -260,7 +337,7 @@ export const launchGroupSignupWorkflow = async (
   groupId: string,
   personId: string,
 ): Promise<void> => {
-  const existingMembership = await fetchRockData({
+  const existingMembership = await fetchGroupMembers({
     endpoint: 'GroupMembers',
     queryParams: {
       $filter: `GroupId eq ${groupId} and PersonId eq ${personId} and IsArchived eq false`,
@@ -299,8 +376,9 @@ export const launchGroupSignupWorkflow = async (
     throw new Error('ROCK_GROUP_SIGNUP_WORKFLOW_ID is not configured');
   }
 
-  await postRockData({
-    endpoint: `Workflows/LaunchWorkflow/0?workflowTypeId=${workflowTypeId}&workflowName=Website%20Adult%20Group%20Signup`,
+  await launchRockWorkflow({
+    workflowTypeId,
+    workflowName: 'Website Adult Group Signup',
     body: { GroupId: groupId, PersonId: personId },
   });
 };
@@ -337,9 +415,9 @@ export const launchCommunityServingSignupWorkflow = async (
 ): Promise<void> => {
   const campusGuid = await resolveRockCampusGuidByName(input.campus);
 
-  await postRockData({
-    endpoint:
-      'Workflows/LaunchWorkflow/0?workflowTypeId=1840&workflowName=Community%20Serving%20Opportunity%20Sign%20Up',
+  await launchRockWorkflow({
+    workflowTypeId: '1840',
+    workflowName: 'Community Serving Opportunity Sign Up',
     body: {
       Group: input.groupGuid,
       FirstName: input.firstName,

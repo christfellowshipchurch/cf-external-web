@@ -40,7 +40,6 @@ const defaultProps = {
 const mockFormData = {
   serviceTimes: [{ hour: ['9:00 AM', '11:00 AM'] }],
   campusName: 'Palm Beach Gardens',
-  user: { firstName: 'John', lastName: 'Doe', email: 'john@test.com' },
 };
 
 function renderForm(props = defaultProps) {
@@ -104,13 +103,6 @@ describe('ReminderForm', () => {
     renderForm();
     expect(screen.getByText('Primer nombre')).toBeInTheDocument();
     expect(screen.getByText('Apellido')).toBeInTheDocument();
-  });
-
-  it('pre-fills user name from loader data', () => {
-    mockLoadFetcher.data = mockFormData;
-    renderForm();
-    expect(screen.getByDisplayValue('John')).toBeInTheDocument();
-    expect(screen.getByDisplayValue('Doe')).toBeInTheDocument();
   });
 
   it('renders service time options', () => {

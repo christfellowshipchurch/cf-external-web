@@ -23,7 +23,6 @@ import { getLatestMessageFeaturedUrl } from './get-latest-message-featured-url';
 import { SiteBanner } from '../site-banner';
 import { RootLoaderData } from '~/routes/navbar/loader';
 import { WatchLiveButton } from './watch-live';
-// import { AuthModal } from "../modals";
 import { useNavbarVisibility } from '~/providers/navbar-visibility-context';
 
 export function Navbar() {

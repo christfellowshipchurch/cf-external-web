@@ -1,9 +1,5 @@
 import { ActionFunction } from 'react-router';
-import {
-  AuthenticationError,
-  EncryptionError,
-  RockAPIError,
-} from '~/lib/.server/error-types';
+import { AuthenticationError, RockAPIError } from '~/lib/.server/error-types';
 
 export type LocationSearchCoordinatesType = {
   requestId?: string;
@@ -79,11 +75,7 @@ export const action: ActionFunction = async ({ request }) => {
 
     return Response.json({ ...data, requestId });
   } catch (error) {
-    if (
-      error instanceof AuthenticationError ||
-      error instanceof EncryptionError ||
-      error instanceof RockAPIError
-    ) {
+    if (error instanceof AuthenticationError || error instanceof RockAPIError) {
       return Response.json(
         { error: error.message, requestId },
         { status: 400 },

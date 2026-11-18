@@ -4,10 +4,6 @@ vi.mock('~/lib/.server/fetch-rock-data', () => ({
   fetchRockData: vi.fn(),
 }));
 
-vi.mock('~/lib/.server/authentication/get-user-from-request', () => ({
-  getUserFromRequest: vi.fn().mockResolvedValue(null),
-}));
-
 vi.mock('~/lib/.server/algolia-indexes.server', () => ({
   getServerAlgoliaIndexes: vi.fn(() => ({})),
 }));
@@ -55,13 +51,6 @@ function mockRockResponses({ episodes }: { episodes: unknown }) {
   );
 }
 
-const makeArgs = () =>
-  ({
-    params: {},
-    request: new Request('http://localhost/'),
-    context: {},
-  }) as unknown as Parameters<typeof loader>[0];
-
 beforeEach(() => {
   vi.clearAllMocks();
 });
@@ -70,7 +59,7 @@ describe('navbar feature cards', () => {
   it('asks Rock only for approved content whose scheduled window is currently open', async () => {
     mockRockResponses({ episodes: [] });
 
-    await loader(makeArgs());
+    await loader();
 
     expect(mockFetchRockData).toHaveBeenCalled();
     for (const [options] of mockFetchRockData.mock.calls) {
@@ -87,7 +76,7 @@ describe('navbar feature cards', () => {
     // scheduled for a future date, so it fails the in-window filter.
     mockRockResponses({ episodes: [] });
 
-    const { watchReadListen } = await loader(makeArgs());
+    const { watchReadListen } = await loader();
 
     expect(watchReadListen.featureCards).toHaveLength(1);
     expect(watchReadListen.featureCards[0]).toMatchObject({
@@ -100,7 +89,7 @@ describe('navbar feature cards', () => {
   it('shows the podcast episode once it is live and newer than the latest article', async () => {
     mockRockResponses({ episodes: FUTURE_EPISODE });
 
-    const { watchReadListen } = await loader(makeArgs());
+    const { watchReadListen } = await loader();
 
     expect(watchReadListen.featureCards[0]).toMatchObject({
       title: 'Episode Scheduled For Monday',

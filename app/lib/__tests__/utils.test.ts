@@ -2,7 +2,6 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import {
   cn,
   normalize,
-  fieldsAsObject,
   enforceProtocol,
   createImageUrlFromGuid,
   getIdentifierType,
@@ -58,30 +57,6 @@ describe('normalize', () => {
 
   it('returns primitives unchanged', () => {
     expect(normalize('hello' as unknown as object)).toBe('hello');
-  });
-});
-
-describe('fieldsAsObject', () => {
-  it('converts field/value array to object', () => {
-    const result = fieldsAsObject([
-      { field: 'name', value: 'John' },
-      { field: 'age', value: 30 },
-    ]);
-    expect(result).toEqual({ name: 'John', age: 30 });
-  });
-
-  it('trims string values', () => {
-    const result = fieldsAsObject([{ field: 'name', value: '  John  ' }]);
-    expect(result).toEqual({ name: 'John' });
-  });
-
-  it('does not trim non-string values', () => {
-    const result = fieldsAsObject([{ field: 'count', value: 42 }]);
-    expect(result).toEqual({ count: 42 });
-  });
-
-  it('returns empty object for empty array', () => {
-    expect(fieldsAsObject([])).toEqual({});
   });
 });
 

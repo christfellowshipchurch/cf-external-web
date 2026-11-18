@@ -1,12 +1,7 @@
+import { rockV1LaunchWorkflowPath } from '~/lib/rock-config';
 import type { ConnectFormType } from './types';
 
 const ENGLISH_WORKFLOW_NAME = 'CFDP Web Connect Card';
-
-const buildWorkflowLaunchEndpointPreview = (
-  workflowTypeId: string,
-  workflowName: string,
-): string =>
-  `Workflows/LaunchWorkflow/0?workflowTypeId=${workflowTypeId}&workflowName=${encodeURIComponent(workflowName)}`;
 
 const joinFormFieldValues = (
   formData: Record<string, unknown>,
@@ -48,10 +43,11 @@ export function buildConnectCardSubmission(
     LastName: String(lastName ?? ''),
     Campus: String(campus ?? ''),
     PhoneNumber: String(phone ?? ''),
+    // Both workflows (403 and 902) read the email from `EmailAddress`.
+    EmailAddress: String(email ?? ''),
   };
 
   if (isSpanish) {
-    body.EmailAddress = String(email ?? '');
     body.LaunchSource = 'app';
 
     const nextStep = formData.nextStep;
@@ -66,7 +62,6 @@ export function buildConnectCardSubmission(
       body.Selection = selection;
     }
   } else {
-    body.Email = String(email ?? '');
     body.AllThatApplies = joinFormFieldValues(formData, (key) =>
       key.includes('allThatApplies'),
     );
@@ -86,7 +81,7 @@ export function buildConnectCardSubmission(
   return {
     workflowTypeId,
     workflowName,
-    endpoint: buildWorkflowLaunchEndpointPreview(workflowTypeId, workflowName),
+    endpoint: rockV1LaunchWorkflowPath(workflowTypeId, workflowName),
     body,
     rawFormData,
   };

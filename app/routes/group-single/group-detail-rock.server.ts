@@ -1,6 +1,12 @@
+import { fetchRockEntityByGuid } from '~/lib/.server/fetch-rock-v2';
+import {
+  fetchGroupMembers as fetchRockGroupMembers,
+  fetchGroups,
+  fetchSchedules,
+} from '~/lib/.server/rock-people-groups';
 import camelCase from 'lodash/camelCase';
 
-import { fetchRockData, TTL } from '~/lib/.server/fetch-rock-data';
+import { TTL } from '~/lib/.server/fetch-rock-data';
 import { escapeOData } from '~/lib/.server/rock-utils';
 import type {
   GroupLeaderHit,
@@ -295,7 +301,7 @@ async function fetchSchedule(
     return null;
   }
   try {
-    const raw = await fetchRockData({
+    const raw = await fetchSchedules({
       endpoint: 'Schedules',
       queryParams: {
         $filter: `Id eq ${scheduleId}`,
@@ -317,15 +323,13 @@ async function fetchMeetingLocation(locationGuid: string | undefined): Promise<{
     return { meetingLocation: '', geoloc: null };
   }
   try {
-    const raw = await fetchRockData({
-      endpoint: 'Locations',
-      queryParams: {
-        $filter: `Guid eq guid'${escapeOData(locationGuid)}'`,
-        $top: '1',
-      },
+    // Latitude/Longitude are computed, so v2 reads the whole record by Guid.
+    const location = await fetchRockEntityByGuid<RockLocation>({
+      v1Endpoint: 'Locations',
+      v2Model: 'locations',
+      guid: locationGuid,
       ttl: TTL.NONE,
     });
-    const location = unwrapOne<RockLocation>(raw);
     if (!location) return { meetingLocation: '', geoloc: null };
 
     const lat = toFiniteNumber(location.latitude);
@@ -354,7 +358,7 @@ async function fetchGroupMembers(
   expandPhoto: boolean,
   leaderRolesOnly: boolean,
 ): Promise<RockGroupMember[]> {
-  const raw = await fetchRockData({
+  const raw = await fetchRockGroupMembers({
     endpoint: 'GroupMembers',
     queryParams: {
       $filter: groupMembersFilter(groupId, leaderRolesOnly),
@@ -507,7 +511,7 @@ export async function fetchGroupDetailFromRock(
   const guid = escapeOData(trimmed);
   let raw: unknown;
   try {
-    raw = await fetchRockData({
+    raw = await fetchGroups({
       endpoint: 'Groups',
       queryParams: {
         $filter: `Guid eq guid'${guid}' and GroupTypeId eq ${GROUP_FINDER_GROUP_TYPE_ID} and IsActive eq true and IsArchived eq false and IsSecurityRole eq false`,
