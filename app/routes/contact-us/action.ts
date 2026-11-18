@@ -1,6 +1,6 @@
 import { ActionFunction, data } from 'react-router';
 import { ContactFormType } from './types';
-import { postRockData } from '~/lib/.server/fetch-rock-data';
+import { launchRockWorkflow } from '~/lib/.server/rock-workflow';
 import { getBotBlockReason, logBlockedSubmission } from '~/lib/bot-protection';
 
 const successResponse = () =>
@@ -35,8 +35,9 @@ export const action: ActionFunction = async ({ request }) => {
       LaunchSource: 'app',
     };
 
-    await postRockData({
-      endpoint: `Workflows/LaunchWorkflow/0?workflowTypeId=878&workflowName=CFDP%20App%20Contact%20Us`,
+    await launchRockWorkflow({
+      workflowTypeId: '878',
+      workflowName: 'CFDP App Contact Us',
       body: contactFormSubmission,
     });
 

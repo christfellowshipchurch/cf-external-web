@@ -449,6 +449,71 @@ CFDP-4542 removes.
 Both were checked live: alias reads (speakers, authors, campus pastors,
 outreach contacts) and group schedules match v1.
 
+## Step 5 (CFDP-4540): workflow launches
+
+Every form launch goes through `rock-workflow.ts`: `launchRockWorkflow` for
+the direct launches, `postRockWorkflowLaunchWithApiInitiator` for the rest. Both
+try v2 first:
+
+`POST workflows/actions/launch/{typeGuid}` with
+`{ name, attributeValues }`, in the background like v1's `LaunchWorkflow`
+(Rock answers 204 and runs it within a minute).
+
+- **Type Guids:** v2 paths take a Guid, so each type Id the forms launch is
+  mapped in `WorkflowTypeGuids` (`rock-config.ts`). A type missing there
+  launches on v1. `ROCK_GROUP_SIGNUP_WORKFLOW_ID` (set in Vercel, not in
+  Infisical) is 1941, "Website Adult Group Signup"; if it changes, add the new
+  type's Guid.
+- **Attribute values** are sent as v1's launch reads them: strings, booleans
+  as `True`/`False`, `null` as `""`, `undefined` left out.
+- **Initiator:** v2 sets it to the REST user (apollos), so there's no "poll
+  for the newest workflow, then patch its initiator" step. On v1 the old patch
+  to `API_ALIAS_PERSON_ID` still runs.
+- **No double launch:** v1 launches only when v2 is off, the type has no Guid,
+  a value isn't text (v2 takes strings only; v1 gets the JSON as before), or
+  Rock refused with 401, 403 or 404, before it looks at the workflow. A 400,
+  a 500, a timeout (10 s) or a dropped connection may come after Rock saved
+  the workflow, so it throws and the form shows its error instead of launching
+  again on v1.
+- **Initiator:** none of the launched types' actions reference the initiator
+  (checked 2026-11-18 by searching their action settings for `Initiator`), so
+  apollos as initiator changes nothing they do.
+- `wait: true` returns the workflow's id and status (about 2.5 s for Set a
+  Reminder), but no form needs them, so it isn't used.
+
+The v2 launch isn't under the **Workflows** controller in **Security › REST
+Controllers**. It's the only action of a separate controller, **Workflows
+Actions**. The **Workflows** controller covers the CRUD, `attributevalues` and
+`search` actions.
+
+Rock setup:
+
+| What                                                         | Grant for apollos                      |
+| ------------------------------------------------------------ | -------------------------------------- |
+| v2 **Workflows Actions** controller, `POST launch` action    | Execute Read and Execute Write › Allow |
+| v2 **Workflows** controller (CRUD, attribute values, search) | Execute Read and Execute Write › Allow |
+
+The launch needs only the Workflows Actions grant. Nothing on v2 patches a
+workflow, so Write on **Workflows**, which lets apollos edit and delete any
+workflow over v2, can be removed.
+
+Checked live on production Rock (2026-11-17), one submission per flow as the
+test person "test user", using Palm Beach Gardens (or Christ Fellowship Español
+Palm Beach Gardens for Spanish) groups:
+
+- prayer request, newsletter, share my skills, help me find a group, contact us,
+  set a reminder, Dream Team kickoff;
+- connect card (English and Spanish);
+- journey finder sign-up (English and Spanish) and journey session sign-up (an
+  English and a Spanish session);
+- baptism sign-up (English and Spanish);
+- class sign-up (Celebrate Recovery), adult group sign-up (1941) and community
+  serving sign-up.
+
+Each created exactly one workflow with the form's values and apollos as
+initiator, with no v1 fallback. The test person's group memberships were
+archived afterwards.
+
 ## Expected differences between v1 and v2
 
 These showed up on both pages. None affected what the pages display.

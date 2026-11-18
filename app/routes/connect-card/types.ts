@@ -2,8 +2,7 @@ export type ConnectFormType = {
   FirstName: string;
   LastName: string;
   Campus: string; // campus guid
-  Email?: string;
-  EmailAddress?: string;
+  EmailAddress: string;
   PhoneNumber: string;
   Decision?: string;
   AllThatApplies?: string;

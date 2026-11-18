@@ -1,6 +1,6 @@
 import { ActionFunction, data } from 'react-router';
 import { SetAReminderType } from './types';
-import { postRockData } from '~/lib/.server/fetch-rock-data';
+import { launchRockWorkflow } from '~/lib/.server/rock-workflow';
 import { fetchCampuses } from '~/lib/.server/rock-campuses';
 
 export const action: ActionFunction = async ({ request }) => {
@@ -29,8 +29,9 @@ export const action: ActionFunction = async ({ request }) => {
     };
 
     // Trigger the workflow for setting a reminder
-    await postRockData({
-      endpoint: `Workflows/LaunchWorkflow/0?workflowTypeId=936&workflowName=Set%20a%20Reminder`,
+    await launchRockWorkflow({
+      workflowTypeId: '936',
+      workflowName: 'Set a Reminder',
       body: formSubmission,
     });
 

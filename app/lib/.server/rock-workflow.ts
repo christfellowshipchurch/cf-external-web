@@ -4,6 +4,9 @@ import {
   postRockData,
   TTL,
 } from './fetch-rock-data';
+import { rockV1LaunchWorkflowPath, WorkflowTypeGuids } from '~/lib/rock-config';
+import { RockAPIError } from './error-types';
+import { isRockV2Enabled, postRockV2 } from './fetch-rock-v2';
 import { escapeOData } from './rock-utils';
 
 /**
@@ -47,14 +50,13 @@ export const buildRockWorkflowLaunchEndpoint = (
   workflowTypeId: string,
   workflowName: string,
 ): string => {
-  const encodedName = encodeURIComponent(workflowName);
   const initiatorAliasId = getRockApiPersonAliasId();
 
   if (initiatorAliasId !== '0') {
-    return `PersonAlias/LaunchWorkflow/${initiatorAliasId}?workflowTypeId=${workflowTypeId}&workflowName=${encodedName}`;
+    return `PersonAlias/LaunchWorkflow/${initiatorAliasId}?workflowTypeId=${workflowTypeId}&workflowName=${encodeURIComponent(workflowName)}`;
   }
 
-  return `Workflows/LaunchWorkflow/0?workflowTypeId=${workflowTypeId}&workflowName=${encodedName}`;
+  return rockV1LaunchWorkflowPath(workflowTypeId, workflowName);
 };
 
 interface FindLaunchedWorkflowOptions {
@@ -193,12 +195,106 @@ export const scheduleRockWorkflowBackgroundWork = (
   void work.catch(logBackgroundPatchFailure);
 };
 
+/**
+ * Rock answers these before it looks at the workflow, so v1 can launch safely.
+ * Not 400: Rock may answer it after the workflow was saved.
+ */
+const V2_NOT_LAUNCHED_STATUSES = new Set([401, 403, 404]);
+
+/** v1's launch reads its body as strings, turning `true` into "True". */
+const toWorkflowAttributeValues = (
+  body: Record<string, unknown>,
+): Record<string, string> =>
+  Object.fromEntries(
+    Object.entries(body)
+      .filter(([, value]) => value !== undefined)
+      .map(([key, value]) => [
+        key,
+        typeof value === 'boolean'
+          ? value
+            ? 'True'
+            : 'False'
+          : String(value ?? ''),
+      ]),
+  );
+
+/**
+ * Launches on Rock v2 in the background, as v1 does. v2 sets the initiator to
+ * the REST user, so there is nothing to patch afterwards. Returns false when
+ * v1 should launch instead: v2 is off, the type has no Guid, or Rock refused
+ * before launching. Throws when the launch may have gone through, so it's
+ * never launched twice.
+ */
+const launchOnRockV2 = async (
+  workflowTypeId: string,
+  workflowName: string,
+  body: Record<string, unknown>,
+): Promise<boolean> => {
+  if (!isRockV2Enabled()) return false;
+  const typeGuid = WorkflowTypeGuids[workflowTypeId];
+  if (!typeGuid) {
+    console.warn(
+      `⚠️ Workflow type ${workflowTypeId} has no Guid in WorkflowTypeGuids, launching on v1`,
+    );
+    return false;
+  }
+  // v2 takes text values only; v1 gets the JSON as it always has.
+  const nonTextKey = Object.keys(body).find(
+    (key) => body[key] !== null && typeof body[key] === 'object',
+  );
+  if (nonTextKey) {
+    console.warn(
+      `⚠️ Workflow type ${workflowTypeId} has a non-text value in ${nonTextKey}, launching on v1`,
+    );
+    return false;
+  }
+
+  try {
+    await postRockV2(`workflows/actions/launch/${typeGuid}`, {
+      name: workflowName,
+      attributeValues: toWorkflowAttributeValues(body),
+    });
+    return true;
+  } catch (error) {
+    if (
+      error instanceof RockAPIError &&
+      V2_NOT_LAUNCHED_STATUSES.has(error.statusCode)
+    ) {
+      console.error(
+        `⚠️ Rock v2 refused workflow type ${workflowTypeId} (${error.statusCode}), launching on v1`,
+      );
+      return false;
+    }
+    throw error;
+  }
+};
+
+/** Launches a workflow on v2, or on v1's `Workflows/LaunchWorkflow/0`. */
+export const launchRockWorkflow = async ({
+  workflowTypeId,
+  workflowName,
+  body,
+}: Omit<PostRockWorkflowLaunchOptions, 'instanceName'>): Promise<void> => {
+  if (await launchOnRockV2(workflowTypeId, workflowName, body)) return;
+
+  await postRockData({
+    endpoint: rockV1LaunchWorkflowPath(workflowTypeId, workflowName),
+    body,
+  });
+};
+
+/**
+ * Launches on v2 (initiator: the REST user), or on v1 and then patches the
+ * initiator to API_ALIAS_PERSON_ID in the background.
+ */
 export const postRockWorkflowLaunchWithApiInitiator = async ({
   workflowTypeId,
   workflowName,
   body,
   instanceName,
 }: PostRockWorkflowLaunchOptions): Promise<void> => {
+  if (await launchOnRockV2(workflowTypeId, workflowName, body)) return;
+
   const initiatorPersonAliasId = getRockApiPersonAliasId();
   const workflowIdAfter = await getLatestWorkflowIdForType(workflowTypeId);
   const endpoint = buildRockWorkflowLaunchEndpoint(

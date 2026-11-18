@@ -10,6 +10,7 @@ import {
   type ContentItemRelationship,
   type TTLValue,
 } from './cache-utils';
+import { RockAPIError } from './error-types';
 import { buildRockUrl, fetchRockData, isPreviewMode } from './fetch-rock-data';
 
 /**
@@ -275,6 +276,42 @@ export const requestRockV2 = async ({
   }
 
   return data;
+};
+
+const V2_WRITE_TIMEOUT_MS = 10_000;
+
+/**
+ * A v2 POST that changes data, e.g. a workflow launch: never cached and never
+ * retried. A Rock error throws a RockAPIError with Rock's status (not its body,
+ * which can echo the posted values). A success isn't read, so an odd response
+ * body can't turn a done launch into an error.
+ */
+export const postRockV2 = async (
+  path: string,
+  body: Record<string, unknown>,
+): Promise<void> => {
+  const normalizedPath = path.replace(/^\/+|\/+$/g, '');
+  assertNoNumberId(normalizedPath);
+
+  const endpoint = `v2/models/${normalizedPath}`;
+  const res = await fetch(buildRockUrl(endpoint), {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization-Token': `${process.env.ROCK_TOKEN}`,
+    },
+    body: JSON.stringify(body),
+    // A timeout throws without a status, so the caller treats it as "may have
+    // written" and doesn't retry on v1.
+    signal: globalThis.AbortSignal.timeout(V2_WRITE_TIMEOUT_MS),
+  });
+
+  if (!res.ok) {
+    throw new RockAPIError(
+      `Rock v2 POST ${endpoint} failed: ${res.status}`,
+      res.status,
+    );
+  }
 };
 
 interface FetchRockV2Options<T> extends RockV2Request {
