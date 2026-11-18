@@ -122,7 +122,7 @@ export const definedValuesV2Read = (query: DefinedValueQuery) => {
   ).join(', ');
 
   return {
-    path: searchPath('definedvalues', 'definedValues'),
+    path: searchPath(DEFINED_VALUES_V2.model, DEFINED_VALUES_V2.searchKey),
     method: 'POST' as const,
     body: buildV2SearchBody({
       where: toV2Where(query),
