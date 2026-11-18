@@ -39,10 +39,10 @@ const stubRockV2Fetch = (fetchMock: ReturnType<typeof vi.fn>) => {
 };
 
 describe('definedValuesV2Read', () => {
-  it('reads a lone Guid through the shared definedvalues search', () => {
+  it('reads a lone Guid through the shared definedValues search', () => {
     const read = definedValuesV2Read({ guid: GUID });
 
-    expect(read.path).toBe('definedvalues/search/definedvalues');
+    expect(read.path).toBe('definedvalues/search/definedValues');
     expect(read.body.where).toBe(`Guid == "${GUID}"`);
   });
 
@@ -63,7 +63,7 @@ describe('definedValuesV2Read', () => {
       fields: ['Guid', 'Value'],
     });
 
-    expect(read.path).toBe('definedvalues/search/definedvalues');
+    expect(read.path).toBe('definedvalues/search/definedValues');
     expect(read.body).toEqual({
       where: `DefinedTypeId == 631 && IsActive == true && Guid == "${GUID}"`,
       select: 'new (Guid, Value)',

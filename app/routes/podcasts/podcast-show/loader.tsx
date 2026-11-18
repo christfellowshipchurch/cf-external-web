@@ -29,6 +29,7 @@ export async function getChannelIdByGuid(channelGuid: string) {
     channel = await fetchRockEntityByGuid<{ id: number }>({
       v1Endpoint: 'ContentChannels',
       v2Model: 'contentchannels',
+      v2SearchKey: 'contentChannels',
       guid: channelGuid,
       select: 'Id',
     });

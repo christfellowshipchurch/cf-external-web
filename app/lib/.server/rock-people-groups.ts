@@ -49,6 +49,7 @@ const PERSON_ALIASES_V2: V2SearchEntity = {
 const PHONE_NUMBERS_V2: V2SearchEntity = {
   v1Endpoint: 'PhoneNumbers',
   model: 'phonenumbers',
+  searchKey: 'phoneNumbers',
   entityName: 'PhoneNumber',
   fields: [
     'Id',
@@ -107,6 +108,7 @@ const MEMBER_ROLE =
 const GROUP_MEMBERS_V2: V2SearchEntity = {
   v1Endpoint: 'GroupMembers',
   model: 'groupmembers',
+  searchKey: 'groupMembers',
   entityName: 'GroupMember',
   fields: [
     'Id',

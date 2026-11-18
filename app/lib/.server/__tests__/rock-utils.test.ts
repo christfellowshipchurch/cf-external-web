@@ -277,7 +277,7 @@ describe('getAttributeMatrixItems on Rock v2', () => {
     attributeValues: [{ key: 'Header', value: 'Q?', textValue: 'Q?' }],
   });
 
-  it('reads the items and their values in one attributematricesitem search', async () => {
+  it('reads the items and their values in one attributeMatricesItem search', async () => {
     const fetchMock = vi.fn().mockResolvedValueOnce(
       jsonResponse({
         count: 1,
@@ -292,7 +292,7 @@ describe('getAttributeMatrixItems on Rock v2', () => {
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(fetchMock.mock.calls[0][0]).toBe(
-      'https://rock.example.com/api/v2/models/attributematricesitem/search/attributematricesitem',
+      'https://rock.example.com/api/v2/models/attributematricesitem/search/attributeMatricesItem',
     );
     const body = JSON.parse(fetchMock.mock.calls[0][1].body);
     expect(body.where).toBe(`AttributeMatrix.Guid == "${MATRIX_GUID}"`);

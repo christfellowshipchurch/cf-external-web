@@ -138,7 +138,7 @@ describe('admin cache invalidation (POST target=attribute-matrices)', () => {
     expect(mocks.deleteByPrefix).toHaveBeenCalledTimes(3);
     expect(mocks.deleteByPrefix).toHaveBeenCalledWith(
       mocks.redis,
-      'v2/models/attributematricesitem/search/attributematricesitem',
+      'v2/models/attributematricesitem/search/attributeMatricesItem',
     );
     expect(mocks.deleteByPrefix).toHaveBeenCalledWith(
       mocks.redis,

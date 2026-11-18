@@ -13,6 +13,7 @@ vi.mock('../redis-config', () => ({
 
 import {
   buildV2SearchBody,
+  fetchRockEntityByGuid,
   fetchRockV2,
   isRockV2Enabled,
   keepMatchingRows,
@@ -511,5 +512,26 @@ describe('writeRockV2', () => {
 
     await expect(result).rejects.toBe(error);
     expect(fallback).not.toHaveBeenCalled();
+  });
+});
+
+describe('fetchRockEntityByGuid', () => {
+  it('reads selected fields through the given saved search key', async () => {
+    fetchMock().mockResolvedValueOnce(
+      okResponse({ count: 1, items: [{ guid: CAMPUS_GUID, id: 4 }] }),
+    );
+
+    await expect(
+      fetchRockEntityByGuid({
+        v1Endpoint: 'ContentChannels',
+        v2Model: 'contentchannels',
+        v2SearchKey: 'contentChannels',
+        guid: CAMPUS_GUID,
+        select: 'Id',
+      }),
+    ).resolves.toMatchObject({ id: 4 });
+    expect(fetchMock().mock.calls[0][0]).toBe(
+      'https://rock.example.com/api/v2/models/contentchannels/search/contentChannels',
+    );
   });
 });
