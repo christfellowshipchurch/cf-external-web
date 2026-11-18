@@ -277,6 +277,8 @@ export const requestRockV2 = async ({
   return data;
 };
 
+const V2_WRITE_TIMEOUT_MS = 10_000;
+
 /**
  * A v2 call that changes data (a create, a PATCH, a workflow launch): never
  * cached and never retried. A Rock error throws a RockAPIError with Rock's
@@ -300,6 +302,9 @@ export const sendRockV2 = async (
       'Authorization-Token': `${process.env.ROCK_TOKEN}`,
     },
     body: JSON.stringify(body),
+    // A timeout throws without a status, so the caller treats it as "may have
+    // written" and doesn't retry on v1.
+    signal: globalThis.AbortSignal.timeout(V2_WRITE_TIMEOUT_MS),
   });
 
   if (!res.ok) {
@@ -317,7 +322,11 @@ export const sendRockV2 = async (
   }
 };
 
-/** Rock answers these before it writes anything, so v1 can write safely. */
+/**
+ * Rock answers these before it writes anything, so v1 can write safely. A
+ * create or PATCH's 400 is a validation failure before the save (seen live:
+ * no record). Launches leave 400 out (`rock-workflow.ts`).
+ */
 export const V2_NOT_WRITTEN_STATUSES = new Set([400, 401, 403, 404]);
 
 /**

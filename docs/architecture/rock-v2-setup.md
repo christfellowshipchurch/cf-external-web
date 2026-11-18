@@ -456,9 +456,14 @@ try v2 first:
   for the newest workflow, then patch its initiator" step. On v1 the old patch
   to `API_ALIAS_PERSON_ID` still runs.
 - **No double launch:** v1 launches only when v2 is off, the type has no Guid,
-  or Rock refused with 400, 401, 403 or 404, before queuing anything. A 500
-  or a dropped connection may come after Rock queued the workflow, so it
-  throws and the form shows its error instead of launching again on v1.
+  a value isn't text (v2 takes strings only; v1 gets the JSON as before), or
+  Rock refused with 401, 403 or 404, before it looks at the workflow. A 400,
+  a 500, a timeout (10 s) or a dropped connection may come after Rock saved
+  the workflow, so it throws and the form shows its error instead of launching
+  again on v1.
+- **Initiator:** none of the launched types' actions reference the initiator
+  (checked 2026-11-18 by searching their action settings for `Initiator`), so
+  apollos as initiator changes nothing they do.
 - `wait: true` returns the workflow's id and status (about 2.5 s for Set a
   Reminder), but no form needs them, so it isn't used.
 
@@ -508,9 +513,11 @@ call as the fallback, and `sendRockV2` for the v2 call:
 | Class preference               | `class-interest/action.ts`              | `PATCH groupmembers/{guid}/attributevalues` |
 | Baptism address                | `baptism-sign-up/action.ts`             | `POST locations`                            |
 
-- **No double write:** as with launches, v1 runs only when v2 is off, the
-  record has no Guid, or Rock refused with 400, 401, 403 or 404 before writing.
-  Anything else throws.
+- **No double write:** v1 runs only when v2 is off, the record has no Guid, or
+  Rock refused with 400, 401, 403 or 404 before writing. Unlike launches, a
+  400 counts: on a create or PATCH it's a validation failure before the save
+  (the missing `GroupTypeId` below answered 400 and created nothing).
+  Anything else, including the 10 s timeout, throws.
 - **Guids:** the reads before each write also select `Guid`. The family's Guid
   comes from a `groups` read by its Id.
 - **Group members:** v2 requires `GroupTypeId` (v1 fills it in), so

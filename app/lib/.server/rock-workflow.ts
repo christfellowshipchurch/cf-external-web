@@ -4,13 +4,9 @@ import {
   postRockData,
   TTL,
 } from './fetch-rock-data';
-import { WorkflowTypeGuids } from '~/lib/rock-config';
+import { rockV1LaunchWorkflowPath, WorkflowTypeGuids } from '~/lib/rock-config';
 import { RockAPIError } from './error-types';
-import {
-  isRockV2Enabled,
-  sendRockV2,
-  V2_NOT_WRITTEN_STATUSES,
-} from './fetch-rock-v2';
+import { isRockV2Enabled, sendRockV2 } from './fetch-rock-v2';
 import { escapeOData } from './rock-utils';
 
 /**
@@ -54,14 +50,13 @@ export const buildRockWorkflowLaunchEndpoint = (
   workflowTypeId: string,
   workflowName: string,
 ): string => {
-  const encodedName = encodeURIComponent(workflowName);
   const initiatorAliasId = getRockApiPersonAliasId();
 
   if (initiatorAliasId !== '0') {
-    return `PersonAlias/LaunchWorkflow/${initiatorAliasId}?workflowTypeId=${workflowTypeId}&workflowName=${encodedName}`;
+    return `PersonAlias/LaunchWorkflow/${initiatorAliasId}?workflowTypeId=${workflowTypeId}&workflowName=${encodeURIComponent(workflowName)}`;
   }
 
-  return `Workflows/LaunchWorkflow/0?workflowTypeId=${workflowTypeId}&workflowName=${encodedName}`;
+  return rockV1LaunchWorkflowPath(workflowTypeId, workflowName);
 };
 
 interface FindLaunchedWorkflowOptions {
@@ -200,6 +195,12 @@ export const scheduleRockWorkflowBackgroundWork = (
   void work.catch(logBackgroundPatchFailure);
 };
 
+/**
+ * Rock answers these before it looks at the workflow, so v1 can launch safely.
+ * Not 400: Rock may answer it after the workflow was saved.
+ */
+const V2_NOT_LAUNCHED_STATUSES = new Set([401, 403, 404]);
+
 /** v1's launch reads its body as strings, turning `true` into "True". */
 const toWorkflowAttributeValues = (
   body: Record<string, unknown>,
@@ -237,6 +238,16 @@ const launchOnRockV2 = async (
     );
     return false;
   }
+  // v2 takes text values only; v1 gets the JSON as it always has.
+  const nonTextKey = Object.keys(body).find(
+    (key) => body[key] !== null && typeof body[key] === 'object',
+  );
+  if (nonTextKey) {
+    console.warn(
+      `⚠️ Workflow type ${workflowTypeId} has a non-text value in ${nonTextKey}, launching on v1`,
+    );
+    return false;
+  }
 
   try {
     await sendRockV2('POST', `workflows/actions/launch/${typeGuid}`, {
@@ -247,7 +258,7 @@ const launchOnRockV2 = async (
   } catch (error) {
     if (
       error instanceof RockAPIError &&
-      V2_NOT_WRITTEN_STATUSES.has(error.statusCode)
+      V2_NOT_LAUNCHED_STATUSES.has(error.statusCode)
     ) {
       console.error(
         `⚠️ Rock v2 refused workflow type ${workflowTypeId} (${error.statusCode}), launching on v1`,
@@ -267,7 +278,7 @@ export const launchRockWorkflow = async ({
   if (await launchOnRockV2(workflowTypeId, workflowName, body)) return;
 
   await postRockData({
-    endpoint: `Workflows/LaunchWorkflow/0?workflowTypeId=${workflowTypeId}&workflowName=${encodeURIComponent(workflowName)}`,
+    endpoint: rockV1LaunchWorkflowPath(workflowTypeId, workflowName),
     body,
   });
 };
