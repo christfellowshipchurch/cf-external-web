@@ -85,11 +85,15 @@ export const action: ActionFunction = async ({ request }) => {
       }
       try {
         const request = missionGroupRequest(groupGuid);
-        // The loader reads v2 first, so clear both versions' keys.
-        const deletedKeys = await redis.del(
-          buildCacheKey(request.endpoint, request.queryParams),
-          buildV2CacheKey(buildV2Search(request, GROUPS_V2)),
-        );
+        // The loader reads v2 first, so clear both versions' keys. The v1 key
+        // is cleared even if the v2 search can't be built.
+        const keys = [buildCacheKey(request.endpoint, request.queryParams)];
+        try {
+          keys.push(buildV2CacheKey(buildV2Search(request, GROUPS_V2)));
+        } catch {
+          console.warn('⚠️ No v2 cache key for the mission group read');
+        }
+        const deletedKeys = await redis.del(...keys);
         return data({ success: true, target, groupGuid, deletedKeys });
       } catch {
         return data(

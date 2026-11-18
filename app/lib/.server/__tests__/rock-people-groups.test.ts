@@ -60,7 +60,47 @@ describe('fetchPeople', () => {
     });
 
     expect(sentBody().where).toBe('IsDeceased == false && (Email == "a@b.c")');
-    expect(sentBody().select).toBe('new (Id)');
+    // Email is read back for the wrong-record guard.
+    expect(sentBody().select).toBe('new (Id, Email)');
+  });
+
+  // The signup person match: a search that ignored its `where` must not
+  // hand back someone else, who would then get the group adds and workflows.
+  it('asks v1 when a name + email match returns someone else', async () => {
+    stubRock({
+      count: 1,
+      items: [{ id: 9, firstName: 'Ann', lastName: 'Lee', email: 'x@y.z' }],
+    });
+
+    await expect(
+      fetchPeople({
+        endpoint: 'People',
+        queryParams: {
+          $filter:
+            "FirstName eq 'Ann' and LastName eq 'Lee' and Email eq 'a@b.c'",
+          $select: 'Id',
+        },
+      }),
+    ).resolves.toBe('v1');
+    expect(sentBody().select).toBe('new (Id, FirstName, LastName, Email)');
+  });
+
+  it('matches names and emails case-insensitively, as v1 does', async () => {
+    stubRock({
+      count: 1,
+      items: [{ id: 9, firstName: 'ann', lastName: 'LEE', email: 'A@B.C' }],
+    });
+
+    await expect(
+      fetchPeople({
+        endpoint: 'People',
+        queryParams: {
+          $filter:
+            "FirstName eq 'Ann' and LastName eq 'Lee' and Email eq 'a@b.c'",
+          $select: 'Id',
+        },
+      }),
+    ).resolves.toMatchObject({ id: 9 });
   });
 
   it('selects only $select, plus the Id the wrong-record guard checks', async () => {
@@ -150,12 +190,28 @@ describe('fetchPersonAliases', () => {
 });
 
 describe('fetchGroupMembers', () => {
+  // A membership check gates a write: another membership must not pass.
+  it('asks v1 when a membership check returns another person', async () => {
+    stubRock({ count: 1, items: [{ id: 1, groupId: 5, personId: 8 }] });
+
+    await expect(
+      fetchGroupMembers({
+        endpoint: 'GroupMembers',
+        queryParams: {
+          $filter: 'GroupId eq 5 and PersonId eq 7',
+          $select: 'Id',
+        },
+      }),
+    ).resolves.toBe('v1');
+  });
+
   it('filters on the status name and returns v1’s status number', async () => {
     stubRock({
       count: 1,
       items: [
         {
           id: 1,
+          groupId: 5,
           groupMemberStatus: 'Active',
           person__Id: 7,
           person__Photo__Guid: 'photo-guid',

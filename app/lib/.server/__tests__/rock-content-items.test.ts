@@ -235,6 +235,18 @@ describe('fetchContentItems', () => {
     ).resolves.toEqual([{ id: 1 }, { id: 2 }]);
   });
 
+  // The cfitem:{id} reverse index reads the Id off each row.
+  it('selects the Id even when $select leaves it out', async () => {
+    stubSearch([{ id: 1, title: 'A' }]);
+
+    await fetchContentItems({
+      endpoint: 'ContentChannelItems',
+      queryParams: { $filter: 'ContentChannelId eq 63', $select: 'Title' },
+    });
+
+    expect(sentBody().select).toBe('new (Title, ContentChannelId, Id)');
+  });
+
   describe('attribute lookups', () => {
     const lookup = (attributeKey: string) => ({
       endpoint: 'ContentChannelItems/GetByAttributeValue',
@@ -247,7 +259,14 @@ describe('fetchContentItems', () => {
     });
 
     it('filters on the attribute value inside the search', async () => {
-      stubSearch([{ id: 1, startDateTime: PAST, lookupValue: 'my-"page"' }]);
+      stubSearch([
+        {
+          id: 1,
+          contentChannelId: 63,
+          startDateTime: PAST,
+          lookupValue: 'my-"page"',
+        },
+      ]);
 
       await expect(
         fetchContentItems(lookup('Url')),
@@ -263,11 +282,18 @@ describe('fetchContentItems', () => {
       stubSearch([
         {
           id: 1,
+          contentChannelId: 63,
           title: 'Scheduled',
           startDateTime: FUTURE,
           lookupValue: 'my-"page"',
         },
-        { id: 2, title: 'Live', startDateTime: PAST, lookupValue: 'my-"page"' },
+        {
+          id: 2,
+          contentChannelId: 63,
+          title: 'Live',
+          startDateTime: PAST,
+          lookupValue: 'my-"page"',
+        },
       ]);
 
       await expect(fetchContentItems(lookup('Url'))).resolves.toMatchObject({
@@ -277,7 +303,14 @@ describe('fetchContentItems', () => {
 
     // A search that ignored its `where` must not render another page.
     it('asks v1 when a row has another attribute value', async () => {
-      stubSearch([{ id: 1, startDateTime: PAST, lookupValue: 'other-page' }]);
+      stubSearch([
+        {
+          id: 1,
+          contentChannelId: 63,
+          startDateTime: PAST,
+          lookupValue: 'other-page',
+        },
+      ]);
 
       await expect(fetchContentItems(lookup('Url'))).resolves.toBe('v1');
     });
