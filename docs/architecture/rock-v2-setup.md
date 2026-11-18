@@ -456,9 +456,14 @@ try v2 first:
   for the newest workflow, then patch its initiator" step. On v1 the old patch
   to `API_ALIAS_PERSON_ID` still runs.
 - **No double launch:** v1 launches only when v2 is off, the type has no Guid,
-  or Rock refused with 400, 401, 403 or 404, before queuing anything. A 500
-  or a dropped connection may come after Rock queued the workflow, so it
-  throws and the form shows its error instead of launching again on v1.
+  a value isn't text (v2 takes strings only; v1 gets the JSON as before), or
+  Rock refused with 401, 403 or 404, before it looks at the workflow. A 400,
+  a 500, a timeout (10 s) or a dropped connection may come after Rock saved
+  the workflow, so it throws and the form shows its error instead of launching
+  again on v1.
+- **Initiator:** none of the launched types' actions reference the initiator
+  (checked 2026-11-18 by searching their action settings for `Initiator`), so
+  apollos as initiator changes nothing they do.
 - `wait: true` returns the workflow's id and status (about 2.5 s for Set a
   Reminder), but no form needs them, so it isn't used.
 

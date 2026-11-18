@@ -254,8 +254,9 @@ describe('launchRockWorkflow on Rock v2', () => {
     });
   });
 
-  // A 500 or a dropped connection may come after Rock queued the workflow.
+  // A 400, a 500 or a dropped connection may come after Rock saved the workflow.
   it.each([
+    ['a bad request', { ok: false, status: 400 }],
     ['a server error', { ok: false, status: 500 }],
     ['a network error', new TypeError('fetch failed')],
   ])('throws on %s without launching on v1', async (_, response) => {
@@ -284,6 +285,38 @@ describe('launchRockWorkflow on Rock v2', () => {
     expect(fetchMock).not.toHaveBeenCalled();
     expect(postRockData).toHaveBeenCalled();
     expect(warn).toHaveBeenCalledWith(expect.stringContaining('99999'));
+  });
+
+  it('launches on v1, with a warning, when a value isn’t text', async () => {
+    const fetchMock = stubV2Launch({ ok: true, status: 204 });
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const body = { FirstName: 'Test', Interests: ['a', 'b'] };
+
+    await launchRockWorkflow({
+      workflowTypeId: '936',
+      workflowName: 'Set a Reminder',
+      body,
+    });
+
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(postRockData).toHaveBeenCalledWith(
+      expect.objectContaining({ body }),
+    );
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('Interests'));
+  });
+
+  it('gives the v2 launch a timeout', async () => {
+    const fetchMock = stubV2Launch({ ok: true, status: 204 });
+
+    await launchRockWorkflow({
+      workflowTypeId: '936',
+      workflowName: 'Set a Reminder',
+      body: {},
+    });
+
+    expect(fetchMock.mock.calls[0][1].signal).toBeInstanceOf(
+      globalThis.AbortSignal,
+    );
   });
 
   it('treats a launch Rock accepted as done, whatever the response body', async () => {
