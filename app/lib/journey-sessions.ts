@@ -88,6 +88,30 @@ const MONTHS = [
   'December',
 ];
 
+const WEEKDAYS_ES = [
+  'domingo',
+  'lunes',
+  'martes',
+  'miércoles',
+  'jueves',
+  'viernes',
+  'sábado',
+];
+const MONTHS_ES = [
+  'enero',
+  'febrero',
+  'marzo',
+  'abril',
+  'mayo',
+  'junio',
+  'julio',
+  'agosto',
+  'septiembre',
+  'octubre',
+  'noviembre',
+  'diciembre',
+];
+
 const parseWallClock = (startsAt: string) => {
   const [date, time = '00:00'] = startsAt.split('T');
   const [year, month, day] = date.split('-').map(Number);
@@ -97,16 +121,20 @@ const parseWallClock = (startsAt: string) => {
   return { year, month, day, hour, minute, weekday };
 };
 
-/** "Sunday, October 4" */
-export const formatSessionDateHeading = (startsAt: string) => {
+/** "Sunday, October 4", or "domingo, 4 de octubre" in Spanish */
+export const formatSessionDateHeading = (startsAt: string, spanish = false) => {
   const { month, day, weekday } = parseWallClock(startsAt);
-  return `${WEEKDAYS[weekday]}, ${MONTHS[month - 1]} ${day}`;
+  return spanish
+    ? `${WEEKDAYS_ES[weekday]}, ${day} de ${MONTHS_ES[month - 1]}`
+    : `${WEEKDAYS[weekday]}, ${MONTHS[month - 1]} ${day}`;
 };
 
-/** "Sun, Oct 4" */
-export const formatSessionShortDate = (startsAt: string) => {
+/** "Sun, Oct 4", or "dom, 4 oct" in Spanish */
+export const formatSessionShortDate = (startsAt: string, spanish = false) => {
   const { month, day, weekday } = parseWallClock(startsAt);
-  return `${WEEKDAYS[weekday].slice(0, 3)}, ${MONTHS[month - 1].slice(0, 3)} ${day}`;
+  return spanish
+    ? `${WEEKDAYS_ES[weekday].slice(0, 3)}, ${day} ${MONTHS_ES[month - 1].slice(0, 3)}`
+    : `${WEEKDAYS[weekday].slice(0, 3)}, ${MONTHS[month - 1].slice(0, 3)} ${day}`;
 };
 
 /** "9:45 AM" */
