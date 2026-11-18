@@ -64,6 +64,21 @@ const IconText = ({
   );
 };
 
+// One-off Boca Raton move notice; hardcoded on purpose, remove after the move.
+const BocaMovingNotice = () => (
+  <div className='flex flex-col items-start gap-[6px] rounded-2xl border border-ocean/25 bg-navy-subdued/75 p-4 text-text-primary md:rounded-lg'>
+    <span className='rounded-full bg-ocean px-3 py-2 text-xs font-bold text-white'>
+      Moving December 20
+    </span>
+    <div className='flex flex-col'>
+      <p className='text-lg font-semibold leading-[1.5]'>
+        9339 Glades Rd Boca Raton, FL 33434
+      </p>
+      <p className='text-sm'>Join us at our current location until then.</p>
+    </div>
+  </div>
+);
+
 export const CampusInfo = ({
   isOnline,
   campusName,
@@ -136,6 +151,7 @@ export const CampusInfo = ({
                 serviceTimes={formattedServiceTimes(serviceTimes)}
               />
               <IconText icon='map' text={address} />
+              {campusName === 'Boca Raton' && <BocaMovingNotice />}
               <IconText icon='mobileAlt' text={phoneNumber} />
             </div>
 
