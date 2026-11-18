@@ -1,5 +1,9 @@
 import type { FetchRockDataOptions } from './fetch-rock-data';
-import { fetchViaV2Search, type V2SearchEntity } from './rock-v2-search';
+import {
+  fetchViaV2Search,
+  numericEnum,
+  type V2SearchEntity,
+} from './rock-v2-search';
 
 /**
  * Person, alias, phone number, group, group member and schedule reads: the
@@ -88,12 +92,6 @@ const MEMBER_STATUS_NAMES: Record<string, string> = {
   '1': 'Active',
   '2': 'Pending',
 };
-const MEMBER_STATUS_NUMBERS = Object.fromEntries(
-  Object.entries(MEMBER_STATUS_NAMES).map(([number, name]) => [
-    name,
-    Number(number),
-  ]),
-);
 
 const MEMBER_PERSON = [
   'Id',
@@ -119,7 +117,7 @@ const GROUP_MEMBERS_V2: V2SearchEntity = {
     'GroupMemberStatus',
     'IsArchived',
   ],
-  enums: { GroupMemberStatus: MEMBER_STATUS_NAMES },
+  ...numericEnum('GroupMemberStatus', MEMBER_STATUS_NAMES),
   expands: {
     'Person,GroupRole': [...MEMBER_PERSON, MEMBER_ROLE].join(', '),
     'Person/Photo,GroupRole': [
@@ -128,14 +126,6 @@ const GROUP_MEMBERS_V2: V2SearchEntity = {
       MEMBER_ROLE,
     ].join(', '),
   },
-  mapRow: (row) => ({
-    ...row,
-    ...('groupMemberStatus' in row && {
-      groupMemberStatus:
-        MEMBER_STATUS_NUMBERS[String(row.groupMemberStatus)] ??
-        row.groupMemberStatus,
-    }),
-  }),
 };
 
 const SCHEDULES_V2: V2SearchEntity = {
