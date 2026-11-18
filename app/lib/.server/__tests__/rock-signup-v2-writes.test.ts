@@ -16,13 +16,13 @@ vi.mock('../rock-people-groups', () => ({
   fetchPhoneNumbers: vi.fn(),
 }));
 vi.mock('../rock-campuses', () => ({ fetchCampuses: vi.fn() }));
-vi.mock('../rock-person', () => ({ updatePerson: vi.fn() }));
-vi.mock('../rock-workflow', () => ({ launchRockWorkflow: vi.fn() }));
-vi.mock('../authentication/rock-authentication', () => ({
+vi.mock('../rock-person', () => ({
   createUserProfile: vi.fn(),
   fetchUserLogin: vi.fn(),
+  updatePerson: vi.fn(),
 }));
-vi.mock('../authentication/sms-authentication', () => ({
+vi.mock('../rock-workflow', () => ({ launchRockWorkflow: vi.fn() }));
+vi.mock('../rock-phone-numbers', () => ({
   createPhoneNumberInRock: vi.fn(),
   parsePhoneNumberUtil: vi.fn(),
 }));

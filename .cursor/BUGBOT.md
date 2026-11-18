@@ -10,7 +10,7 @@
 ---
 
 **Rule:** Secret server environment variables must never appear in loader or action return values.
-**Detection:** Flag any loader or action that returns an object containing `process.env.ROCK_TOKEN`, `process.env.SECRET`, `process.env.CRYPTO_IV`, `process.env.CRYPTO_SECRET`, `process.env.TWILIO_ACCOUNT_SID`, `process.env.TWILIO_AUTH_TOKEN`, or `process.env.WISTIA_API_KEY`. Only `ALGOLIA_APP_ID` and `ALGOLIA_SEARCH_API_KEY` are intentionally client-exposed.
+**Detection:** Flag any loader or action that returns an object containing `process.env.ROCK_TOKEN`, `process.env.CACHE_INVALIDATION_SECRET`, or `process.env.WISTIA_API_KEY`. Only `ALGOLIA_APP_ID` and `ALGOLIA_SEARCH_API_KEY` are intentionally client-exposed.
 **Why:** These values are returned as JSON to the browser. Any new secret added to a loader return value is immediately exposed in the network response.
 
 ---
@@ -46,18 +46,6 @@
 **Rule:** User-supplied values must not be interpolated directly into Rock OData `$filter` strings.
 **Detection:** Flag any `fetchRockData` or `postRockData` call where a `queryParams.$filter` string uses template literal interpolation with a value derived from `request.formData()` or `request.url` (e.g., `` `Name eq '${formData.groupName}'` ``).
 **Why:** Unsanitized OData filter injection can expose or match unintended records. At minimum, values should be trimmed and validated as expected types before interpolation.
-
----
-
-**Rule:** Phone numbers must be passed through `parsePhoneNumberUtil()` and validated before any Twilio call.
-**Detection:** Flag any action or server utility that calls a Twilio method (`client.messages.create`, `requestSmsLogin`, etc.) with a phone number string that has not first been processed by `parsePhoneNumberUtil` from `app/lib/.server/authentication/sms-authentication.ts`, or where `parsedNumber.valid !== true` is not checked.
-**Why:** Invalid phone numbers submitted by users will cause Twilio API errors. Unvalidated numbers can also be used to probe or spam arbitrary phone numbers.
-
----
-
-**Rule:** `hashPassword` must only be called when `process.env.SECRET` is a non-empty string.
-**Detection:** Flag any call to `hashPassword(pin)` in `sms-authentication.ts` that is not guarded by a check that `process.env.SECRET` is defined and non-empty, either inline or at module initialization.
-**Why:** If `SECRET` is undefined, the SHA-256 hash is computed with no salt, making all PINs trivially reversible with a rainbow table attack.
 
 ---
 
@@ -127,6 +115,6 @@
 
 ---
 
-**Rule:** Custom error classes must not be redefined inline in route files. Use `AuthenticationError`, `RockAPIError`, and `EncryptionError` from `app/lib/.server/error-types.ts`.
+**Rule:** Custom error classes must not be redefined inline in route files. Use `AuthenticationError` and `RockAPIError` from `app/lib/.server/error-types.ts`.
 **Detection:** Flag any `class SomeError extends Error` declaration in a file that is not `app/lib/.server/error-types.ts`, or any `throw new Error(...)` in an authentication or Rock API context that should instead throw a typed error class from that module.
 **Why:** Duplicate error classes break `instanceof` checks in catch blocks across the authentication and API layers, causing errors to fall through to the wrong handler.

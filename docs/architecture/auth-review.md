@@ -1,5 +1,7 @@
 # Authentication Architecture Review — `remix-web-app`
 
+> **Outdated:** the login code this describes was removed in CFDP-4542 (it was not migrated to Rock v2). File references below no longer exist.
+
 **Purpose:** Document how authentication currently works in `remix-web-app` and
 evaluate its fitness as the foundation for the new **My Groups** app (React
 Router v7 + direct Rock REST + Redis, fully authenticated, with write

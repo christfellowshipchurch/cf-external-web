@@ -18,7 +18,7 @@ vi.mock('../fetch-rock-v2', async (importOriginal) => ({
   sendRockV2: vi.fn(),
 }));
 
-vi.mock('../authentication/sms-authentication', () => ({
+vi.mock('../rock-phone-numbers', () => ({
   createPhoneNumberInRock: vi.fn(),
   parsePhoneNumberUtil: vi.fn(() => ({
     significantNumber: '5615551234',

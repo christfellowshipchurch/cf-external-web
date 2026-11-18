@@ -1,5 +1,7 @@
 # Spike Brief — Manage Group Members (My Groups on Rock REST + Redis + RR7)
 
+> **Outdated:** the login code this describes was removed in CFDP-4542 (it was not migrated to Rock v2). File references below no longer exist.
+
 **Type:** Time-boxed spike (5 days, floor not target). **Output:** a decision, not a shippable feature.
 **Owner:** _unassigned_ · **Prepared:** 2026-07-24 · **Repo for spike work:** `remix-web-app`
 

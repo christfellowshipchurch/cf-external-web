@@ -79,12 +79,8 @@ const ReminderForm: React.FC<ReminderProps> = ({
     return <div>Loading...</div>;
   }
 
-  const { serviceTimes, campusName, user } = formData || {};
+  const { serviceTimes, campusName } = formData || {};
   const isEspanol = campusName?.includes('Español');
-  const firstName = user?.firstName || null;
-  const lastName = user?.lastName || null;
-  const phoneNumber = null;
-  const email = user?.email || null;
 
   return (
     <>
@@ -102,7 +98,6 @@ const ReminderForm: React.FC<ReminderProps> = ({
           isEspanol
             ? 'Profavor ingrese su primer nombre'
             : 'Please enter your first name',
-          firstName || undefined,
         )}
         {renderInputField(
           'lastName',
@@ -111,7 +106,6 @@ const ReminderForm: React.FC<ReminderProps> = ({
           isEspanol
             ? 'Porfavor ingrese su apellido'
             : 'Please enter your last name',
-          lastName || undefined,
         )}
         {renderInputField(
           'phone',
@@ -120,7 +114,6 @@ const ReminderForm: React.FC<ReminderProps> = ({
           isEspanol
             ? 'Porfavor ingrese un número de teléfono válido'
             : 'Please enter a valid number',
-          phoneNumber || undefined,
         )}
         {renderInputField(
           'email',
@@ -129,7 +122,6 @@ const ReminderForm: React.FC<ReminderProps> = ({
           isEspanol
             ? 'Porfavor ingrese un correo electrónico válido'
             : 'Please enter a valid email',
-          email || undefined,
         )}
 
         <Form.Field name='campus' className={radixFormFieldStackClassName}>

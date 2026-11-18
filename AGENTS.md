@@ -65,7 +65,7 @@ There is no `.env.example`. `.env` and `.env.local` are gitignored, so a new git
 
 ## What this is
 
-Christ Fellowship's public website: articles, messages, events, locations, group and class finders, volunteer and ministry pages, and the forms that send people into Rock (connect card, prayer request, sign-ups). React Router v8 in framework mode with SSR and flat file routes (`app/routes.ts` is `flatRoutes()`), Tailwind v4, Redis, Rock REST v1, Algolia for search and finders, Twilio for SMS login, Wistia for video. Sister app to my-church-platform.
+Christ Fellowship's public website: articles, messages, events, locations, group and class finders, volunteer and ministry pages, and the forms that send people into Rock (connect card, prayer request, sign-ups). React Router v8 in framework mode with SSR and flat file routes (`app/routes.ts` is `flatRoutes()`), Tailwind v4, Redis, Rock REST v1, Algolia for search and finders, Wistia for video. Sister app to my-church-platform.
 
 It deploys to both Vercel and Netlify from the same build. `react-router.config.ts` adds the Vercel preset when `VERCEL` is set; `vite.config.ts` adds the Netlify plugin when `NETLIFY` is set. Design notes are in `docs/architecture/`.
 
@@ -78,8 +78,8 @@ It deploys to both Vercel and Netlify from the same build. `react-router.config.
 - Preview mode (`SHOW_UNAPPROVED_CONTENT=true`, `isPreviewMode()`) shows Pending content, skips the shared cache and sends `X-Robots-Tag: noindex`. Never set it on production.
 - Rock ids: content channels, content items and campuses are in `app/lib/rock-config.ts`. Use `toPublicRockUrl` for links to Rock: `rock.gocf.org` is internal-only.
 - Forms launch Rock workflows through `Workflows/LaunchWorkflow/0`, mostly via `postRockWorkflowLaunchWithApiInitiator` (`rock-workflow.ts`), which then sets the initiator to `API_ALIAS_PERSON_ID` in the background. Public forms use the honeypot in `bot-protection.ts` (`HoneypotFields`, `getBotBlockReason`).
-- Auth: email or SMS login (`app/routes/auth/route.tsx` dispatches on `formType`). The `auth-token` cookie is an encrypted JWT wrapping the person's Rock `.ROCK` cookie; `getUserFromRequest` reads it. SMS PINs are HMAC'd with `SECRET` (`hashPassword`) and rate limited (`RateLimitError`). Phone numbers go through `parsePhoneNumberUtil` and must be `valid` before Twilio is called.
-- Errors: `AuthenticationError`, `RockAPIError`, `EncryptionError` and `RateLimitError` live in `error-types.ts`.
+- No login: the site has no user accounts or sessions. An old login was removed rather than migrated (CFDP-4542), so every Rock call runs as the `ROCK_TOKEN` service account.
+- Errors: `AuthenticationError` and `RockAPIError` live in `error-types.ts`.
 - Rock CMS HTML is sanitised with `sanitizeCmsHtml` (`app/lib/sanitize.ts`, DOMPurify) before render. `pnpm-workspace.yaml` pins `jsdom` to 26.1.0 because newer jsdom crashes on Vercel.
 - `/rock-proxy` serves allow-listed Rock pages (`validate-rock-url.ts`: HTTPS, `rock.christfellowship.church` only) inside an iframe.
 - Algolia index names come from `getAlgoliaIndexes` (`app/lib/algolia-indexes.ts`): `{env}_webv3_{name}`, env from `ALGOLIA_INDEX_ENV`. `ALGOLIA_APP_ID` and `ALGOLIA_SEARCH_API_KEY` are the only env values meant for the browser.
@@ -87,7 +87,7 @@ It deploys to both Vercel and Netlify from the same build. `react-router.config.
 
 ## Don't
 
-- Return a secret from a loader or action: `ROCK_TOKEN`, `SECRET`, `CRYPTO_SECRET`, `CACHE_INVALIDATION_SECRET`, Twilio or Wistia keys.
+- Return a secret from a loader or action: `ROCK_TOKEN`, `CACHE_INVALIDATION_SECRET` or Wistia keys.
 - Call `fetch()` on Rock directly. Use the `fetch-rock-data.ts` helpers so caching, headers and logging apply.
 - Use `process.env` in components, hooks, providers or primitives. It is undefined in the browser; pass the value from a loader.
 - Touch `window`, `document` or `localStorage` at module scope or during render. The site is SSR; use `useEffect`, a handler or a `typeof window` guard.
@@ -107,13 +107,11 @@ Flag:
 - Loader data with `Date`, `Map`, `Set`, class instances or functions in it.
 - Two or more levels into `attributeValues` without `?.` at each level and a `??` fallback.
 - An import from `~/lib/.server/` in a file that isn't a loader, action or `.server` module.
-- A Twilio call with a phone number that hasn't passed `parsePhoneNumberUtil` and a `valid` check.
 - CMS HTML rendered with `dangerouslySetInnerHTML` without `sanitizeCmsHtml`.
 - A new loader or action without a test of its failure path. Tests reset mocks in `beforeEach` (`vi.clearAllMocks()`) and restore any `process.env` they change.
 
 ## High-risk paths
 
-- `app/lib/.server/authentication/`, `app/routes/auth/`, `token.ts`, `encrypt.tsx`, `decrypt.tsx`
 - `fetch-rock-data.ts`, `fetch-rock-v2.ts`, `cache-utils.ts`, `redis-config.ts`, `app/routes/api.admin.cache.tsx`
 - `rock-workflow.ts`, `rock-signup.ts`, `rock-person.ts` and every route `action.ts` that writes to Rock or launches a workflow
 - `app/routes/rock-proxy/`, `validate-rock-url.ts`, `app/lib/sanitize.ts`
