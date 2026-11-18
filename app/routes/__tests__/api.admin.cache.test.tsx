@@ -2,6 +2,7 @@ import type { ActionFunctionArgs, LoaderFunctionArgs } from 'react-router';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { buildCacheKey } from '~/lib/.server/cache-utils';
 import { fetchGroups } from '~/lib/.server/rock-people-groups';
+import { buildV2Search } from '~/lib/.server/rock-v2-search';
 import { missionGroupRequest } from '~/routes/volunteer/outreach-opportunity/outreach-mission-rock.server';
 import { action, loader } from '../api.admin.cache';
 
@@ -30,6 +31,12 @@ vi.mock('~/lib/.server/cache-utils', async (importOriginal) => ({
   deleteByPrefix: mocks.deleteByPrefix,
   collectItemCacheFootprint: mocks.collectItemCacheFootprint,
 }));
+
+vi.mock('~/lib/.server/rock-v2-search', async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import('~/lib/.server/rock-v2-search')>();
+  return { ...actual, buildV2Search: vi.fn(actual.buildV2Search) };
+});
 
 const createArgs = (
   secret = 'test-secret',
@@ -307,6 +314,22 @@ describe('admin cache invalidation (POST target=volunteer-opportunity)', () => {
     expect(readData(response)).toMatchObject({ deletedKeys: 2 });
     vi.unstubAllEnvs();
     vi.unstubAllGlobals();
+  });
+
+  it('still deletes the v1 key when the v2 search key can’t be built', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    vi.mocked(buildV2Search).mockImplementationOnce(() => {
+      throw new Error('Unsupported $expand');
+    });
+    const { store, del } = seedRedis([groupsKey(GUID)]);
+
+    const response = await action(
+      volunteerArgs(`?target=volunteer-opportunity&groupGuid=${GUID}`),
+    );
+
+    expect(del).toHaveBeenCalledWith(groupsKey(GUID));
+    expect(store.size).toBe(0);
+    expect(readData(response)).toMatchObject({ success: true, deletedKeys: 1 });
   });
 
   it('uppercases a lowercase GUID — the page loader caches under the uppercase key', async () => {

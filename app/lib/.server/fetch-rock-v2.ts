@@ -139,8 +139,9 @@ export const keepMatchingRows = (
       String(row[field] ?? row[camelField] ?? '').toLowerCase() === wanted,
   );
   if (matching.length !== rows.length) {
+    // No value: it can be a name or an email.
     throw new Error(
-      `Rock v2 search returned rows whose ${field} isn't "${expected}"`,
+      `Rock v2 search returned rows whose ${field} doesn't match`,
     );
   }
   return matching;
@@ -283,10 +284,10 @@ interface FetchRockV2Options<T> extends RockV2Request {
   fallback: () => Promise<T>;
 }
 
-const preview = (value: unknown): string =>
-  JSON.stringify(value)?.slice(0, 120) ?? 'undefined';
-
-/** Where the v2 result differs from v1, over the fields v2 returns. */
+/**
+ * The paths where the v2 result differs from v1, over the fields v2 returns.
+ * Paths only: People and phone reads go through here, so values can't be logged.
+ */
 export const diffAgainstV1 = (
   v2: unknown,
   v1: unknown,
@@ -302,7 +303,7 @@ export const diffAgainstV1 = (
       ),
     );
   }
-  return [`${path || '(root)'}: v1=${preview(v1)} v2=${preview(v2)}`];
+  return [path || '(root)'];
 };
 
 /** Dev only: also runs the v1 read and logs how the v2 result differs. */

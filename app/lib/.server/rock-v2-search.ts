@@ -1,3 +1,4 @@
+import camelCase from 'lodash/camelCase';
 import mapValues from 'lodash/mapValues';
 import { normalize } from '~/lib/utils';
 import { toRockDateTimeLiteral } from './rock-datetime';
@@ -176,15 +177,47 @@ export const stripDateOffsets = (
       : value,
   );
 
-/** The Id or Guid a v1 `$filter` asks for, when it asks for exactly one. */
-const requestedRecord = (
+const EQUALS_RE =
+  /^\(?([A-Z]\w*) eq (?:guid'([0-9a-f-]{36})'|'((?:[^']|'')*)'|(-?\d+|true|false))\)?$/i;
+
+/**
+ * Every `Field eq value` a v1 `$filter` ANDs together (e.g. a name and an
+ * email, or a group and a person). Each row is checked against them, so a
+ * search that ignored its `where` can't pass off another record. Enum columns
+ * are left out: v2 returns their names, not v1's numbers.
+ */
+export const requestedValues = (
   filter: string | undefined,
-): { field: string; value: string } | undefined => {
-  if (!filter || / or /i.test(filter)) return undefined;
-  const id = /(?:^|[ (])Id eq (\d+)(?=$|[ )])/.exec(filter)?.[1];
-  if (id) return { field: 'Id', value: id };
-  const guid = /(?:^|[ (])Guid eq guid'([0-9a-f-]{36})'/i.exec(filter)?.[1];
-  return guid ? { field: 'Guid', value: guid } : undefined;
+  enums: V2SearchEntity['enums'] = {},
+): { field: string; value: string }[] => {
+  if (!filter || /\bor\b|\bnot\b/i.test(filter)) return [];
+  return filter.split(/\s+and\s+/i).flatMap((part) => {
+    const match = EQUALS_RE.exec(part.trim());
+    if (!match || enums[match[1]]) return [];
+    const [, field, guid, text, literal] = match;
+    return [{ field, value: guid ?? text?.replace(/''/g, "'") ?? literal }];
+  });
+};
+
+/**
+ * A v2 enum column that v1 sends as a number: `enums` for the filter and a
+ * `mapRow` that turns the name v2 returns back into v1's number.
+ */
+export const numericEnum = (
+  column: string,
+  names: Record<string, string>,
+): Required<Pick<V2SearchEntity, 'enums' | 'mapRow'>> => {
+  const numbers = Object.fromEntries(
+    Object.entries(names).map(([number, name]) => [name, Number(number)]),
+  );
+  const key = camelCase(column);
+  return {
+    enums: { [column]: names },
+    mapRow: (row) =>
+      key in row
+        ? { ...row, [key]: numbers[String(row[key])] ?? row[key] }
+        : row,
+  };
 };
 
 /** v2 has no attribute definitions; readers like getImages only use the keys. */
@@ -270,7 +303,7 @@ export const buildV2Search = (
     ?.split(',')
     .map((key) => key.trim());
   const fromRecord = withAttributes && entity.attributeValuesFromRecord;
-  const requested = requestedRecord(params.$filter);
+  const requested = requestedValues(params.$filter, entity.enums);
   const searchTtl = ttl ?? (cache === false ? 0 : undefined);
   const fields = params.$select
     ? params.$select.split(',').map((field) => field.trim())
@@ -278,13 +311,16 @@ export const buildV2Search = (
   if (!fields.every((field) => FIELD_RE.test(field))) {
     throw new Error('Unsupported $select');
   }
+  // The guards, per-record attribute reads and cache index need these even
+  // when $select leaves them out.
+  const needed = [
+    ...requested.map(({ field }) => field),
+    ...(fromRecord ? ['Guid'] : []),
+    ...(entity.index ? ['Id'] : []),
+  ];
   const select = [
     ...fields,
-    // The guards and per-record attribute reads need these even when $select doesn't.
-    ...(requested && !fields.includes(requested.field)
-      ? [requested.field]
-      : []),
-    ...(fromRecord && !fields.includes('Guid') ? ['Guid'] : []),
+    ...[...new Set(needed)].filter((field) => !fields.includes(field)),
     ...(expand ? [expand] : []),
     // Read back so a search that ignored its `where` can't pass as a match.
     ...(isAttributeLookup
@@ -326,8 +362,8 @@ export const buildV2Search = (
       if (isAttributeLookup) {
         found = keepMatchingRows(found, 'LookupValue', params.value!);
       }
-      if (requested) {
-        found = keepMatchingRows(found, requested.field, requested.value);
+      for (const { field, value } of requested) {
+        found = keepMatchingRows(found, field, value);
       }
       const rows = found
         // Rock may not honor the paging field name yet; v1's $top still holds.
