@@ -1,8 +1,8 @@
 import { fireEvent, render, screen, within } from '@testing-library/react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { createMemoryRouter } from 'react-router';
 import { RouterProvider } from 'react-router/dom';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   JOURNEY_SESSION_NUMBERS,
   type JourneySessionNumber,
@@ -13,6 +13,29 @@ import { PlanYourJourneyStep } from './plan-your-journey-step.component';
 import { JourneyConfirmation } from './journey-confirmation.component';
 import { JourneyRegistration } from './journey-registration.component';
 import { YourInformationStep } from './your-information-step.component';
+import { translateSignUpError } from './journey-copy';
+import { ANCHOR_SCROLL_OFFSET } from '~/components/navbar/scroll-offset.constants';
+import {
+  NavbarVisibilityProvider,
+  useNavbarVisibility,
+} from '~/providers/navbar-visibility-context';
+
+// JourneyRegistration reads the site banner state from the navbar provider.
+const SiteBannerOn = () => {
+  const { setIsSiteBannerVisible } = useNavbarVisibility();
+  useEffect(() => setIsSiteBannerVisible(true), [setIsSiteBannerVisible]);
+  return null;
+};
+const JourneyRegistrationWithNav = ({
+  banner = false,
+}: {
+  banner?: boolean;
+}) => (
+  <NavbarVisibilityProvider>
+    {banner && <SiteBannerOn />}
+    <JourneyRegistration />
+  </NavbarVisibilityProvider>
+);
 
 const campuses = [
   {
@@ -65,8 +88,10 @@ const options = [
 
 const Harness = ({
   registered = {},
+  isSpanish = false,
 }: {
   registered?: JourneySessionSelection;
+  isSpanish?: boolean;
 }) => {
   const [selection, setSelection] = useState<JourneySessionSelection>({});
   return (
@@ -76,6 +101,7 @@ const Harness = ({
       preferredCampusId={2}
       selection={selection}
       registered={registered}
+      isSpanish={isSpanish}
       onChangePreferredCampus={vi.fn()}
       onSelect={(n, option) =>
         setSelection((prev) => ({ ...prev, [n]: option }))
@@ -190,6 +216,7 @@ describe('PlanYourJourneyStep', () => {
         preferredCampusId={2}
         selection={{}}
         registered={{}}
+        isSpanish={false}
         onChangePreferredCampus={vi.fn()}
         onSelect={vi.fn()}
         onSelectEarliest={vi.fn()}
@@ -224,7 +251,7 @@ describe('JourneyRegistration loading', () => {
   it('shows the campus card skeleton instead of a loading sentence', () => {
     const router = createMemoryRouter(
       [
-        { path: '/', element: <JourneyRegistration /> },
+        { path: '/', element: <JourneyRegistrationWithNav /> },
         {
           path: '/api/journey-sessions',
           loader: () => new Promise(() => {}),
@@ -245,7 +272,7 @@ describe('JourneyRegistration changing campus', () => {
   const renderFlow = async () => {
     const router = createMemoryRouter(
       [
-        { path: '/', element: <JourneyRegistration /> },
+        { path: '/', element: <JourneyRegistrationWithNav /> },
         {
           path: '/api/journey-sessions',
           loader: () => ({ campuses, options }),
@@ -276,11 +303,75 @@ describe('JourneyRegistration changing campus', () => {
   });
 });
 
+// A campus picked low in the list used to leave the person part-way down step 2.
+describe('JourneyRegistration scroll on step change', () => {
+  const renderInSection = async (stepTop: number, banner = false) => {
+    const scrollTo = vi.spyOn(window, 'scrollTo').mockImplementation(() => {});
+    const router = createMemoryRouter(
+      [
+        {
+          path: '/',
+          element: (
+            <section id='register'>
+              <JourneyRegistrationWithNav banner={banner} />
+            </section>
+          ),
+        },
+        {
+          path: '/api/journey-sessions',
+          loader: () => ({ campuses, options }),
+        },
+      ],
+      { initialEntries: ['/'] },
+    );
+    render(<RouterProvider router={router} />);
+    const campusButton = await screen.findByRole('button', { name: /Jupiter/ });
+    vi.spyOn(
+      document.getElementById('journey-registration-step')!,
+      'getBoundingClientRect',
+    ).mockReturnValue({ top: stepTop } as ReturnType<
+      Element['getBoundingClientRect']
+    >);
+    scrollTo.mockClear();
+    fireEvent.click(campusButton);
+    return scrollTo;
+  };
+
+  afterEach(() => vi.restoreAllMocks());
+
+  it('scrolls back to the top of the step when the person is below it', async () => {
+    const scrollTo = await renderInSection(-800);
+    expect(screen.getByText('Step 2 of 3')).toBeInTheDocument();
+    // Lands on the step itself (its Back link), not the section heading,
+    // with the navbar offset plus 32px of room above it.
+    expect(scrollTo).toHaveBeenCalledTimes(1);
+    expect(scrollTo).toHaveBeenCalledWith({
+      top: -800 - (ANCHOR_SCROLL_OFFSET + 32),
+      behavior: 'smooth',
+    });
+  });
+
+  it('leaves 64px of room when the site banner is showing', async () => {
+    const scrollTo = await renderInSection(-800, true);
+    expect(scrollTo).toHaveBeenCalledTimes(1);
+    expect(scrollTo).toHaveBeenCalledWith({
+      top: -800 - (ANCHOR_SCROLL_OFFSET + 64),
+      behavior: 'smooth',
+    });
+  });
+
+  it('leaves the page alone when the step top is already in view', async () => {
+    const scrollTo = await renderInSection(400);
+    expect(screen.getByText('Step 2 of 3')).toBeInTheDocument();
+    expect(scrollTo).not.toHaveBeenCalled();
+  });
+});
+
 describe('JourneyRegistration campus links', () => {
   const renderAt = (url: string) => {
     const router = createMemoryRouter(
       [
-        { path: '/', element: <JourneyRegistration /> },
+        { path: '/', element: <JourneyRegistrationWithNav /> },
         {
           path: '/api/journey-sessions',
           loader: () => ({ campuses, options }),
@@ -318,6 +409,38 @@ describe('JourneyRegistration campus links', () => {
     expect(window.location.hash).toBe('#register');
   });
 
+  it('switches the page to Spanish for a Spanish campus', async () => {
+    const router = createMemoryRouter(
+      [
+        { path: '/', element: <JourneyRegistrationWithNav /> },
+        {
+          path: '/api/journey-sessions',
+          loader: () => ({
+            campuses: [
+              {
+                ...campuses[0],
+                id: 33,
+                name: 'Christ Fellowship Español Royal Palm Beach',
+                url: 'cf-espanol-royal-palm-beach',
+              },
+            ],
+            options: [opt(1, '2026-10-04T09:00', { campusId: 33 })],
+          }),
+        },
+      ],
+      { initialEntries: ['/?campus=cf-espanol-royal-palm-beach'] },
+    );
+    render(<RouterProvider router={router} />);
+
+    expect(await screen.findByText('Paso 2 de 3')).toBeInTheDocument();
+    expect(
+      screen.getByRole('heading', { name: 'Inscríbete en Journey' }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('heading', { name: 'Planifica tu Journey' }),
+    ).toBeInTheDocument();
+  });
+
   it('falls back to the campus picker for an unknown campus', async () => {
     renderAt('/?campus=not-a-campus');
     expect(
@@ -325,6 +448,54 @@ describe('JourneyRegistration campus links', () => {
         name: 'Choose Your Preferred Campus',
       }),
     ).toBeInTheDocument();
+  });
+});
+
+// CFE campuses: once a Spanish campus is chosen, the whole sign-up reads in Spanish.
+describe('PlanYourJourneyStep in Spanish', () => {
+  it('shows the Comms translations and Spanish dates', () => {
+    render(<Harness isSpanish />);
+
+    expect(
+      screen.getByRole('heading', { name: 'Planifica tu Journey' }),
+    ).toBeInTheDocument();
+    expect(screen.getByText('Campus seleccionado:')).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', {
+        name: 'Seleccionar la clase disponible más próxima',
+      }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('heading', { name: 'Sesión 1' }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        'Descubre la historia detrás de Christ Fellowship y qué significa conocer a Dios personalmente.',
+      ),
+    ).toBeInTheDocument();
+    expect(screen.getByText('domingo, 4 de octubre')).toBeInTheDocument();
+    expect(screen.queryByText(/Session|Not scheduled|Select/)).toBeNull();
+
+    const radio = within(
+      screen.getByRole('heading', { name: 'Sesión 1' }).closest('div')!
+        .parentElement!,
+    )
+      .getAllByRole('radio')
+      .find((el) => !(el as HTMLInputElement).disabled)!;
+    fireEvent.click(radio);
+
+    expect(
+      screen.getByText('1 de 3 sesiones seleccionadas'),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText('Puedes seleccionar las otras sesiones más adelante.'),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'Quitar Selección' }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'Continúa con Tu Información' }),
+    ).toBeEnabled();
   });
 });
 
@@ -337,6 +508,7 @@ describe('JourneyConfirmation', () => {
           1: options[2],
           3: opt(3, '2026-10-25T09:00'),
         }}
+        isSpanish={false}
         onScheduleAnother={vi.fn()}
         onRegisterSomeoneElse={vi.fn()}
       />,
@@ -358,11 +530,30 @@ describe('JourneyConfirmation', () => {
     ).toEqual(['https://maps.example/pbg']);
   });
 
+  it('reads in Spanish for a Spanish campus', () => {
+    render(
+      <JourneyConfirmation
+        campuses={campuses}
+        registered={{ 1: options[2] }}
+        isSpanish
+        onScheduleAnother={vi.fn()}
+        onRegisterSomeoneElse={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText('domingo, 4 de octubre')).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'Programar Otra Sesión' }),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/Registered|Session|Get Directions/)).toBeNull();
+  });
+
   it('hides "Schedule Another Session" once all three are booked', () => {
     render(
       <JourneyConfirmation
         campuses={campuses}
         registered={{ 1: options[1], 2: options[4], 3: options[5] }}
+        isSpanish={false}
         onScheduleAnother={vi.fn()}
         onRegisterSomeoneElse={vi.fn()}
       />,
@@ -370,6 +561,106 @@ describe('JourneyConfirmation', () => {
     expect(
       screen.queryByRole('button', { name: 'Schedule Another Session' }),
     ).not.toBeInTheDocument();
+  });
+});
+
+describe('YourInformationStep in Spanish', () => {
+  const renderStep = (signUpError?: string) => {
+    const router = createMemoryRouter(
+      [
+        {
+          path: '/',
+          element: (
+            <YourInformationStep
+              campuses={campuses}
+              selection={{ 2: options[4] }}
+              registered={{ 1: options[1] }}
+              isSpanish
+              onBack={vi.fn()}
+              onSuccess={vi.fn()}
+            />
+          ),
+        },
+        {
+          path: '/api/journey-sign-up',
+          action: () => ({ error: signUpError }),
+        },
+      ],
+      { initialEntries: ['/'] },
+    );
+    return render(<RouterProvider router={router} />);
+  };
+
+  it('shows the step and the sessions sidebar in Spanish', () => {
+    renderStep();
+
+    expect(
+      screen.getByRole('heading', { name: 'Tu Información' }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'Completar Inscripción' }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('heading', { name: 'Tus Sesiones' }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'Editar Sesiones' }),
+    ).toBeInTheDocument();
+    expect(screen.getByText('Sesión 1 · Confirmada')).toBeInTheDocument();
+    expect(screen.getByText(/dom, 11 oct/)).toBeInTheDocument();
+    expect(screen.getByText('Sin programar')).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        '2 de 3 sesiones programadas. Puedes seleccionar las otras sesiones más adelante.',
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText(/Session|Your |Not scheduled|Complete/),
+    ).toBeNull();
+  });
+
+  // The action answers in English; a Spanish page must not show that.
+  it('shows sign-up errors in Spanish', async () => {
+    const { container } = renderStep(
+      'Session 2 is full. Please choose another time.',
+    );
+    fireEvent.submit(container.querySelector('form')!);
+
+    expect(
+      await screen.findByText(
+        'La Sesión 2 está llena. Por favor, elige otro horario.',
+      ),
+    ).toBeInTheDocument();
+  });
+});
+
+describe('translateSignUpError', () => {
+  it('keeps English as-is and translates known messages to Spanish', () => {
+    expect(
+      translateSignUpError(
+        'Session 3 is full. Please choose another time.',
+        false,
+      ),
+    ).toBe('Session 3 is full. Please choose another time.');
+    expect(
+      translateSignUpError(
+        'Session 3 is no longer available. Please choose another time.',
+        true,
+      ),
+    ).toBe('La Sesión 3 ya no está disponible. Por favor, elige otro horario.');
+    expect(
+      translateSignUpError(
+        'Please choose all sessions at the same campus.',
+        true,
+      ),
+    ).toBe('Por favor, elige todas las sesiones en el mismo campus.');
+  });
+
+  // A message the action adds later must not reach a Spanish page in English.
+  it('falls back to a generic Spanish error for unknown messages', () => {
+    expect(translateSignUpError('Something new broke.', true)).toBe(
+      'Algo salió mal. Por favor, inténtalo de nuevo.',
+    );
   });
 });
 

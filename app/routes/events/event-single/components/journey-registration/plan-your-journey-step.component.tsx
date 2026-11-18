@@ -14,12 +14,7 @@ import {
   type JourneySessionOption,
   type JourneySessionSelection,
 } from '~/lib/journey-sessions';
-
-export const SESSION_DESCRIPTIONS: Record<JourneySessionNumber, string> = {
-  1: 'Discover the story behind Christ Fellowship and what it means to know God personally.',
-  2: 'Find your place in the community and learn how faith grows through meaningful relationships.',
-  3: 'Uncover your purpose and explore what it looks like to live on mission every day.',
-};
+import { getJourneyCopy, type JourneyCopy } from './journey-copy';
 
 interface PlanYourJourneyStepProps {
   campuses: JourneyCampus[];
@@ -28,6 +23,7 @@ interface PlanYourJourneyStepProps {
   selection: JourneySessionSelection;
   /** Sessions already booked in this visit — shown locked. */
   registered: JourneySessionSelection;
+  isSpanish: boolean;
   onChangePreferredCampus: () => void;
   onSelect: (
     sessionNumber: JourneySessionNumber,
@@ -44,12 +40,14 @@ export const PlanYourJourneyStep = ({
   preferredCampusId,
   selection,
   registered,
+  isSpanish,
   onChangePreferredCampus,
   onSelect,
   onSelectEarliest,
   onBack,
   onContinue,
 }: PlanYourJourneyStepProps) => {
+  const copy = getJourneyCopy(isSpanish);
   const campusName = (id: number) =>
     campuses.find((campus) => campus.id === id)?.name ?? '';
   const selectedCount = JOURNEY_SESSION_NUMBERS.filter(
@@ -67,20 +65,17 @@ export const PlanYourJourneyStep = ({
         onClick={onBack}
         className='flex w-fit items-center gap-1 text-sm font-semibold text-black'
       >
-        <Icon name='chevronLeft' size={16} /> Back
+        <Icon name='chevronLeft' size={16} /> {copy.back}
       </button>
       <div className='flex flex-col gap-1'>
-        <h3 className='text-xl font-bold text-black'>Plan Your Journey</h3>
-        <p className='text-sm text-neutral-default'>
-          Choose one, two, or all three sessions now. You can schedule the rest
-          later.
-        </p>
+        <h3 className='text-xl font-bold text-black'>{copy.planHeading}</h3>
+        <p className='text-sm text-neutral-default'>{copy.planIntro}</p>
       </div>
 
       <div className='flex flex-col gap-3 rounded-lg border border-gray-200 bg-white px-4 py-3 md:flex-row md:items-center md:justify-between'>
         <p className='flex items-center gap-1 text-sm text-neutral-default'>
           <Icon name='map' size={14} className='text-ocean' />
-          Selected campus:
+          {copy.selectedCampus}
           <span className='font-semibold text-black'>
             {campusName(preferredCampusId)}
           </span>
@@ -89,7 +84,7 @@ export const PlanYourJourneyStep = ({
             onClick={onChangePreferredCampus}
             className='ml-1 font-semibold text-ocean'
           >
-            Change
+            {copy.change}
           </button>
         </p>
         {openSessions > 0 && (
@@ -99,7 +94,7 @@ export const PlanYourJourneyStep = ({
             className='flex items-center gap-2 rounded-md border border-gray-200 px-3 py-1.5 text-xs font-semibold text-black hover:border-ocean'
           >
             <Icon name='calendarPlus' size={14} className='text-ocean' />
-            Select earliest available class
+            {copy.selectEarliest}
           </button>
         )}
       </div>
@@ -114,6 +109,8 @@ export const PlanYourJourneyStep = ({
             selected={selection[sessionNumber]}
             registered={registered[sessionNumber]}
             onSelect={(option) => onSelect(sessionNumber, option)}
+            isSpanish={isSpanish}
+            copy={copy}
           />
         ))}
       </div>
@@ -122,13 +119,13 @@ export const PlanYourJourneyStep = ({
         <div>
           <p className='text-sm font-semibold text-black'>
             {selectedCount === 0
-              ? 'No sessions selected'
-              : `${selectedCount + registeredCount} of 3 sessions selected`}
+              ? copy.noSessionsSelected
+              : copy.sessionsSelected(selectedCount + registeredCount)}
           </p>
           <p className='text-xs text-neutral-default'>
             {selectedCount === 0
-              ? 'Select at least one session to continue.'
-              : 'You can schedule the remaining sessions later.'}
+              ? copy.selectAtLeastOne
+              : copy.scheduleRemainingLater}
           </p>
         </div>
         <Button
@@ -137,7 +134,7 @@ export const PlanYourJourneyStep = ({
           disabled={selectedCount === 0}
           onClick={onContinue}
         >
-          Continue to Your Information
+          {copy.continueToInformation}
         </Button>
       </div>
     </div>
@@ -151,6 +148,8 @@ interface SessionColumnProps {
   selected?: JourneySessionOption;
   registered?: JourneySessionOption;
   onSelect: (option: JourneySessionOption | undefined) => void;
+  isSpanish: boolean;
+  copy: JourneyCopy;
 }
 
 const SessionColumn = ({
@@ -160,6 +159,8 @@ const SessionColumn = ({
   selected,
   registered,
   onSelect,
+  isSpanish,
+  copy,
 }: SessionColumnProps) => {
   const optionsByDate = useMemo(() => {
     const groups = new Map<string, JourneySessionOption[]>();
@@ -195,21 +196,24 @@ const SessionColumn = ({
   const sameDayBadges = (option: JourneySessionOption) => {
     const sessions = sameDaySessions(option);
     return sessions.length === JOURNEY_SESSION_NUMBERS.length - 1
-      ? ['Same Day']
-      : sessions.map((n) => `Same day as Session ${n}`);
+      ? [copy.sameDay]
+      : sessions.map((n) => copy.sameDayAs(n));
   };
 
   return (
-    <div className='flex flex-col rounded-lg border border-gray-200 bg-white'>
+    // On desktop each card spans the parent's two rows as a subgrid, so every
+    // card's header is as tall as the tallest description and the pills and
+    // times line up across the three cards.
+    <div className='flex flex-col rounded-lg border border-gray-200 bg-white md:row-span-2 md:grid md:grid-rows-subgrid md:gap-0'>
       <div className='flex flex-col gap-2 border-b border-neutral-lightest p-4'>
         <h4 className='flex items-center gap-1 font-bold text-black'>
-          Session {sessionNumber}
+          {copy.session(sessionNumber)}
           {summary && (
             <Icon name='checkCircle' size={16} className='text-ocean' />
           )}
         </h4>
-        <p className='text-xs text-neutral-default'>
-          {SESSION_DESCRIPTIONS[sessionNumber]}
+        <p className='flex-1 text-xs text-neutral-default'>
+          {copy.sessionDescriptions[sessionNumber]}
         </p>
         <p
           className={cn(
@@ -220,20 +224,20 @@ const SessionColumn = ({
           )}
         >
           {summary
-            ? `${registered ? 'Registered · ' : ''}${formatSessionShortDate(summary.startsAt)} · ${formatSessionTime(summary.startsAt)}`
-            : 'Not scheduled'}
+            ? `${registered ? `${copy.registered} · ` : ''}${formatSessionShortDate(summary.startsAt, isSpanish)} · ${formatSessionTime(summary.startsAt)}`
+            : copy.notScheduled}
         </p>
       </div>
 
       {registered ? (
         <p className='p-4 text-sm text-neutral-default'>
-          You&apos;re registered for this session.
+          {copy.registeredForSession}
         </p>
       ) : (
         <div className='flex flex-col gap-4 p-4'>
           {optionsByDate.length === 0 && (
             <p className='text-sm text-neutral-default'>
-              No upcoming times at this campus. Try another campus.
+              {copy.noUpcomingTimes}
             </p>
           )}
           {optionsByDate.map(([dateKey, dateOptions]) => (
@@ -246,7 +250,7 @@ const SessionColumn = ({
                     : 'text-black',
                 )}
               >
-                {formatSessionDateHeading(dateOptions[0].startsAt)}
+                {formatSessionDateHeading(dateOptions[0].startsAt, isSpanish)}
               </legend>
               {dateOptions.map((option) => {
                 const isSelected = isSameSessionOption(option, selected);
@@ -279,13 +283,13 @@ const SessionColumn = ({
                     </span>
                     {option.isPast ? (
                       <span className='rounded border border-neutral-light px-1 text-[10px] text-neutral-light'>
-                        Passed
+                        {copy.passed}
                       </span>
                     ) : (
                       <>
                         {option.isFull && (
                           <span className='rounded border border-alert px-1 text-[10px] text-alert'>
-                            Full
+                            {copy.full}
                           </span>
                         )}
                         {sameDayBadges(option).map((badge) => (
@@ -309,7 +313,7 @@ const SessionColumn = ({
               onClick={() => onSelect(undefined)}
               className='w-fit text-xs text-neutral-default underline'
             >
-              Clear selection
+              {copy.clearSelection}
             </button>
           )}
         </div>

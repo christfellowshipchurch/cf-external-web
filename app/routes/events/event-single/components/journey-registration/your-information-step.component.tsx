@@ -15,6 +15,7 @@ import {
   RadixFormSelectShell,
 } from '~/primitives/inputs/form-radix-field';
 import { FORM_COPY } from '~/components/modals/journey-finder-sign-up/journey-finder-sign-up-form.component';
+import { getJourneyCopy, translateSignUpError } from './journey-copy';
 import {
   childcareFieldName,
   formatSessionShortDate,
@@ -102,6 +103,7 @@ export const YourInformationStep = ({
   const formRef = useRef<HTMLFormElement>(null);
   const copy = FORM_COPY[isSpanish ? 'Spanish' : 'English'];
   const childcareCopy = CHILDCARE_COPY[isSpanish ? 'Spanish' : 'English'];
+  const journeyCopy = getJourneyCopy(isSpanish);
   const [needsChildcare, setNeedsChildcare] = useState(
     defaults?.needsChildcare === 'yes',
   );
@@ -154,9 +156,11 @@ export const YourInformationStep = ({
           onClick={handleBack}
           className='flex items-center gap-1 text-sm font-semibold text-black'
         >
-          <Icon name='chevronLeft' size={16} /> Back
+          <Icon name='chevronLeft' size={16} /> {journeyCopy.back}
         </button>
-        <h3 className='text-xl font-bold text-black'>Your Information</h3>
+        <h3 className='text-xl font-bold text-black'>
+          {journeyCopy.informationHeading}
+        </h3>
       </div>
 
       <div className='flex flex-col gap-6 md:flex-row md:items-start'>
@@ -353,7 +357,7 @@ export const YourInformationStep = ({
 
             {fetcher.data?.error && (
               <p className='text-center text-alert md:col-span-2'>
-                {fetcher.data.error}
+                {translateSignUpError(fetcher.data.error, isSpanish)}
               </p>
             )}
 
@@ -364,7 +368,7 @@ export const YourInformationStep = ({
                 className='mt-2 h-12 w-full rounded-lg'
                 disabled={isSubmitting}
               >
-                {isSubmitting ? copy.loading : 'Complete Registration'}
+                {isSubmitting ? copy.loading : journeyCopy.completeRegistration}
               </Button>
             </Form.Submit>
           </Form.Root>
@@ -372,13 +376,13 @@ export const YourInformationStep = ({
 
         <aside className='flex w-full flex-col gap-3 md:w-[260px]'>
           <div className='flex items-center justify-between'>
-            <h4 className='font-bold text-black'>Your Sessions</h4>
+            <h4 className='font-bold text-black'>{journeyCopy.yourSessions}</h4>
             <button
               type='button'
               onClick={handleBack}
               className='text-xs font-semibold text-ocean'
             >
-              Edit Sessions
+              {journeyCopy.editSessions}
             </button>
           </div>
           {JOURNEY_SESSION_NUMBERS.map((n) => {
@@ -389,13 +393,13 @@ export const YourInformationStep = ({
                 className='rounded-lg border border-neutral-lighter bg-white px-3 py-2'
               >
                 <p className='text-xs text-neutral-default'>
-                  Session {n}
-                  {registered[n] ? ' · Registered' : ''}
+                  {journeyCopy.session(n)}
+                  {registered[n] ? ` · ${journeyCopy.registered}` : ''}
                 </p>
                 {option ? (
                   <>
                     <p className='text-sm font-semibold text-black'>
-                      {formatSessionShortDate(option.startsAt)} ·{' '}
+                      {formatSessionShortDate(option.startsAt, isSpanish)} ·{' '}
                       {formatSessionTime(option.startsAt)}
                     </p>
                     <p className='text-xs text-neutral-default'>
@@ -403,15 +407,16 @@ export const YourInformationStep = ({
                     </p>
                   </>
                 ) : (
-                  <p className='text-sm text-neutral-default'>Not scheduled</p>
+                  <p className='text-sm text-neutral-default'>
+                    {journeyCopy.notScheduled}
+                  </p>
                 )}
               </div>
             );
           })}
           <p className='text-xs text-neutral-default'>
-            {scheduledCount} of 3 sessions scheduled.
-            {scheduledCount < 3 &&
-              ' You can schedule the remaining sessions later.'}
+            {journeyCopy.sessionsScheduled(scheduledCount)}
+            {scheduledCount < 3 && ` ${journeyCopy.scheduleRemainingLater}`}
           </p>
         </aside>
       </div>

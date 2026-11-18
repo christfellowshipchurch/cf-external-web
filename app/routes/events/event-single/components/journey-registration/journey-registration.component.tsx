@@ -7,6 +7,9 @@ import {
   type JourneySessionSelection,
   type JourneySessionsData,
 } from '~/lib/journey-sessions';
+import { scrollToAnchor } from '~/lib/scroll-to-anchor';
+import { ANCHOR_SCROLL_OFFSET } from '~/components/navbar/scroll-offset.constants';
+import { useNavbarVisibility } from '~/providers/navbar-visibility-context';
 import { isSpanishCampusLabel } from '../../registration.data';
 import {
   JourneyCampusStep,
@@ -18,8 +21,16 @@ import {
   type JourneyInformationDraft,
 } from './your-information-step.component';
 import { JourneyConfirmation } from './journey-confirmation.component';
+import { getJourneyCopy } from './journey-copy';
 
 type Step = 1 | 2 | 3 | 'confirmation';
+
+/** Wraps the current step, so a step change can scroll to its top. */
+const STEP_ANCHOR_ID = 'journey-registration-step';
+
+/** Extra room above the step when scrolling to it, per design review; more under the site banner. */
+const STEP_SCROLL_GAP_PX = 32;
+const STEP_SCROLL_GAP_WITH_BANNER_PX = 64;
 
 type SessionsResponse = JourneySessionsData | { error: string };
 
@@ -32,10 +43,32 @@ export const JourneyRegistration = () => {
   const [selection, setSelection] = useState<JourneySessionSelection>({});
   const [registered, setRegistered] = useState<JourneySessionSelection>({});
   const [person, setPerson] = useState<JourneyInformationDraft>();
+  const isFirstRender = useRef(true);
+  const { isSiteBannerVisible } = useNavbarVisibility();
 
   useEffect(() => {
     fetcher.load('/api/journey-sessions');
   }, []);
+
+  // Each step replaces the last at a different height, so a campus picked low in
+  // the list would leave the person part-way down step 2. Bring the step's top
+  // (its Back link) back into view, with room above it for the sticky navbar and site banner,
+  // but only when they've scrolled past it.
+  useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
+    const offset =
+      ANCHOR_SCROLL_OFFSET +
+      (isSiteBannerVisible
+        ? STEP_SCROLL_GAP_WITH_BANNER_PX
+        : STEP_SCROLL_GAP_PX);
+    const stepTop = document.getElementById(STEP_ANCHOR_ID);
+    if (stepTop && stepTop.getBoundingClientRect().top < offset) {
+      scrollToAnchor(STEP_ANCHOR_ID, { offset });
+    }
+  }, [step]);
 
   const sessionsData =
     fetcher.data && 'options' in fetcher.data ? fetcher.data : undefined;
@@ -46,6 +79,7 @@ export const JourneyRegistration = () => {
     (campus) => campus.id === preferredCampusId,
   );
   const isSpanish = isSpanishCampusLabel(preferredCampus?.name ?? '');
+  const copy = getJourneyCopy(isSpanish);
   const registeredSessions = JOURNEY_SESSION_NUMBERS.filter(
     (n) => registered[n],
   );
@@ -131,6 +165,7 @@ export const JourneyRegistration = () => {
             preferredCampusId={preferredCampusId}
             selection={selection}
             registered={registered}
+            isSpanish={isSpanish}
             onChangePreferredCampus={backToCampusStep}
             onSelect={(sessionNumber, option) =>
               setSelection((prev) => ({ ...prev, [sessionNumber]: option }))
@@ -173,6 +208,7 @@ export const JourneyRegistration = () => {
           <JourneyConfirmation
             campuses={sessionsData.campuses}
             registered={registered}
+            isSpanish={isSpanish}
             onScheduleAnother={() => setStep(2)}
             onRegisterSomeoneElse={resetAll}
           />
@@ -185,11 +221,9 @@ export const JourneyRegistration = () => {
       <div className='flex w-full max-w-[960px] flex-col items-center gap-8'>
         <div className='flex flex-col items-center gap-3 text-center'>
           <h2 className='text-[32px] font-extrabold text-black'>
-            Register for Journey
+            {copy.heading}
           </h2>
-          <p className='text-neutral-default'>
-            Journey includes three sessions. Complete all three in any order.
-          </p>
+          <p className='text-neutral-default'>{copy.intro}</p>
         </div>
 
         {step !== 'confirmation' && (
@@ -202,11 +236,15 @@ export const JourneyRegistration = () => {
                 />
               ))}
             </div>
-            <p className='text-sm font-semibold text-black'>Step {step} of 3</p>
+            <p className='text-sm font-semibold text-black'>
+              {copy.step(step)}
+            </p>
           </div>
         )}
 
-        {renderStep()}
+        <div id={STEP_ANCHOR_ID} className='flex w-full flex-col items-center'>
+          {renderStep()}
+        </div>
       </div>
     </div>
   );
