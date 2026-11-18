@@ -1,9 +1,6 @@
+import { fetchGroupMembers } from '~/lib/.server/rock-people-groups';
 import type { ActionFunction } from 'react-router';
-import {
-  fetchRockData,
-  postRockData,
-  TTL,
-} from '~/lib/.server/fetch-rock-data';
+import { postRockData, TTL } from '~/lib/.server/fetch-rock-data';
 import { findOrCreateRockPersonForSignup } from '~/lib/.server/rock-signup';
 import { fetchCampuses } from '~/lib/.server/rock-campuses';
 
@@ -86,7 +83,7 @@ export const action: ActionFunction = async ({ request }) => {
       phoneNumber: PhoneNumber,
     });
 
-    const existingMembership = await fetchRockData({
+    const existingMembership = await fetchGroupMembers({
       endpoint: 'GroupMembers',
       queryParams: {
         $filter: `GroupId eq ${groupId} and PersonId eq ${personId}`,

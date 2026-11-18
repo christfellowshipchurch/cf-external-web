@@ -1,4 +1,4 @@
-import { fetchRockData } from '~/lib/.server/fetch-rock-data';
+import { fetchPersonAliases } from '~/lib/.server/rock-people-groups';
 import { fetchWistiaDataFromRock } from '~/lib/.server/fetch-wistia-data';
 import { getAttributeMatrixItems } from '~/lib/.server/rock-utils';
 import type { RockCampus } from '~/lib/.server/rock-campuses';
@@ -29,7 +29,7 @@ async function mapCampusLeader(campus: RockCampus) {
   if (leaderPersonAliasId == null) return emptyPastor;
 
   try {
-    const result = await fetchRockData({
+    const result = await fetchPersonAliases({
       endpoint: 'PersonAlias',
       queryParams: {
         $filter: `Id eq ${leaderPersonAliasId}`,

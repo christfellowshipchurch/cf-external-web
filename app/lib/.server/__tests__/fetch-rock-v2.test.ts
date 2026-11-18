@@ -170,7 +170,7 @@ describe('multi-call v2 reads', () => {
  * development every v2 read is compared with v1, and the page still gets v2.
  */
 describe('v1 comparison in development', () => {
-  it('logs the fields where v2 differs from v1 and returns the v2 result', async () => {
+  it('logs the fields (not values) where v2 differs from v1 and returns the v2 result', async () => {
     vi.stubEnv('NODE_ENV', 'development');
     fetchMock().mockResolvedValueOnce(
       okResponse({ name: 'Jupiter', phoneNumber: '561' }),
@@ -185,7 +185,9 @@ describe('v1 comparison in development', () => {
     expect(result).toEqual({ name: 'Jupiter', phoneNumber: '561' });
     const output = String(warnSpy.mock.calls[0][0]);
     expect(output).toContain('1 differences');
-    expect(output).toContain('phoneNumber: v1="562" v2="561"');
+    expect(output).toContain('phoneNumber');
+    // Paths only: People and phone reads go through this log.
+    expect(output).not.toContain('562');
     expect(output).toContain('Only in v1: id');
   });
 });
@@ -346,7 +348,7 @@ describe('keepMatchingRows', () => {
         'Guid',
         CAMPUS_GUID,
       ),
-    ).toThrow(/isn't/);
+    ).toThrow(/doesn't match/);
   });
 });
 
@@ -376,5 +378,25 @@ describe('isRockV2Enabled', () => {
     vi.stubEnv('ROCK_V2_ENABLED', value);
 
     expect(isRockV2Enabled()).toBe(expected);
+  });
+});
+
+// CLAUDE.md: never log names or emails. A search error body can quote its where.
+describe('requestRockV2 errors', () => {
+  it('leaves Rock’s response body out of search errors', async () => {
+    fetchMock().mockResolvedValue({
+      ok: false,
+      status: 400,
+      text: async () => 'Bad where: Email == "ann@example.com"',
+    });
+
+    const error = await requestRockV2({
+      path: 'people/search/people',
+      method: 'POST',
+      body: { where: 'Email == "ann@example.com"' },
+    }).catch((e: Error) => e);
+
+    expect(String(error)).toContain('failed: 400');
+    expect(String(error)).not.toContain('ann@example.com');
   });
 });
