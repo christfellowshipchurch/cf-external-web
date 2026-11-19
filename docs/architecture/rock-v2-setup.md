@@ -210,7 +210,7 @@ values kept returning 401 until the action-level Unrestricted Read was added.
 
 The message page first used its own search (`cf-web-message-by-url`) plus a
 `GET contentchannelitems/{guid}/attributevalues` call. Since steps 2 and 3 it
-reads through the shared `contentchannelitems` search like every other content
+reads through the shared `contentChannelItems` search like every other content
 read, in one call. `cf-web-message-by-url` is no longer called.
 
 **Filtering on an attribute in an Entity Search:** use
@@ -241,19 +241,19 @@ Rock:
 | ------------------------------------------- | ------------------------ | ------------------------------------------------------------------------------- |
 | `fetchCampuses` (dropdowns, Guid/Name → Id) | `rock-campuses.ts`       | search `campuses`                                                               |
 | `fetchCampusesWithDetails` / `…WithDetails` | `rock-campuses.ts`       | search `campuses` with attribute values, then `GET locations/{guid}` per campus |
-| `fetchDefinedValues` / `…ByGuid`            | `rock-defined-values.ts` | search `definedvalues`, attribute values when asked for                         |
-| `fetchRockEntityByGuid` with `select`       | `fetch-rock-v2.ts`       | search `contentchannels`                                                        |
+| `fetchDefinedValues` / `…ByGuid`            | `rock-defined-values.ts` | search `definedValues`, attribute values when asked for                         |
+| `fetchRockEntityByGuid` with `select`       | `fetch-rock-v2.ts`       | search `contentChannels`                                                        |
 | `fetchRockEntityByGuid` without `select`    | `fetch-rock-v2.ts`       | `GET mediaelements/{guid}`                                                      |
-| `getAttributeMatrixItems`                   | `rock-utils.ts`          | search `attributematricesitem` with attribute values                            |
+| `getAttributeMatrixItems`                   | `rock-utils.ts`          | search `attributeMatricesItem` with attribute values                            |
 
-`attributematricesitem` is Rock's v2 route name for AttributeMatrixItem. The
+`attributematricesitem` is Rock's v2 route name for AttributeMatrixItem; its search key is `attributeMatricesItem`. The
 matrix read also selects `AttributeMatrix.Guid` and falls back to v1 if any
 row belongs to another matrix, in case Rock ignored the `where`.
 
 Malformed Guids now return nothing without calling Rock, on v1 and v2.
 
 **Already in place** (from My Groups and the prototype): the `campuses`,
-`contentchannels` and `attributematricesitem` searches with Execute for apollos;
+`contentChannels` and `attributeMatricesItem` searches with Execute for apollos;
 `POST search/{searchKey}` Execute Read on those three controllers;
 `GET {id}` on MediaElements and Locations.
 
@@ -261,7 +261,7 @@ Malformed Guids now return nothing without calling Rock, on v1 and v2.
 
 | Where                                                                           | Permission for apollos |
 | ------------------------------------------------------------------------------- | ---------------------- |
-| Entity Search `definedvalues` (Defined Value, Active, refinement on, max blank) | Execute › Allow        |
+| Entity Search `definedValues` (Defined Value, Active, refinement on, max blank) | Execute › Allow        |
 | v2 DefinedValues controller, `POST search/{searchKey}` action                   | Execute Read › Allow   |
 
 Until it's done, Defined Value reads fall back to v1.
@@ -280,7 +280,7 @@ go too. Remove both once this ships.
   about 15 for the active list. Every other read is one call.
 
 The admin `target=attribute-matrices` flush also clears the
-`attributematricesitem` search's cache entries.
+`attributeMatricesItem` search's cache entries.
 
 ## Steps 2 and 3 (CFDP-4537, CFDP-4538): content items and attribute lookups
 
@@ -318,9 +318,9 @@ fallback.
 
 | Helper                                 | File                     | v2 call                          |
 | -------------------------------------- | ------------------------ | -------------------------------- |
-| `fetchContentItems`                    | `rock-content-items.ts`  | search `contentchannelitems`     |
-| `fetchChildContentItems`               | `rock-content-items.ts`  | search `contentchannelitems`     |
-| `fetchDefinedValuesByAttribute`        | `rock-defined-values.ts` | search `definedvalues`           |
+| `fetchContentItems`                    | `rock-content-items.ts`  | search `contentChannelItems`     |
+| `fetchChildContentItems`               | `rock-content-items.ts`  | search `contentChannelItems`     |
+| `fetchDefinedValuesByAttribute`        | `rock-defined-values.ts` | search `definedValues`           |
 | `fetchChurchRolesByPreferenceAreaGuid` | `church-roles.server.ts` | search `connectionOpportunities` |
 
 **Page-builder children** used to be the association list plus one read per
@@ -348,7 +348,7 @@ This was the gate for turning `ROCK_V2_ENABLED` on in production.
 **Stays on v1:** the sitemap. It pages with `$skip`, and Rock's paging field
 names aren't confirmed yet (see "Still to confirm").
 
-**Rock setup.** `contentchannelitems` and `definedvalues` searches already
+**Rock setup.** `contentChannelItems` and `definedValues` searches already
 exist with Execute for apollos. Still to do:
 
 | Where                                                                                                           | Permission for apollos    |
@@ -382,9 +382,9 @@ options and swap the function name (`rock-people-groups.ts`):
 | -------------------- | ------------------------------------------ | ------------------------------------ |
 | `fetchPeople`        | `People` (the Pathname lookup stays on v1) | `people`                             |
 | `fetchPersonAliases` | `PersonAlias`                              | `personaliases/search/personAliases` |
-| `fetchPhoneNumbers`  | `PhoneNumbers`                             | `phonenumbers`                       |
+| `fetchPhoneNumbers`  | `PhoneNumbers`                             | `phonenumbers/search/phoneNumbers`   |
 | `fetchGroups`        | `Groups`                                   | `groups`                             |
-| `fetchGroupMembers`  | `GroupMembers`                             | `groupmembers`                       |
+| `fetchGroupMembers`  | `GroupMembers`                             | `groupmembers/search/groupMembers`   |
 | `fetchSchedules`     | `Schedules`                                | `schedules`                          |
 
 What `fetchViaV2Search` gained for these:
@@ -436,7 +436,7 @@ has one.
 **Not migrated:** the login code (`authentication/`, `routes/auth/`), which
 CFDP-4542 removes.
 
-**Rock setup.** `people`, `phonenumbers`, `groups`, `groupmembers` and
+**Rock setup.** `people`, `phoneNumbers`, `groups`, `groupMembers` and
 `locations` already worked for apollos, as did
 `GET people/{guid}/attributevalues`. Added for this step (2026-11-16):
 
@@ -588,36 +588,36 @@ is `{v2 route name}/search/{key}`; `searchPath(model, searchKey)` in
 `fetch-rock-v2.ts` builds it, and an entity's `searchKey` is only set when
 the key isn't the route name.
 
-The older keys are all lowercase (the v2 route name). Newer ones are
-camelCase, starting with `connectionOpportunities`. **Eventually every key
-should be camelCase.** The renames are part of the cleanup ticket,
-CFDP-4546. Rename one search at a time, together with the code change, since
-My Groups calls the same searches.
+Every key is camelCase except `userlogins` (My Groups sign-in). Keys that
+were the lowercase route name were renamed under CFDP-4546, in this site and
+My Groups together, since both call the same searches. A new search gets a
+camelCase key.
 
-Casing below is as recorded from My Groups' setup; check the key in Rock
-(**Admin Tools › Settings › Entity Search**) before relying on it.
+Check the key in Rock (**Admin Tools › Settings › Entity Search**) before
+relying on it.
 
-| Key now                   | Target key                          | Used by this site          |
-| ------------------------- | ----------------------------------- | -------------------------- |
-| `campuses`                | `campuses`                          | Yes (step 1)               |
-| `contentchannels`         | `contentChannels`                   | Yes (step 1)               |
-| `attributematricesitem`   | `attributeMatricesItem`             | Yes (step 1)               |
-| `definedvalues`           | `definedValues`                     | Yes (steps 1, 3)           |
-| `contentchannelitems`     | `contentChannelItems`               | Yes (steps 2, 3)           |
-| `people`                  | `people`                            | Yes (step 4)               |
-| `connectionOpportunities` | `connectionOpportunities` (already) | Yes (step 3, church roles) |
-| `personAliases`           | `personAliases` (already)           | Yes (step 4)               |
-| `schedules`               | `schedules`                         | Yes (step 4, group single) |
-| `locations`               | `locations`                         | Yes (steps 1, 4)           |
-| `groups`                  | `groups`                            | Yes (step 4)               |
-| `groupmembers`            | `groupMembers`                      | Yes (step 4)               |
-| `grouplocations`          | `groupLocations`                    | No (My Groups)             |
-| `phonenumbers`            | `phoneNumbers`                      | Yes (step 4)               |
-| `relatedentities`         | `relatedEntities`                   | No (My Groups)             |
-| `binaryfiles`             | `binaryFiles`                       | No (My Groups)             |
-| `binaryfiletypes`         | `binaryFileTypes`                   | No (My Groups)             |
-| `entitytypes`             | `entityTypes`                       | No (My Groups)             |
-| `attributes`              | `attributes`                        | No (My Groups)             |
+| Key                       | Was                     | Used by this site          |
+| ------------------------- | ----------------------- | -------------------------- |
+| `campuses`                |                         | Yes (step 1)               |
+| `contentChannels`         | `contentchannels`       | Yes (step 1)               |
+| `attributeMatricesItem`   | `attributematricesitem` | Yes (step 1)               |
+| `definedValues`           | `definedvalues`         | Yes (steps 1, 3)           |
+| `contentChannelItems`     | `contentchannelitems`   | Yes (steps 2, 3)           |
+| `people`                  |                         | Yes (step 4)               |
+| `connectionOpportunities` |                         | Yes (step 3, church roles) |
+| `personAliases`           |                         | Yes (step 4)               |
+| `schedules`               |                         | Yes (step 4, group single) |
+| `locations`               |                         | Yes (steps 1, 4)           |
+| `groups`                  |                         | Yes (step 4)               |
+| `groupMembers`            | `groupmembers`          | Yes (step 4)               |
+| `groupLocations`          | `grouplocations`        | No (My Groups)             |
+| `phoneNumbers`            | `phonenumbers`          | Yes (step 4)               |
+| `relatedEntities`         | `relatedentities`       | No (My Groups)             |
+| `binaryFiles`             | `binaryfiles`           | No (My Groups)             |
+| `binaryFileTypes`         | `binaryfiletypes`       | No (My Groups)             |
+| `entityTypes`             | `entitytypes`           | No (My Groups)             |
+| `attributes`              |                         | No (My Groups)             |
+| `userlogins`              |                         | No (My Groups sign-in)     |
 
 ## Staying on v1
 

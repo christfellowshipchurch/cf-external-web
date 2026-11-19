@@ -82,8 +82,8 @@ export const toV1Shape = (
 
 /**
  * One saved Entity Search per entity, with query refinement on so the caller
- * owns the `where`. Shared with My Groups. Older keys equal the v2 route name;
- * newer ones are camelCase (see the setup doc's search key table).
+ * owns the `where`. Shared with My Groups. Keys are camelCase, so pass the
+ * key when it isn't the route name (see the setup doc's search key table).
  */
 export const searchPath = (model: string, searchKey = model): string =>
   `${model}/search/${searchKey}`;
@@ -464,6 +464,8 @@ interface EntityByGuidOptions {
   v1Endpoint: string;
   /** v2 route name, e.g. `contentchannels` */
   v2Model: string;
+  /** Saved search key, when it isn't the route name, e.g. `contentChannels` */
+  v2SearchKey?: string;
   guid: string;
   /**
    * Fields to read, e.g. `Id, Name`. Given, v2 reads through the entity's
@@ -481,6 +483,7 @@ interface EntityByGuidOptions {
 export const fetchRockEntityByGuid = async <T = Record<string, unknown>>({
   v1Endpoint,
   v2Model,
+  v2SearchKey,
   guid,
   select,
   ttl,
@@ -490,7 +493,7 @@ export const fetchRockEntityByGuid = async <T = Record<string, unknown>>({
 
   const v2Read = select
     ? {
-        path: searchPath(v2Model),
+        path: searchPath(v2Model, v2SearchKey),
         method: 'POST' as const,
         body: buildV2SearchBody({
           where: `Guid == "${trimmed}"`,

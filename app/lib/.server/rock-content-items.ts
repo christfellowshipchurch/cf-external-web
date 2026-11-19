@@ -49,6 +49,7 @@ const CONTENT_ITEM_FIELDS = [
 export const CONTENT_ITEMS_V2: V2SearchEntity = {
   v1Endpoint: 'ContentChannelItems',
   model: 'contentchannelitems',
+  searchKey: 'contentChannelItems',
   entityName: 'ContentChannelItem',
   fields: CONTENT_ITEM_FIELDS,
   ...STATUS,
@@ -122,7 +123,7 @@ export const fetchChildContentItems = (
 
   const association = `ParentItems.Where(a => a.ContentChannelItemId == ${parentId})`;
   return fetchRockV2<ContentItem[]>({
-    path: searchPath(CONTENT_ITEMS_V2.model),
+    path: searchPath(CONTENT_ITEMS_V2.model, CONTENT_ITEMS_V2.searchKey),
     method: 'POST',
     // Every status is read, so each child is in the reverse index even while Pending.
     body: buildV2SearchBody({

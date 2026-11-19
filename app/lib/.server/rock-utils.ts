@@ -62,12 +62,13 @@ export const getImages = ({
  */
 const MATRIX_ITEM_BATCH_SIZE = 20;
 
-/** Rock's v2 route name for AttributeMatrixItem (and its saved search's key). */
+/** Rock's v2 route name for AttributeMatrixItem, and its saved search's key. */
 export const MATRIX_ITEMS_V2_MODEL = 'attributematricesitem';
+export const MATRIX_ITEMS_V2_SEARCH_KEY = 'attributeMatricesItem';
 
 /** v2 read of a matrix's items with their attribute values, in one search. */
 export const matrixItemsV2Read = (attributeMatrixGuid: string) => ({
-  path: searchPath(MATRIX_ITEMS_V2_MODEL),
+  path: searchPath(MATRIX_ITEMS_V2_MODEL, MATRIX_ITEMS_V2_SEARCH_KEY),
   method: 'POST' as const,
   body: buildV2SearchBody({
     where: `AttributeMatrix.Guid == "${escapeDynamicLinq(attributeMatrixGuid)}"`,

@@ -85,6 +85,7 @@ export async function buildPodcastRoutingIndex(): Promise<PodcastRoutingIndex> {
         }>({
           v1Endpoint: 'ContentChannels',
           v2Model: 'contentchannels',
+          v2SearchKey: 'contentChannels',
           guid: episodeChannelGuid,
           select: 'Id,Name',
         });
