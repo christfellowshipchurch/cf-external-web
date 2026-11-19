@@ -1,6 +1,7 @@
 overrides:
   '@babel/runtime': ^7.24.0
   jsdom: 26.1.0
+  '@vercel/static-config>ajv': ^8.18.0
 
 allowBuilds:
   esbuild: true
