@@ -6,7 +6,7 @@ import {
   searchPath,
 } from './fetch-rock-v2';
 import { fetchGroupMembers, fetchGroups } from './rock-people-groups';
-import { fetchRockData, TTL } from './fetch-rock-data';
+import { TTL } from './fetch-rock-data';
 import { fetchCampusesWithDetails } from './rock-campuses';
 import { parseRockDateTime, toRockDateTimeLiteral } from './rock-datetime';
 import type {
@@ -156,15 +156,6 @@ async function fetchUpcomingJourneyGroups(
   const upcoming = await fetchRockV2({
     ...upcomingJourneyGroupIdsV2Read(earliestClassThree),
     ttl,
-    fallback: () =>
-      fetchRockData({
-        endpoint: 'AttributeValues',
-        queryParams: {
-          $filter: `AttributeId eq ${CLASS_THREE_ATTRIBUTE_ID} and Value ge '${earliestClassThree}'`,
-          $select: 'EntityId',
-        },
-        ttl,
-      }),
   });
   const groupIds = toArray<{ entityId: number }>(upcoming).map(
     (row) => row.entityId,

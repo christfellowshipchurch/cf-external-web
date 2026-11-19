@@ -1,8 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { loader } from '../loader';
 
-vi.mock('~/lib/.server/fetch-rock-data', () => ({
-  fetchRockData: vi.fn(),
+vi.mock('~/lib/.server/rock-defined-values', () => ({
+  fetchDefinedValuesByAttribute: vi.fn(),
 }));
 
 vi.mock('~/lib/.server/error-types', () => ({
@@ -17,9 +17,11 @@ vi.mock('algoliasearch', () => ({
   })),
 }));
 
-import { fetchRockData } from '~/lib/.server/fetch-rock-data';
+import { fetchDefinedValuesByAttribute } from '~/lib/.server/rock-defined-values';
 
-const mockFetchRockData = fetchRockData as ReturnType<typeof vi.fn>;
+const mockFetchClass = fetchDefinedValuesByAttribute as ReturnType<
+  typeof vi.fn
+>;
 
 function makeParams(path: string, search = '') {
   return {
@@ -38,7 +40,7 @@ beforeEach(() => {
 
 describe('class-single loader — onDemandUrl', () => {
   it('returns onDemandUrl when Rock has a value for onDemandSignUpLink', async () => {
-    mockFetchRockData.mockResolvedValueOnce({
+    mockFetchClass.mockResolvedValueOnce({
       attributeValues: {
         discussionGuide: { value: '' },
         classTrailer: { value: '' },
@@ -49,10 +51,19 @@ describe('class-single loader — onDemandUrl', () => {
     const result = await loader(makeParams('some-class'));
 
     expect(result.onDemandUrl).toBe('https://example.com/on-demand');
+    expect(mockFetchClass).toHaveBeenCalledWith(
+      expect.objectContaining({
+        endpoint: 'DefinedValues/GetByAttributeValue',
+        queryParams: expect.objectContaining({
+          attributeKey: 'Url',
+          value: 'some-class',
+        }),
+      }),
+    );
   });
 
   it('returns empty string when Rock onDemandSignUpLink is blank', async () => {
-    mockFetchRockData.mockResolvedValueOnce({
+    mockFetchClass.mockResolvedValueOnce({
       attributeValues: {
         discussionGuide: { value: '' },
         classTrailer: { value: '' },
@@ -66,7 +77,7 @@ describe('class-single loader — onDemandUrl', () => {
   });
 
   it('returns empty string when Rock onDemandSignUpLink is missing', async () => {
-    mockFetchRockData.mockResolvedValueOnce({
+    mockFetchClass.mockResolvedValueOnce({
       attributeValues: {
         discussionGuide: { value: '' },
         classTrailer: { value: '' },
@@ -78,8 +89,8 @@ describe('class-single loader — onDemandUrl', () => {
     expect(result.onDemandUrl).toBe('');
   });
 
-  it('returns empty string when Rock fetch returns undefined', async () => {
-    mockFetchRockData.mockResolvedValueOnce(undefined);
+  it('returns empty string when Rock finds no class with that url', async () => {
+    mockFetchClass.mockResolvedValueOnce([]);
 
     const result = await loader(makeParams('some-class'));
 
@@ -89,7 +100,7 @@ describe('class-single loader — onDemandUrl', () => {
   it('returns empty string when Rock fetch throws', async () => {
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
     try {
-      mockFetchRockData.mockRejectedValueOnce(new Error('network error'));
+      mockFetchClass.mockRejectedValueOnce(new Error('network error'));
 
       const result = await loader(makeParams('some-class'));
 
@@ -102,7 +113,7 @@ describe('class-single loader — onDemandUrl', () => {
 
 describe('class-single loader — Algolia', () => {
   it('returns null classHit when hero search has no hits', async () => {
-    mockFetchRockData.mockResolvedValueOnce(undefined);
+    mockFetchClass.mockResolvedValueOnce([]);
     searchSingleIndex.mockResolvedValueOnce({ hits: [] });
 
     const result = await loader(makeParams('missing-class'));
@@ -128,7 +139,7 @@ describe('class-single loader — hero fields (Rock-first, Algolia fallback)', (
   }
 
   it('prefers Rock Defined Type values over the Algolia hit', async () => {
-    mockFetchRockData.mockResolvedValueOnce({
+    mockFetchClass.mockResolvedValueOnce({
       value: 'Rock Title',
       description: '  Rock summary  ',
       attributeValues: {
@@ -149,7 +160,7 @@ describe('class-single loader — hero fields (Rock-first, Algolia fallback)', (
   });
 
   it('leaves summary and cover image blank when Rock lacks them (no Algolia fallback); title still falls back', async () => {
-    mockFetchRockData.mockResolvedValueOnce({
+    mockFetchClass.mockResolvedValueOnce({
       value: '',
       description: '   ',
       attributeValues: {

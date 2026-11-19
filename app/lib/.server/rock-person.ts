@@ -1,12 +1,7 @@
 import { fetchPeople, fetchPhoneNumbers } from './rock-people-groups';
 import { parseISO, isValid, getMonth, getDate, getYear } from 'date-fns';
-import {
-  fetchRockData,
-  patchRockData,
-  postRockData,
-  TTL,
-} from './fetch-rock-data';
-import { requireV2Guid, sendRockV2, writeRockV2 } from './fetch-rock-v2';
+import { fetchRockData, postRockData, TTL } from './fetch-rock-data';
+import { requireV2Guid, sendRockV2 } from './fetch-rock-v2';
 import {
   createPhoneNumberInRock,
   parsePhoneNumberUtil,
@@ -118,17 +113,11 @@ export const updatePerson = async (
     : emailInRock;
 
   if (!personInRock?.email) {
-    const body = { Email: fields.email };
-    await writeRockV2({
-      label: 'person email',
-      v2: () =>
-        sendRockV2(
-          'PATCH',
-          `people/${requireV2Guid(personInRock?.guid, 'person')}`,
-          body,
-        ),
-      fallback: () => patchRockData({ endpoint: `People/${id}`, body }),
-    });
+    await sendRockV2(
+      'PATCH',
+      `people/${requireV2Guid(personInRock?.guid, 'person')}`,
+      { Email: fields.email },
+    );
   }
 
   // Create Phone Number in Rock

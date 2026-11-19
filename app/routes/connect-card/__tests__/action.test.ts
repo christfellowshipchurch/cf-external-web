@@ -1,24 +1,18 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 
 vi.mock('~/lib/.server/rock-workflow', () => ({
-  postRockWorkflowLaunchWithApiInitiator: vi.fn(),
-  buildRockWorkflowLaunchEndpoint: (
-    workflowTypeId: string,
-    workflowName: string,
-  ) =>
-    `Workflows/LaunchWorkflow/0?workflowTypeId=${workflowTypeId}&workflowName=${encodeURIComponent(workflowName)}`,
+  launchRockWorkflow: vi.fn(),
 }));
 
-import { postRockWorkflowLaunchWithApiInitiator } from '~/lib/.server/rock-workflow';
+import { launchRockWorkflow } from '~/lib/.server/rock-workflow';
 import { buildConnectCardSubmission } from '../build-submission';
 import { action } from '../action';
 
-const mockPostRockWorkflowLaunchWithApiInitiator =
-  postRockWorkflowLaunchWithApiInitiator as ReturnType<typeof vi.fn>;
+const mockLaunchRockWorkflow = vi.mocked(launchRockWorkflow);
 
 beforeEach(() => {
   vi.clearAllMocks();
-  mockPostRockWorkflowLaunchWithApiInitiator.mockResolvedValue(undefined);
+  mockLaunchRockWorkflow.mockResolvedValue(undefined);
 });
 
 function makeRequest(fields: Record<string, string>) {
@@ -104,7 +98,7 @@ describe('connect-card action', () => {
       }),
     } as Parameters<typeof action>[0]);
 
-    expect(mockPostRockWorkflowLaunchWithApiInitiator).toHaveBeenCalledWith({
+    expect(mockLaunchRockWorkflow).toHaveBeenCalledWith({
       workflowTypeId: '403',
       workflowName: 'CFDP Web Connect Card',
       body: {
@@ -115,7 +109,6 @@ describe('connect-card action', () => {
         EmailAddress: 'test@example.com',
         LaunchSource: 'app',
       },
-      instanceName: 'Test Form',
     });
 
     vi.clearAllMocks();
@@ -130,7 +123,7 @@ describe('connect-card action', () => {
       }),
     } as Parameters<typeof action>[0]);
 
-    expect(mockPostRockWorkflowLaunchWithApiInitiator).toHaveBeenCalledWith({
+    expect(mockLaunchRockWorkflow).toHaveBeenCalledWith({
       workflowTypeId: '902',
       workflowName: 'CFDP Web Connect Card',
       body: {
@@ -141,7 +134,19 @@ describe('connect-card action', () => {
         EmailAddress: 'jane@example.com',
         AllThatApplies: '',
       },
-      instanceName: 'Jane Doe',
+    });
+  });
+
+  it('returns 400 when the workflow launch fails', async () => {
+    mockLaunchRockWorkflow.mockRejectedValue(new Error('Rock v2 failed'));
+
+    const response = await action({
+      request: makeRequest({ firstName: 'Jane', lastName: 'Doe' }),
+    } as Parameters<typeof action>[0]);
+
+    expect(response).toMatchObject({
+      data: { error: 'Rock v2 failed' },
+      init: { status: 400 },
     });
   });
 });

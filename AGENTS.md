@@ -74,10 +74,11 @@ It deploys to both Vercel and Netlify from the same build. `react-router.config.
 - Server code lives in `app/lib/.server/` and route `*.server.ts` files. Vite keeps `.server` modules out of the client bundle and fails the build if client code imports one, so only loaders, actions and other `.server` files may import them.
 - Routes are folders: `app/routes/<name>/route.tsx` plus optional `loader.ts`, `action.ts`, `meta.ts`, `types.ts`, `components/*.component.tsx` and `partials/*.partial.tsx`. Resource routes are a folder with `route.ts`. File names are kebab-case. Loaders and actions return plain objects, `data()` or `Response.json()`; never `json()` or `@remix-run/*` imports.
 - `fetch-rock-data.ts` is how to call Rock: `fetchRockData` (Redis-cached), `postRockData`, `putRockData`, `patchRockData` and `deleteRockData`, all with the service-account `ROCK_TOKEN`. Build URLs with `buildRockUrl`. `fetchRockData` unwraps a one-item array into a plain object, so callers must handle both shapes.
+- Rock REST v2 is the path for nearly every read and all writes and launches, with no v1 fallback: `fetchRockV2` / `sendRockV2` (`fetch-rock-v2.ts`), `fetchViaV2Search` (`rock-v2-search.ts`, takes `fetchRockData`'s options) and the entity helpers (`fetchContentItems`, `fetchCampuses`, `fetchPeople`, …). Reads that stay on v1 are listed in `docs/architecture/rock-v2-setup.md`.
 - Caching: `ttl` takes the `TTL` presets in `cache-utils.ts` (`NONE`, `SHORT` 5 min, `DEFAULT` 1 h, `LONG` 24 h); the default is 1 hour. Keys are `rock:{endpoint}:{hash}`, with `cfitem:{id}` and `cfchildren:{id}` reverse indexes so one content item can be invalidated (`docs/architecture/rock-cache-invalidation.md`). `POST /api/admin/cache` (`api.admin.cache.tsx`, `x-cache-secret` header) invalidates an item; it is meant for a Rock webhook on content save. Development and preview skip Redis entirely. If Redis is down, reads fall through to Rock.
 - Preview mode (`SHOW_UNAPPROVED_CONTENT=true`, `isPreviewMode()`) shows Pending content, skips the shared cache and sends `X-Robots-Tag: noindex`. Never set it on production.
 - Rock ids: content channels, content items and campuses are in `app/lib/rock-config.ts`. Use `toPublicRockUrl` for links to Rock: `rock.gocf.org` is internal-only.
-- Forms launch Rock workflows through `Workflows/LaunchWorkflow/0`, mostly via `postRockWorkflowLaunchWithApiInitiator` (`rock-workflow.ts`), which then sets the initiator to `API_ALIAS_PERSON_ID` in the background. Public forms use the honeypot in `bot-protection.ts` (`HoneypotFields`, `getBotBlockReason`).
+- Forms launch Rock workflows on REST v2 through `launchRockWorkflow` (`rock-workflow.ts`); each workflow type needs its Guid in `WorkflowTypeGuids` (`rock-config.ts`). Public forms use the honeypot in `bot-protection.ts` (`HoneypotFields`, `getBotBlockReason`).
 - No login: the site has no user accounts or sessions. An old login was removed rather than migrated (CFDP-4542), so every Rock call runs as the `ROCK_TOKEN` service account.
 - Errors: `AuthenticationError` and `RockAPIError` live in `error-types.ts`.
 - Rock CMS HTML is sanitised with `sanitizeCmsHtml` (`app/lib/sanitize.ts`, DOMPurify) before render. `pnpm-workspace.yaml` pins `jsdom` to 26.1.0 because newer jsdom crashes on Vercel.
@@ -88,7 +89,7 @@ It deploys to both Vercel and Netlify from the same build. `react-router.config.
 ## Don't
 
 - Return a secret from a loader or action: `ROCK_TOKEN`, `CACHE_INVALIDATION_SECRET` or Wistia keys.
-- Call `fetch()` on Rock directly. Use the `fetch-rock-data.ts` helpers so caching, headers and logging apply.
+- Call `fetch()` on Rock directly. Use the `fetch-rock-data.ts` / `fetch-rock-v2.ts` helpers so caching, headers and logging apply.
 - Use `process.env` in components, hooks, providers or primitives. It is undefined in the browser; pass the value from a loader.
 - Touch `window`, `document` or `localStorage` at module scope or during render. The site is SSR; use `useEffect`, a handler or a `typeof window` guard.
 - Write a numeric content channel or campus id inline. Add it to `rock-config.ts`.

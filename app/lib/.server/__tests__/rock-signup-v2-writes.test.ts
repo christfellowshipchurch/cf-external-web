@@ -1,10 +1,6 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-vi.mock('../fetch-rock-data', () => ({
-  patchRockData: vi.fn(),
-  postRockData: vi.fn(),
-  TTL: { NONE: 0 },
-}));
+vi.mock('../fetch-rock-data', () => ({ TTL: { NONE: 0 } }));
 vi.mock('../fetch-rock-v2', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../fetch-rock-v2')>()),
   sendRockV2: vi.fn(),
@@ -28,7 +24,6 @@ vi.mock('../rock-phone-numbers', () => ({
 }));
 vi.mock('../redis-config', () => ({ default: null }));
 
-import { patchRockData, postRockData } from '../fetch-rock-data';
 import { sendRockV2 } from '../fetch-rock-v2';
 import { RockAPIError } from '../error-types';
 import { fetchGroups, fetchPeople } from '../rock-people-groups';
@@ -50,26 +45,27 @@ const newMember = {
 
 beforeEach(() => {
   vi.resetAllMocks();
-  vi.stubEnv('ROCK_V2_ENABLED', 'true');
-  vi.spyOn(console, 'error').mockImplementation(() => {});
 });
 
-afterEach(() => {
-  vi.unstubAllEnvs();
-});
-
-describe('addRockGroupMember on Rock v2', () => {
+describe('addRockGroupMember', () => {
   beforeEach(() => {
     vi.mocked(fetchGroups).mockResolvedValue({ groupTypeId: 152 });
   });
 
-  it('sends the group’s type, which v2 requires, and returns the Guid', async () => {
+  it('reads the group’s type, sends it (v2 requires it) and returns the Guid', async () => {
     vi.mocked(sendRockV2).mockResolvedValue({ id: 55, guid: MEMBER_GUID });
 
     await expect(addRockGroupMember(newMember)).resolves.toEqual({
       id: 55,
       guid: MEMBER_GUID,
     });
+    expect(fetchGroups).toHaveBeenCalledWith(
+      expect.objectContaining({
+        endpoint: 'Groups',
+        queryParams: { $filter: 'Id eq 1839709', $select: 'GroupTypeId' },
+      }),
+    );
+    expect(sendRockV2).toHaveBeenCalledTimes(1);
     expect(sendRockV2).toHaveBeenCalledWith('POST', 'groupmembers', {
       GroupId: 1839709,
       GroupTypeId: 152,
@@ -79,60 +75,74 @@ describe('addRockGroupMember on Rock v2', () => {
       IsArchived: false,
       IsSystem: false,
     });
-    expect(postRockData).not.toHaveBeenCalled();
   });
 
-  it('creates on v1 when Rock refused, with no Guid', async () => {
-    vi.mocked(sendRockV2).mockRejectedValue(new RockAPIError('refused', 400));
-    vi.mocked(postRockData).mockResolvedValue(56);
+  // A write is never retried: Rock may already have saved it.
+  it.each([400, 401, 403, 404, 500])(
+    'throws on a %i and writes only once',
+    async (status) => {
+      const error = new RockAPIError('failed', status);
+      vi.mocked(sendRockV2).mockRejectedValue(error);
 
-    await expect(addRockGroupMember(newMember)).resolves.toEqual({ id: 56 });
-    expect(postRockData).toHaveBeenCalledTimes(1);
-  });
+      await expect(addRockGroupMember(newMember)).rejects.toBe(error);
+      expect(sendRockV2).toHaveBeenCalledTimes(1);
+    },
+  );
 
-  it('throws on a 500 and does not create on v1', async () => {
-    const error = new RockAPIError('failed', 500);
-    vi.mocked(sendRockV2).mockRejectedValue(error);
-
-    await expect(addRockGroupMember(newMember)).rejects.toBe(error);
-    expect(postRockData).not.toHaveBeenCalled();
-  });
-
-  it('creates on v1 when the group’s type is unknown', async () => {
+  it('throws a 404 without writing when the group’s type is unknown', async () => {
     vi.mocked(fetchGroups).mockResolvedValue([]);
-    vi.mocked(postRockData).mockResolvedValue(57);
 
-    await expect(addRockGroupMember(newMember)).resolves.toEqual({ id: 57 });
+    const error = await addRockGroupMember(newMember).catch((e: unknown) => e);
+
+    expect(error).toBeInstanceOf(RockAPIError);
+    expect((error as RockAPIError).statusCode).toBe(404);
     expect(sendRockV2).not.toHaveBeenCalled();
   });
 });
 
-describe('updateRockPersonCampusForSignup on Rock v2', () => {
+describe('updateRockPersonCampusForSignup', () => {
   beforeEach(() => {
     vi.mocked(fetchCampuses).mockResolvedValue([{ id: 14 }]);
     vi.mocked(fetchPeople).mockResolvedValue({ primaryFamilyId: 900 });
   });
 
-  it('patches the family by its Guid', async () => {
+  it('reads the family’s Guid and patches the family’s campus by it', async () => {
     vi.mocked(fetchGroups).mockResolvedValue({ guid: FAMILY_GUID });
 
     await updateRockPersonCampusForSignup('740', 'Jupiter');
 
+    expect(fetchGroups).toHaveBeenCalledWith(
+      expect.objectContaining({
+        endpoint: 'Groups',
+        queryParams: { $filter: 'Id eq 900', $select: 'Guid' },
+      }),
+    );
+    expect(sendRockV2).toHaveBeenCalledTimes(1);
     expect(sendRockV2).toHaveBeenCalledWith('PATCH', `groups/${FAMILY_GUID}`, {
       CampusId: 14,
     });
-    expect(patchRockData).not.toHaveBeenCalled();
   });
 
-  it('patches on v1 when the family has no Guid', async () => {
+  it('throws a 404 without writing when the family has no Guid', async () => {
     vi.mocked(fetchGroups).mockResolvedValue([]);
 
-    await updateRockPersonCampusForSignup('740', 'Jupiter');
+    const error = await updateRockPersonCampusForSignup('740', 'Jupiter').catch(
+      (e: unknown) => e,
+    );
 
+    expect(error).toBeInstanceOf(RockAPIError);
+    expect((error as RockAPIError).statusCode).toBe(404);
     expect(sendRockV2).not.toHaveBeenCalled();
-    expect(patchRockData).toHaveBeenCalledWith({
-      endpoint: 'Groups/900',
-      body: { CampusId: 14 },
-    });
+  });
+
+  it('throws when the PATCH fails, and does not retry it', async () => {
+    vi.mocked(fetchGroups).mockResolvedValue({ guid: FAMILY_GUID });
+    const error = new RockAPIError('refused', 401);
+    vi.mocked(sendRockV2).mockRejectedValue(error);
+
+    await expect(
+      updateRockPersonCampusForSignup('740', 'Jupiter'),
+    ).rejects.toBe(error);
+    expect(sendRockV2).toHaveBeenCalledTimes(1);
   });
 });

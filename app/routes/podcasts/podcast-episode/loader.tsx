@@ -152,7 +152,6 @@ async function getPodcastChannel(
       id: string;
       name: string;
     }>({
-      v1Endpoint: 'ContentChannels',
       v2Model: 'contentchannels',
       v2SearchKey: 'contentChannels',
       guid: String(channelData.attributeValues?.showChannel?.value ?? ''),
@@ -203,7 +202,6 @@ async function getPodcastEpisode({
 async function getWistiaElement(guid: string): Promise<WistiaElement | null> {
   try {
     return await fetchRockEntityByGuid<WistiaElement>({
-      v1Endpoint: 'MediaElements',
       v2Model: 'mediaelements',
       guid,
     });

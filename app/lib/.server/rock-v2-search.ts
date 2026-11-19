@@ -3,7 +3,6 @@ import mapValues from 'lodash/mapValues';
 import { normalize } from '~/lib/utils';
 import { toRockDateTimeLiteral } from './rock-datetime';
 import {
-  fetchRockData,
   isItemInDateRange,
   resolveRockQuery,
   type FetchRockDataOptions,
@@ -14,7 +13,6 @@ import {
   escapeDynamicLinq,
   fetchRockV2,
   getSearchItems,
-  isRockV2Enabled,
   requestRockV2,
   type RockV2AttributeValue,
   keepMatchingRows,
@@ -26,13 +24,12 @@ import {
 } from './fetch-rock-v2';
 
 /**
- * Runs an existing v1 `fetchRockData` call as a v2 saved-entity search, with
- * the unchanged v1 call as its fallback. Callers keep their v1 options; only
- * the function name changes.
+ * Runs `fetchRockData`-style options as a v2 saved-entity search, returning
+ * v1's result shape. Callers keep their v1 options.
  */
 
 export interface V2SearchEntity {
-  /** v1 endpoint, e.g. `ContentChannelItems` */
+  /** The v1-style `endpoint` callers pass, e.g. `ContentChannelItems` */
   v1Endpoint: string;
   /** v2 route name, e.g. `connectionopportunities` */
   model: string;
@@ -81,7 +78,7 @@ const DATETIME_RE = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})$/;
 
 /**
  * Translates the OData `$filter` subset the site uses into a Dynamic LINQ
- * `where`. Throws on anything else, which sends the read to v1.
+ * `where`. Throws on anything else.
  */
 export const odataFilterToLinq = (
   filter: string,
@@ -155,9 +152,6 @@ const nestExpandedFields = (
 
 const ORDER_BY_RE =
   /^[A-Z]\w*(?: (?:asc|desc))?(?:, ?[A-Z]\w*(?: (?:asc|desc))?)*$/;
-
-/** Attribute lookups by these keys find one page, so a miss goes to v1. */
-const PAGE_LOOKUP_KEYS = ['url', 'pathname'];
 
 const HAS_OFFSET = /(?:Z|[+-]\d{2}:\d{2})$/;
 
@@ -268,7 +262,8 @@ export const buildV2Search = (
   if (route !== entity.v1Endpoint && !isAttributeLookup) {
     throw new Error(`${endpoint} isn't a ${entity.v1Endpoint} read`);
   }
-  // Paging names are unconfirmed and custom headers mean a person's own access.
+  // Paging names are unconfirmed (the sitemap stays on v1 for this), and
+  // custom headers mean a person's own access.
   if (params.$skip || customHeaders) {
     throw new Error(`${endpoint} uses a query option v2 can't match yet`);
   }
@@ -332,10 +327,6 @@ export const buildV2Search = (
       ? [selectAttributeValues(entity.entityName, attributeKeys)]
       : []),
   ];
-  const isPageLookup =
-    isAttributeLookup &&
-    PAGE_LOOKUP_KEYS.includes(params.attributeKey!.toLowerCase());
-
   return {
     path: searchPath(entity.model, entity.searchKey),
     method: 'POST' as const,
@@ -358,7 +349,7 @@ export const buildV2Search = (
     map: async (data: unknown) => {
       const now = new Date();
       let found = getSearchItems(data);
-      // Throwing sends the read to v1 rather than show another record.
+      // Throwing fails the read rather than show another record.
       if (isAttributeLookup) {
         found = keepMatchingRows(found, 'LookupValue', params.value!);
       }
@@ -397,39 +388,17 @@ export const buildV2Search = (
         ),
       );
 
-      // A page that exists must not 404 because a search misbehaved.
-      if (isPageLookup && withValues.length === 0) {
-        throw new Error(
-          `No ${entity.model} matched ${params.attributeKey} lookup`,
-        );
-      }
       return asV1Result(withValues);
     },
   };
 };
 
 /**
- * `fetchRockData(options)`, read through `entity`'s v2 search when v2 is on.
- * Options v2 can't express yet go straight to v1.
+ * `fetchRockData(options)`, read through `entity`'s v2 search. Throws on
+ * options v2 can't express (`buildV2Search`) and on any Rock failure.
  */
 export const fetchViaV2Search = async (
   options: FetchRockDataOptions,
   entity: V2SearchEntity,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-): Promise<any> => {
-  const fallback = () => fetchRockData(options);
-  if (!isRockV2Enabled()) return fallback();
-
-  let search: ReturnType<typeof buildV2Search>;
-  try {
-    search = buildV2Search(options, entity);
-  } catch (error) {
-    console.warn(
-      `⚠️ Rock v2 can't run this ${entity.model} read, using v1:`,
-      error,
-    );
-    return fallback();
-  }
-
-  return fetchRockV2({ ...search, fallback });
-};
+): Promise<any> => fetchRockV2(buildV2Search(options, entity));

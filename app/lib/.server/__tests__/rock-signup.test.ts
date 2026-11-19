@@ -9,11 +9,18 @@ import {
 } from '../rock-signup';
 
 vi.mock('../fetch-rock-data', () => ({
-  fetchRockData: vi.fn(),
-  patchRockData: vi.fn(),
-  postRockData: vi.fn(),
-  TTL: { NONE: 0 },
+  buildRockUrl: (endpoint: string) =>
+    `https://rock.example.com/api/${endpoint}`,
+  isPreviewMode: () => false,
+  TTL: { NONE: 0, DEFAULT: 3600 },
 }));
+vi.mock('../rock-people-groups', () => ({
+  fetchGroupMembers: vi.fn(),
+  fetchGroups: vi.fn(),
+  fetchPeople: vi.fn(),
+  fetchPhoneNumbers: vi.fn(),
+}));
+vi.mock('../rock-campuses', () => ({ fetchCampuses: vi.fn() }));
 vi.mock('../rock-utils', () => ({
   escapeOData: vi.fn((v: string) => v),
 }));
@@ -31,7 +38,13 @@ vi.mock('../rock-phone-numbers', () => ({
 }));
 vi.mock('../redis-config', () => ({ default: null }));
 
-import { fetchRockData, patchRockData, postRockData } from '../fetch-rock-data';
+import {
+  fetchGroupMembers,
+  fetchGroups,
+  fetchPeople,
+  fetchPhoneNumbers,
+} from '../rock-people-groups';
+import { fetchCampuses } from '../rock-campuses';
 import {
   updatePerson,
   fetchUserLogin,
@@ -39,15 +52,25 @@ import {
 } from '../rock-person';
 import { createPhoneNumberInRock } from '../rock-phone-numbers';
 
-const mockFetchRockData = fetchRockData as ReturnType<typeof vi.fn>;
-const mockPatchRockData = patchRockData as ReturnType<typeof vi.fn>;
-const mockPostRockData = postRockData as ReturnType<typeof vi.fn>;
+const mockFetchPeople = vi.mocked(fetchPeople);
+const mockFetchPhoneNumbers = vi.mocked(fetchPhoneNumbers);
+const mockFetchGroups = vi.mocked(fetchGroups);
+const mockFetchGroupMembers = vi.mocked(fetchGroupMembers);
+const mockFetchCampuses = vi.mocked(fetchCampuses);
 const mockUpdatePerson = updatePerson as ReturnType<typeof vi.fn>;
 const mockFetchUserLogin = fetchUserLogin as ReturnType<typeof vi.fn>;
 const mockCreateUserProfile = createUserProfile as ReturnType<typeof vi.fn>;
 const mockCreatePhoneNumberInRock = createPhoneNumberInRock as ReturnType<
   typeof vi.fn
 >;
+
+// Launches and writes go through the real sendRockV2 to this fetch.
+const ROCK_V2 = 'https://rock.example.com/api/v2/models';
+let mockFetch: ReturnType<typeof vi.fn>;
+const sentToRock = (call = 0) => {
+  const [url, init] = mockFetch.mock.calls[call];
+  return { url, method: init.method, body: JSON.parse(init.body) };
+};
 
 const defaultInput = {
   firstName: 'Jane',
@@ -60,20 +83,24 @@ beforeEach(() => {
   vi.clearAllMocks();
   mockUpdatePerson.mockResolvedValue(undefined);
   mockCreatePhoneNumberInRock.mockResolvedValue(undefined);
+  mockFetch = vi
+    .fn()
+    .mockResolvedValue({ ok: true, status: 204, text: async () => '' });
+  vi.stubGlobal('fetch', mockFetch);
 });
 
 afterEach(() => {
   vi.unstubAllEnvs();
+  vi.unstubAllGlobals();
 });
 
 describe('findOrCreateRockPersonForSignup', () => {
   // updatePerson only patches email when the Rock person has none, and only creates
-  // a phone entry when none exists for the number — see rock-person.ts for implementation.
-  // These tests verify that updatePerson is invoked after each successful lookup step.
+  // a phone entry when none exists for the number (see rock-person.ts).
 
   it('Step 1 — returns personId when email login matches the submitted name', async () => {
     mockFetchUserLogin.mockResolvedValueOnce({ personId: 42 });
-    mockFetchRockData.mockResolvedValueOnce({
+    mockFetchPeople.mockResolvedValueOnce({
       firstName: 'Jane',
       lastName: 'Doe',
     });
@@ -81,6 +108,12 @@ describe('findOrCreateRockPersonForSignup', () => {
     const result = await findOrCreateRockPersonForSignup(defaultInput);
 
     expect(result).toBe('42');
+    expect(mockFetchPeople).toHaveBeenCalledWith(
+      expect.objectContaining({
+        endpoint: 'People',
+        queryParams: { $filter: 'Id eq 42', $select: 'FirstName, LastName' },
+      }),
+    );
     expect(mockUpdatePerson).toHaveBeenCalledOnce();
     expect(mockUpdatePerson).toHaveBeenCalledWith('42', {
       email: defaultInput.email,
@@ -92,10 +125,10 @@ describe('findOrCreateRockPersonForSignup', () => {
     mockFetchUserLogin
       .mockResolvedValueOnce({ personId: 42 })
       .mockResolvedValueOnce(null);
-    mockFetchRockData
+    mockFetchPeople
       .mockResolvedValueOnce({ firstName: 'John', lastName: 'Smith' })
-      .mockResolvedValueOnce([])
       .mockResolvedValueOnce([]);
+    mockFetchPhoneNumbers.mockResolvedValueOnce([]);
     mockCreateUserProfile.mockResolvedValue(123);
 
     const result = await findOrCreateRockPersonForSignup(defaultInput);
@@ -114,7 +147,7 @@ describe('findOrCreateRockPersonForSignup', () => {
     mockFetchUserLogin
       .mockResolvedValueOnce(null)
       .mockResolvedValueOnce({ personId: 99 });
-    mockFetchRockData.mockResolvedValueOnce({
+    mockFetchPeople.mockResolvedValueOnce({
       firstName: 'Jane',
       lastName: 'Doe',
     });
@@ -133,10 +166,10 @@ describe('findOrCreateRockPersonForSignup', () => {
     mockFetchUserLogin
       .mockResolvedValueOnce(null)
       .mockResolvedValueOnce({ personId: 99 });
-    mockFetchRockData
+    mockFetchPeople
       .mockResolvedValueOnce({ firstName: 'John', lastName: 'Smith' })
-      .mockResolvedValueOnce([])
       .mockResolvedValueOnce([]);
+    mockFetchPhoneNumbers.mockResolvedValueOnce([]);
     mockCreateUserProfile.mockResolvedValue(123);
 
     const result = await findOrCreateRockPersonForSignup(defaultInput);
@@ -144,20 +177,24 @@ describe('findOrCreateRockPersonForSignup', () => {
     expect(result).toBe('123');
     expect(mockUpdatePerson).not.toHaveBeenCalled();
     expect(mockCreatePhoneNumberInRock).toHaveBeenCalledOnce();
-    expect(mockCreatePhoneNumberInRock).toHaveBeenCalledWith({
-      personId: '123',
-      phoneNumber: defaultInput.phoneNumber,
-      countryCode: 1,
-    });
   });
 
-  it('Step 3 — returns personId when People OData name+email matches', async () => {
+  it('Step 3 — returns personId when People name+email matches', async () => {
     mockFetchUserLogin.mockResolvedValue(null);
-    mockFetchRockData.mockResolvedValueOnce([{ id: 77 }]);
+    mockFetchPeople.mockResolvedValueOnce([{ id: 77 }]);
 
     const result = await findOrCreateRockPersonForSignup(defaultInput);
 
     expect(result).toBe('77');
+    expect(mockFetchPeople).toHaveBeenCalledWith(
+      expect.objectContaining({
+        queryParams: {
+          $filter:
+            "FirstName eq 'Jane' and LastName eq 'Doe' and Email eq 'jane@example.com'",
+          $select: 'Id',
+        },
+      }),
+    );
     expect(mockUpdatePerson).toHaveBeenCalledOnce();
     expect(mockUpdatePerson).toHaveBeenCalledWith('77', {
       email: defaultInput.email,
@@ -165,71 +202,58 @@ describe('findOrCreateRockPersonForSignup', () => {
     });
   });
 
-  it('Step 4 — returns personId when PhoneNumbers name matches', async () => {
-    mockFetchUserLogin.mockResolvedValue(null);
-    mockFetchRockData
-      .mockResolvedValueOnce([])
-      .mockResolvedValueOnce([{ personId: 55 }])
-      .mockResolvedValueOnce({ firstName: 'Jane', lastName: 'Doe' });
+  it.each([
+    ['an object', { firstName: 'Jane', lastName: 'Doe' }],
+    ['an array', [{ firstName: 'Jane', lastName: 'Doe' }]],
+  ])(
+    'Step 4 — returns personId when the phone number’s person name matches (%s)',
+    async (_, person) => {
+      mockFetchUserLogin.mockResolvedValue(null);
+      mockFetchPeople.mockResolvedValueOnce([]).mockResolvedValueOnce(person);
+      mockFetchPhoneNumbers.mockResolvedValueOnce([{ personId: 55 }]);
 
-    const result = await findOrCreateRockPersonForSignup(defaultInput);
+      const result = await findOrCreateRockPersonForSignup(defaultInput);
 
-    expect(result).toBe('55');
-    expect(mockUpdatePerson).toHaveBeenCalledOnce();
-    expect(mockUpdatePerson).toHaveBeenCalledWith('55', {
-      email: defaultInput.email,
-      phoneNumber: defaultInput.phoneNumber,
-    });
-  });
+      expect(result).toBe('55');
+      expect(mockFetchPhoneNumbers).toHaveBeenCalledWith(
+        expect.objectContaining({
+          queryParams: {
+            $select: 'PersonId',
+            $filter: "Number eq '5551234567'",
+          },
+        }),
+      );
+      expect(mockUpdatePerson).toHaveBeenCalledOnce();
+      expect(mockUpdatePerson).toHaveBeenCalledWith('55', {
+        email: defaultInput.email,
+        phoneNumber: defaultInput.phoneNumber,
+      });
+    },
+  );
 
-  it('Step 4 — returns personId when People lookup returns array response', async () => {
-    mockFetchUserLogin.mockResolvedValue(null);
-    mockFetchRockData
-      .mockResolvedValueOnce([])
-      .mockResolvedValueOnce([{ personId: 55 }])
-      .mockResolvedValueOnce([{ firstName: 'Jane', lastName: 'Doe' }]);
+  it.each([
+    ['an object', { id: 123 }, '123'],
+    ['a legacy number', 456, '456'],
+  ])(
+    'Step 5 — creates a new person when no match is found (%s)',
+    async (_, created, personId) => {
+      mockFetchUserLogin.mockResolvedValue(null);
+      mockFetchPeople.mockResolvedValueOnce([]);
+      mockFetchPhoneNumbers.mockResolvedValueOnce([]);
+      mockCreateUserProfile.mockResolvedValue(created);
 
-    const result = await findOrCreateRockPersonForSignup(defaultInput);
+      const result = await findOrCreateRockPersonForSignup(defaultInput);
 
-    expect(result).toBe('55');
-    expect(mockUpdatePerson).toHaveBeenCalledOnce();
-    expect(mockUpdatePerson).toHaveBeenCalledWith('55', {
-      email: defaultInput.email,
-      phoneNumber: defaultInput.phoneNumber,
-    });
-  });
-
-  it('Step 5 — creates new person when no match found', async () => {
-    mockFetchUserLogin.mockResolvedValue(null);
-    mockFetchRockData.mockResolvedValueOnce([]).mockResolvedValueOnce([]);
-    mockCreateUserProfile.mockResolvedValue({ id: 123 });
-
-    const result = await findOrCreateRockPersonForSignup(defaultInput);
-
-    expect(result).toBe('123');
-    expect(mockUpdatePerson).not.toHaveBeenCalled();
-    expect(mockCreatePhoneNumberInRock).toHaveBeenCalledOnce();
-    expect(mockCreatePhoneNumberInRock).toHaveBeenCalledWith({
-      personId: '123',
-      phoneNumber: defaultInput.phoneNumber,
-      countryCode: 1,
-    });
-  });
-
-  it('Step 5 — supports legacy numeric create profile responses', async () => {
-    mockFetchUserLogin.mockResolvedValue(null);
-    mockFetchRockData.mockResolvedValueOnce([]).mockResolvedValueOnce([]);
-    mockCreateUserProfile.mockResolvedValue(456);
-
-    const result = await findOrCreateRockPersonForSignup(defaultInput);
-
-    expect(result).toBe('456');
-    expect(mockCreatePhoneNumberInRock).toHaveBeenCalledWith({
-      personId: '456',
-      phoneNumber: defaultInput.phoneNumber,
-      countryCode: 1,
-    });
-  });
+      expect(result).toBe(personId);
+      expect(mockUpdatePerson).not.toHaveBeenCalled();
+      expect(mockCreatePhoneNumberInRock).toHaveBeenCalledOnce();
+      expect(mockCreatePhoneNumberInRock).toHaveBeenCalledWith({
+        personId,
+        phoneNumber: defaultInput.phoneNumber,
+        countryCode: 1,
+      });
+    },
+  );
 });
 
 describe('resolveGroupClassSignupTarget', () => {
@@ -241,7 +265,7 @@ describe('resolveGroupClassSignupTarget', () => {
   ] as const)(
     'routes active group type %i to %s signup',
     async (groupTypeId, target) => {
-      mockFetchRockData.mockResolvedValueOnce({
+      mockFetchGroups.mockResolvedValueOnce({
         id: 123,
         groupTypeId,
         isActive: true,
@@ -250,7 +274,7 @@ describe('resolveGroupClassSignupTarget', () => {
       });
 
       await expect(resolveGroupClassSignupTarget('123')).resolves.toBe(target);
-      expect(mockFetchRockData).toHaveBeenCalledWith({
+      expect(mockFetchGroups).toHaveBeenCalledWith({
         endpoint: 'Groups',
         queryParams: {
           $filter: 'Id eq 123',
@@ -284,7 +308,7 @@ describe('resolveGroupClassSignupTarget', () => {
     ],
     ['incomplete group metadata', { id: 123, groupTypeId: 31, isActive: true }],
   ])('rejects %s', async (_label, result) => {
-    mockFetchRockData.mockResolvedValueOnce(result);
+    mockFetchGroups.mockResolvedValueOnce(result);
 
     await expect(resolveGroupClassSignupTarget('123')).rejects.toThrow(
       'Invalid signup group',
@@ -297,38 +321,57 @@ describe('resolveGroupClassSignupTarget', () => {
       await expect(resolveGroupClassSignupTarget(groupId)).rejects.toThrow(
         'Invalid signup group',
       );
-      expect(mockFetchRockData).not.toHaveBeenCalled();
+      expect(mockFetchGroups).not.toHaveBeenCalled();
     },
   );
 });
 
 describe('launchClassSignupWorkflow', () => {
-  it('calls postRockData with endpoint containing workflowTypeId=654 and correct body casing', async () => {
-    mockPostRockData.mockResolvedValue({});
-
+  it('launches Add To Group/Class (654) by its Guid with GroupId and PersonId', async () => {
     await launchClassSignupWorkflow('group-1', 'person-2');
 
-    expect(mockPostRockData).toHaveBeenCalledOnce();
-    const [call] = mockPostRockData.mock.calls[0] as [
-      { endpoint: string; body: Record<string, string> },
-    ];
-    expect(call.endpoint).toContain('workflowTypeId=654');
-    expect(call.body).toEqual({ GroupId: 'group-1', PersonId: 'person-2' });
+    expect(mockFetch).toHaveBeenCalledOnce();
+    expect(sentToRock()).toEqual({
+      url: `${ROCK_V2}/workflows/actions/launch/4df7b9ea-10a4-4987-bf47-dfe9d3adb5c1`,
+      method: 'POST',
+      body: {
+        name: 'Add To Group/Class',
+        attributeValues: { GroupId: 'group-1', PersonId: 'person-2' },
+      },
+    });
+  });
+
+  it('throws when Rock refuses the launch, and launches only once', async () => {
+    mockFetch.mockResolvedValue({ ok: false, status: 401 });
+
+    await expect(
+      launchClassSignupWorkflow('group-1', 'person-2'),
+    ).rejects.toThrow('401');
+    expect(mockFetch).toHaveBeenCalledOnce();
   });
 });
 
 describe('launchGroupSignupWorkflow', () => {
+  const ADULT_GROUP_SIGNUP_LAUNCH = {
+    url: `${ROCK_V2}/workflows/actions/launch/29543c34-293b-4725-92d5-e0a7d1254315`,
+    method: 'POST',
+    body: {
+      name: 'Website Adult Group Signup',
+      attributeValues: { GroupId: '10', PersonId: '20' },
+    },
+  };
+
   it.each([1, 2, 'Active', 'Pending'])(
     'preserves an existing %s membership without launching the workflow',
     async (groupMemberStatus) => {
-      mockFetchRockData.mockResolvedValueOnce({
+      mockFetchGroupMembers.mockResolvedValueOnce({
         id: 456,
         groupMemberStatus,
       });
 
       await launchGroupSignupWorkflow('10', '20');
 
-      expect(mockFetchRockData).toHaveBeenCalledWith({
+      expect(mockFetchGroupMembers).toHaveBeenCalledWith({
         endpoint: 'GroupMembers',
         queryParams: {
           $filter: 'GroupId eq 10 and PersonId eq 20 and IsArchived eq false',
@@ -336,43 +379,39 @@ describe('launchGroupSignupWorkflow', () => {
         },
         ttl: 0,
       });
-      expect(mockPostRockData).not.toHaveBeenCalled();
+      expect(mockFetch).not.toHaveBeenCalled();
     },
   );
 
   it.each([0, 'Inactive'])(
     'launches the workflow to move an existing %s membership to Pending',
     async (groupMemberStatus) => {
-      vi.stubEnv('ROCK_GROUP_SIGNUP_WORKFLOW_ID', '987');
-      mockFetchRockData.mockResolvedValueOnce({
+      vi.stubEnv('ROCK_GROUP_SIGNUP_WORKFLOW_ID', '1941');
+      mockFetchGroupMembers.mockResolvedValueOnce({
         id: 456,
         groupMemberStatus,
       });
-      mockPostRockData.mockResolvedValue({});
 
       await launchGroupSignupWorkflow('10', '20');
 
-      expect(mockPostRockData).toHaveBeenCalledWith({
-        endpoint:
-          'Workflows/LaunchWorkflow/0?workflowTypeId=987&workflowName=Website%20Adult%20Group%20Signup',
-        body: { GroupId: '10', PersonId: '20' },
-      });
+      expect(mockFetch).toHaveBeenCalledOnce();
+      expect(sentToRock()).toEqual(ADULT_GROUP_SIGNUP_LAUNCH);
     },
   );
 
   it('uses Active/Pending precedence when multiple memberships exist', async () => {
-    mockFetchRockData.mockResolvedValueOnce([
+    mockFetchGroupMembers.mockResolvedValueOnce([
       { id: 456, groupMemberStatus: 'Inactive' },
       { id: 789, groupMemberStatus: 'Active' },
     ]);
 
     await launchGroupSignupWorkflow('10', '20');
 
-    expect(mockPostRockData).not.toHaveBeenCalled();
+    expect(mockFetch).not.toHaveBeenCalled();
   });
 
   it('fails closed when Rock returns an unknown membership status', async () => {
-    mockFetchRockData.mockResolvedValueOnce({
+    mockFetchGroupMembers.mockResolvedValueOnce({
       id: 456,
       groupMemberStatus: 'Unknown',
     });
@@ -380,54 +419,58 @@ describe('launchGroupSignupWorkflow', () => {
     await expect(launchGroupSignupWorkflow('10', '20')).rejects.toThrow(
       'Unknown existing group membership status',
     );
-    expect(mockPostRockData).not.toHaveBeenCalled();
+    expect(mockFetch).not.toHaveBeenCalled();
   });
 
-  it('launches the configured Adult Group workflow', async () => {
-    vi.stubEnv('ROCK_GROUP_SIGNUP_WORKFLOW_ID', '987');
-    mockFetchRockData.mockResolvedValueOnce([]);
-    mockPostRockData.mockResolvedValue({});
+  it('launches the configured Adult Group workflow (1941) by its Guid', async () => {
+    vi.stubEnv('ROCK_GROUP_SIGNUP_WORKFLOW_ID', '1941');
+    mockFetchGroupMembers.mockResolvedValueOnce([]);
 
-    await launchGroupSignupWorkflow('group-1', 'person-2');
+    await launchGroupSignupWorkflow('10', '20');
 
-    expect(mockPostRockData).toHaveBeenCalledWith({
-      endpoint:
-        'Workflows/LaunchWorkflow/0?workflowTypeId=987&workflowName=Website%20Adult%20Group%20Signup',
-      body: { GroupId: 'group-1', PersonId: 'person-2' },
-    });
+    expect(mockFetch).toHaveBeenCalledOnce();
+    expect(sentToRock()).toEqual(ADULT_GROUP_SIGNUP_LAUNCH);
   });
 
-  it('fails loud while the new workflow id is not configured', async () => {
+  it('fails loud while the workflow id is not configured', async () => {
     vi.stubEnv('ROCK_GROUP_SIGNUP_WORKFLOW_ID', '');
-    mockFetchRockData.mockResolvedValueOnce([]);
+    mockFetchGroupMembers.mockResolvedValueOnce([]);
 
-    await expect(
-      launchGroupSignupWorkflow('group-1', 'person-2'),
-    ).rejects.toThrow('ROCK_GROUP_SIGNUP_WORKFLOW_ID is not configured');
-    expect(mockPostRockData).not.toHaveBeenCalled();
+    await expect(launchGroupSignupWorkflow('10', '20')).rejects.toThrow(
+      'ROCK_GROUP_SIGNUP_WORKFLOW_ID is not configured',
+    );
+    expect(mockFetch).not.toHaveBeenCalled();
+  });
+
+  it('throws before calling Rock when the configured id has no Guid', async () => {
+    vi.stubEnv('ROCK_GROUP_SIGNUP_WORKFLOW_ID', '987');
+    mockFetchGroupMembers.mockResolvedValueOnce([]);
+
+    await expect(launchGroupSignupWorkflow('10', '20')).rejects.toThrow('987');
+    expect(mockFetch).not.toHaveBeenCalled();
   });
 });
 
 describe('updateRockPersonCampusForSignup', () => {
   const CAMPUS_GUID = 'a1b2c3d4-e5f6-4789-abcd-ef1234567890';
+  const FAMILY_GUID = '1a2b3c4d-5e6f-7a8b-9c0d-1e2f3a4b5c6d';
+
+  beforeEach(() => {
+    mockFetchPeople.mockResolvedValue({ primaryFamilyId: 34 });
+    mockFetchGroups.mockResolvedValue({ guid: FAMILY_GUID });
+  });
 
   it('sets campus on the primary family that defines the person campus', async () => {
-    mockFetchRockData
-      .mockResolvedValueOnce([{ id: 12 }])
-      .mockResolvedValueOnce({ primaryFamilyId: 34 });
-    mockPatchRockData.mockResolvedValue({});
+    mockFetchCampuses.mockResolvedValueOnce([{ id: 12 }]);
 
     await updateRockPersonCampusForSignup('person-2', CAMPUS_GUID);
 
-    expect(mockFetchRockData).toHaveBeenNthCalledWith(1, {
-      endpoint: 'Campuses',
-      queryParams: {
-        $filter: `Guid eq guid'${CAMPUS_GUID}'`,
-        $select: 'Id',
-      },
-      ttl: 0,
-    });
-    expect(mockFetchRockData).toHaveBeenNthCalledWith(2, {
+    expect(mockFetchCampuses).toHaveBeenCalledWith(
+      { guid: CAMPUS_GUID },
+      ['Id'],
+      0,
+    );
+    expect(mockFetchPeople).toHaveBeenCalledWith({
       endpoint: 'People',
       queryParams: {
         $filter: 'Id eq person-2',
@@ -435,54 +478,44 @@ describe('updateRockPersonCampusForSignup', () => {
       },
       ttl: 0,
     });
-    expect(mockPatchRockData).toHaveBeenCalledWith({
-      endpoint: 'Groups/34',
+    expect(mockFetch).toHaveBeenCalledOnce();
+    expect(sentToRock()).toEqual({
+      url: `${ROCK_V2}/groups/${FAMILY_GUID}`,
+      method: 'PATCH',
       body: { CampusId: 12 },
     });
   });
 
-  it('resolves a prefilled class campus name without using an invalid Guid literal', async () => {
-    mockFetchRockData
-      .mockResolvedValueOnce([{ id: 12 }])
-      .mockResolvedValueOnce({ primaryFamilyId: 34 });
-    mockPatchRockData.mockResolvedValue({});
+  it('looks up a prefilled class campus by name, not as a Guid', async () => {
+    mockFetchCampuses.mockResolvedValueOnce([{ id: 12 }]);
 
     await updateRockPersonCampusForSignup('person-2', 'Palm Beach Gardens');
 
-    expect(mockFetchRockData).toHaveBeenNthCalledWith(1, {
-      endpoint: 'Campuses',
-      queryParams: {
-        $filter: "Name eq 'Palm Beach Gardens'",
-        $select: 'Id',
-      },
-      ttl: 0,
-    });
-    expect(mockPatchRockData).toHaveBeenCalledWith({
-      endpoint: 'Groups/34',
-      body: { CampusId: 12 },
-    });
+    expect(mockFetchCampuses).toHaveBeenCalledWith(
+      { name: 'Palm Beach Gardens' },
+      ['Id'],
+      0,
+    );
+    expect(sentToRock().body).toEqual({ CampusId: 12 });
   });
 
-  it('fails before launching a workflow when the campus Guid is unknown', async () => {
-    mockFetchRockData
-      .mockResolvedValueOnce([])
-      .mockResolvedValueOnce({ primaryFamilyId: 34 });
+  it('fails without writing when the campus is unknown', async () => {
+    mockFetchCampuses.mockResolvedValueOnce([]);
 
     await expect(
       updateRockPersonCampusForSignup('person-2', 'missing-campus-guid'),
     ).rejects.toThrow('Campus not found in Rock');
-    expect(mockPatchRockData).not.toHaveBeenCalled();
+    expect(mockFetch).not.toHaveBeenCalled();
   });
 
-  it('fails when the person has no primary family to update', async () => {
-    mockFetchRockData
-      .mockResolvedValueOnce({ id: 12 })
-      .mockResolvedValueOnce([]);
+  it('fails without writing when the person has no primary family', async () => {
+    mockFetchCampuses.mockResolvedValueOnce([{ id: 12 }]);
+    mockFetchPeople.mockResolvedValueOnce([]);
 
     await expect(
       updateRockPersonCampusForSignup('person-2', CAMPUS_GUID),
     ).rejects.toThrow('Primary family not found in Rock');
-    expect(mockPatchRockData).not.toHaveBeenCalled();
+    expect(mockFetch).not.toHaveBeenCalled();
   });
 });
 
@@ -500,58 +533,55 @@ describe('launchCommunityServingSignupWorkflow', () => {
     waiverAccepted: true,
   };
 
-  // Verifies the body shape required by the Community Serving Opportunity
-  // Sign Up workflow (id 1840): PascalCase attribute keys, campus Guid
-  // (resolved from name), and the waiver attribute key (note trailing period).
-  it('posts to workflowTypeId=1840 with the campus Guid (not name) when waiver is accepted', async () => {
-    mockFetchRockData.mockResolvedValueOnce({ guid: CAMPUS_GUID });
-    mockPostRockData.mockResolvedValue({});
+  // The Community Serving Sign Up workflow (1840) needs PascalCase keys, the
+  // campus Guid (resolved from the name) and the waiver key with its trailing period.
+  it('launches 1840 by its Guid with the campus Guid (not name) when the waiver is accepted', async () => {
+    mockFetchCampuses.mockResolvedValueOnce([{ guid: CAMPUS_GUID }]);
 
     await launchCommunityServingSignupWorkflow(defaultWorkflowInput);
 
-    expect(mockFetchRockData).toHaveBeenCalledOnce();
-    const [fetchCall] = mockFetchRockData.mock.calls[0] as [
-      { endpoint: string; queryParams: Record<string, string> },
-    ];
-    expect(fetchCall.endpoint).toBe('Campuses');
-    expect(fetchCall.queryParams.$filter).toContain('Palm Beach Gardens');
-
-    expect(mockPostRockData).toHaveBeenCalledOnce();
-    const [postCall] = mockPostRockData.mock.calls[0] as [
-      { endpoint: string; body: Record<string, string> },
-    ];
-    expect(postCall.endpoint).toContain('workflowTypeId=1840');
-    expect(postCall.body).toEqual({
-      Group: 'AAAAAAAA-BBBB-CCCC-DDDD-EEEEEEEEEEEE',
-      FirstName: 'Jane',
-      LastName: 'Doe',
-      Email: 'jane.doe@example.com',
-      CellPhone: '5615550123',
-      Birthdate: '1990-05-15',
-      Campus: CAMPUS_GUID,
-      'IacceptthetermsoftheChristFellowshipwaiver.': 'Yes',
+    expect(mockFetchCampuses).toHaveBeenCalledWith(
+      { name: 'Palm Beach Gardens' },
+      ['Guid'],
+      0,
+    );
+    expect(mockFetch).toHaveBeenCalledOnce();
+    expect(sentToRock()).toEqual({
+      url: `${ROCK_V2}/workflows/actions/launch/17f2ddea-bb94-4a28-8e86-f2358bc41524`,
+      method: 'POST',
+      body: {
+        name: 'Community Serving Opportunity Sign Up',
+        attributeValues: {
+          Group: 'AAAAAAAA-BBBB-CCCC-DDDD-EEEEEEEEEEEE',
+          FirstName: 'Jane',
+          LastName: 'Doe',
+          Email: 'jane.doe@example.com',
+          CellPhone: '5615550123',
+          Birthdate: '1990-05-15',
+          Campus: CAMPUS_GUID,
+          'IacceptthetermsoftheChristFellowshipwaiver.': 'Yes',
+        },
+      },
     });
   });
 
-  it('sends an empty waiver value when waiver is not accepted', async () => {
-    mockFetchRockData.mockResolvedValueOnce({ guid: CAMPUS_GUID });
-    mockPostRockData.mockResolvedValue({});
+  it('sends an empty waiver value when the waiver is not accepted', async () => {
+    mockFetchCampuses.mockResolvedValueOnce([{ guid: CAMPUS_GUID }]);
 
     await launchCommunityServingSignupWorkflow({
       ...defaultWorkflowInput,
       waiverAccepted: false,
     });
 
-    const [postCall] = mockPostRockData.mock.calls[0] as [
-      { endpoint: string; body: Record<string, string> },
-    ];
-    expect(postCall.body['IacceptthetermsoftheChristFellowshipwaiver.']).toBe(
-      '',
-    );
+    expect(
+      sentToRock().body.attributeValues[
+        'IacceptthetermsoftheChristFellowshipwaiver.'
+      ],
+    ).toBe('');
   });
 
-  it('throws when Rock returns no campus for the given name', async () => {
-    mockFetchRockData.mockResolvedValueOnce(null);
+  it('throws without launching when Rock returns no campus for the name', async () => {
+    mockFetchCampuses.mockResolvedValueOnce([]);
 
     await expect(
       launchCommunityServingSignupWorkflow({
@@ -559,5 +589,6 @@ describe('launchCommunityServingSignupWorkflow', () => {
         campus: 'Unknown Campus',
       }),
     ).rejects.toThrow('Campus not found in Rock: "Unknown Campus"');
+    expect(mockFetch).not.toHaveBeenCalled();
   });
 });

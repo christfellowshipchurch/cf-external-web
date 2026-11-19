@@ -1,6 +1,5 @@
-import { ensureArray } from '~/lib/utils';
 import type { TTLValue } from './cache-utils';
-import { fetchRockData, type FetchRockDataOptions } from './fetch-rock-data';
+import type { FetchRockDataOptions } from './fetch-rock-data';
 import {
   buildV2SearchBody,
   escapeDynamicLinq,
@@ -12,13 +11,9 @@ import {
   searchPath,
   selectAttributeValues,
 } from './fetch-rock-v2';
-import { escapeOData } from './rock-utils';
 import { fetchViaV2Search, type V2SearchEntity } from './rock-v2-search';
 
-/**
- * Defined Value reads for the whole site. Each runs on Rock v2 with the v1
- * call it replaced as the fallback (see docs/architecture/rock-v2-setup.md).
- */
+/** Defined Value reads for the whole site, on Rock v2 (docs/architecture/rock-v2-setup.md). */
 
 /** Fields a read can select. Add one here before selecting it. */
 export type DefinedValueField =
@@ -51,7 +46,7 @@ export type DefinedValueQuery = {
   limit?: number;
   /** Omit for whole records (`ALL_FIELDS` on v2). */
   fields?: DefinedValueField[];
-  /** v1's `loadAttributes`; v2 selects the values in the search (no definitions). */
+  /** Selects attribute values in the search (no definitions). Both values read the same. */
   attributes?: 'simple' | 'expanded';
   ttl?: TTLValue;
 };
@@ -70,19 +65,6 @@ export type RockDefinedValue = {
   >;
 };
 
-const toV1Filter = ({
-  guid,
-  definedTypeId,
-  activeOnly,
-}: DefinedValueQuery): string =>
-  [
-    definedTypeId !== undefined && `DefinedTypeId eq ${definedTypeId}`,
-    activeOnly && 'IsActive eq true',
-    guid && `Guid eq guid'${escapeOData(guid)}'`,
-  ]
-    .filter(Boolean)
-    .join(' and ');
-
 const toV2Where = ({
   guid,
   definedTypeId,
@@ -95,21 +77,6 @@ const toV2Where = ({
   ]
     .filter(Boolean)
     .join(' && ');
-
-const fetchV1 = async (query: DefinedValueQuery) =>
-  ensureArray(
-    await fetchRockData({
-      endpoint: 'DefinedValues',
-      queryParams: {
-        $filter: toV1Filter(query),
-        ...(query.orderBy && { $orderby: query.orderBy }),
-        ...(query.limit !== undefined && { $top: String(query.limit) }),
-        ...(query.fields && { $select: query.fields.join(', ') }),
-        ...(query.attributes && { loadAttributes: query.attributes }),
-      },
-      ttl: query.ttl,
-    }),
-  ).filter(Boolean) as RockDefinedValue[];
 
 /** Every read is one `definedValues` search, attribute values included. */
 export const definedValuesV2Read = (query: DefinedValueQuery) => {
@@ -137,10 +104,6 @@ export const definedValuesV2Read = (query: DefinedValueQuery) => {
       const items = query.guid
         ? keepMatchingRows(getSearchItems(data), 'Guid', query.guid)
         : getSearchItems(data);
-      // A Guid lookup that misses goes to v1 rather than hiding a value that exists.
-      if (query.guid && !items.length) {
-        throw new Error(`No defined value matched ${query.guid}`);
-      }
       // Paging field names are unconfirmed, so cap here too, as v1's `$top` did.
       return items
         .slice(0, query.limit)
@@ -156,10 +119,7 @@ export const fetchDefinedValues = async <T = RockDefinedValue>(
   // A malformed Guid can't match a value; skip Rock rather than send it.
   if (query.guid !== undefined && !isRockGuid(query.guid)) return [];
 
-  return (await fetchRockV2({
-    ...definedValuesV2Read(query),
-    fallback: () => fetchV1(query),
-  })) as T[];
+  return (await fetchRockV2(definedValuesV2Read(query))) as T[];
 };
 
 /** One Defined Value by Guid, or null. */
@@ -187,7 +147,7 @@ const DEFINED_VALUES_V2: V2SearchEntity = {
 
 /**
  * A `DefinedValues/GetByAttributeValue` read: `fetchRockData`'s options and
- * result, run on v2 when it's on.
+ * result, run on v2.
  */
 export const fetchDefinedValuesByAttribute = (options: FetchRockDataOptions) =>
   fetchViaV2Search(options, DEFINED_VALUES_V2);

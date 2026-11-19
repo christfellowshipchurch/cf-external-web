@@ -1,8 +1,7 @@
 import camelCase from 'lodash/camelCase';
 import pick from 'lodash/pick';
-import { ensureArray, normalize } from '~/lib/utils';
+import { normalize } from '~/lib/utils';
 import type { TTLValue } from './cache-utils';
-import { fetchRockData } from './fetch-rock-data';
 import {
   buildV2SearchBody,
   escapeDynamicLinq,
@@ -16,12 +15,8 @@ import {
   selectAttributeValues,
   toV1Shape,
 } from './fetch-rock-v2';
-import { escapeOData } from './rock-utils';
 
-/**
- * Campus reads for the whole site. Each runs on Rock v2 with the v1 call it
- * replaced as the fallback (see docs/architecture/rock-v2-setup.md).
- */
+/** Campus reads for the whole site, on Rock v2 (docs/architecture/rock-v2-setup.md). */
 
 export type CampusFilter =
   | { active: true }
@@ -58,13 +53,6 @@ export type RockCampus = {
     longitude?: number | null;
   } | null;
   attributeValues?: Record<string, RockAttribute | undefined>;
-};
-
-const toV1Filter = (filter: CampusFilter): string => {
-  if ('active' in filter) return 'IsActive eq true';
-  if ('guid' in filter) return `Guid eq guid'${escapeOData(filter.guid)}'`;
-  if ('name' in filter) return `Name eq '${escapeOData(filter.name)}'`;
-  return `Url eq '${escapeOData(filter.url)}'`;
 };
 
 const toV2Where = (filter: CampusFilter): string => {
@@ -128,18 +116,6 @@ export const fetchCampuses = async <T = Record<string, unknown>>(
       searchRows(data, filter).map(
         (item) => pick(toV1Shape(item), fields.map(camelCase)) as T,
       ),
-    fallback: async () =>
-      ensureArray(
-        await fetchRockData({
-          endpoint: 'Campuses',
-          queryParams: {
-            $filter: toV1Filter(filter),
-            $select: fields.join(', '),
-            ...(isOrdered(filter) && { $orderby: 'Order' }),
-          },
-          ttl,
-        }),
-      ).filter(Boolean) as T[],
   });
 };
 
@@ -161,12 +137,6 @@ export const campusDetailsV2Read = (filter: CampusFilter, ttl?: TTLValue) => ({
   ttl,
   map: async (data: unknown): Promise<RockCampus[]> => {
     const items = searchRows(data, filter);
-    // A lookup that should hit one campus throws on a miss, so a bad search
-    // falls back to v1 instead of 404ing a campus that exists.
-    if (!items.length && !('active' in filter)) {
-      throw new Error(`No campus matched ${toV2Where(filter)} in Rock v2`);
-    }
-
     return Promise.all(
       items.map(async (found) => {
         const { locationGuid, ...campus } = projectedToV1Shape<
@@ -195,22 +165,7 @@ export const fetchCampusesWithDetails = async (
 ): Promise<RockCampus[]> => {
   if (isUnmatchable(filter)) return [];
 
-  return fetchRockV2({
-    ...campusDetailsV2Read(filter, ttl),
-    fallback: async () =>
-      ensureArray(
-        await fetchRockData({
-          endpoint: 'Campuses',
-          queryParams: {
-            $filter: toV1Filter(filter),
-            $expand: 'Location',
-            loadAttributes: 'simple',
-            ...(isOrdered(filter) && { $orderby: 'Order' }),
-          },
-          ttl,
-        }),
-      ).filter(Boolean) as RockCampus[],
-  });
+  return fetchRockV2(campusDetailsV2Read(filter, ttl));
 };
 
 /** One campus with attribute values and Location, or null. */

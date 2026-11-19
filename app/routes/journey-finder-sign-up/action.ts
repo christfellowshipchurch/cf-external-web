@@ -1,6 +1,6 @@
 import { ActionFunction, data } from 'react-router';
 import { JourneyFinderSignUpFormType } from './types';
-import { postRockWorkflowLaunchWithApiInitiator } from '~/lib/.server/rock-workflow';
+import { launchRockWorkflow } from '~/lib/.server/rock-workflow';
 
 export const action: ActionFunction = async ({ request }) => {
   try {
@@ -47,11 +47,10 @@ export const action: ActionFunction = async ({ request }) => {
       submission.hopetoget = hopeToGet;
     }
 
-    await postRockWorkflowLaunchWithApiInitiator({
+    await launchRockWorkflow({
       workflowTypeId,
       workflowName: 'Journey Finder Sign Up',
       body: submission,
-      instanceName: `${firstName} ${lastName}`.trim(),
     });
 
     return new Response(JSON.stringify({ success: true }), {

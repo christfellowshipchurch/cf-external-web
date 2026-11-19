@@ -1,11 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('~/lib/.server/fetch-rock-data', () => ({
-  fetchRockData: vi.fn(),
   TTL: { LONG: 86400 },
 }));
 
-import { fetchRockData } from '~/lib/.server/fetch-rock-data';
+vi.mock('~/lib/.server/rock-content-items', () => ({
+  fetchContentItems: vi.fn(),
+}));
+
+import { fetchContentItems } from '~/lib/.server/rock-content-items';
 import type { RockContentChannelItem } from '~/lib/types/rock-types';
 import {
   fetchSectionMessageData,
@@ -13,7 +16,7 @@ import {
   selectSeriesMessages,
 } from '../loader';
 
-const mockFetchRockData = fetchRockData as ReturnType<typeof vi.fn>;
+const mockFetchContentItems = fetchContentItems as ReturnType<typeof vi.fn>;
 
 const makeRockMessage = (
   id: string,
@@ -47,7 +50,7 @@ const makeRockMessage = (
 
 beforeEach(() => {
   vi.clearAllMocks();
-  mockFetchRockData.mockResolvedValue([]);
+  mockFetchContentItems.mockResolvedValue([]);
 });
 
 describe('fetchSectionMessageData', () => {
@@ -59,8 +62,8 @@ describe('fetchSectionMessageData', () => {
 
     await fetchSectionMessageData(message);
 
-    expect(mockFetchRockData).toHaveBeenCalledTimes(2);
-    expect(mockFetchRockData).toHaveBeenCalledWith(
+    expect(mockFetchContentItems).toHaveBeenCalledTimes(2);
+    expect(mockFetchContentItems).toHaveBeenCalledWith(
       expect.objectContaining({
         endpoint: 'ContentChannelItems/GetByAttributeValue',
         queryParams: expect.objectContaining({
@@ -71,7 +74,7 @@ describe('fetchSectionMessageData', () => {
         filterByStatusApproved: true,
       }),
     );
-    expect(mockFetchRockData).toHaveBeenCalledWith(
+    expect(mockFetchContentItems).toHaveBeenCalledWith(
       expect.objectContaining({
         endpoint: 'ContentChannelItems/GetByAttributeValue',
         queryParams: expect.objectContaining({
@@ -87,8 +90,8 @@ describe('fetchSectionMessageData', () => {
   it('falls back to recent sermons when primary topic is absent', async () => {
     await fetchSectionMessageData(makeRockMessage('current'));
 
-    expect(mockFetchRockData).toHaveBeenCalledTimes(1);
-    expect(mockFetchRockData).toHaveBeenCalledWith({
+    expect(mockFetchContentItems).toHaveBeenCalledTimes(1);
+    expect(mockFetchContentItems).toHaveBeenCalledWith({
       endpoint: 'ContentChannelItems',
       queryParams: {
         $filter: 'ContentChannelId eq 63',

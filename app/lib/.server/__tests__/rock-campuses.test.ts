@@ -1,17 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { fetchRockData } from '../fetch-rock-data';
 import { requestRockV2 } from '../fetch-rock-v2';
 import {
   campusDetailsV2Read,
   fetchCampuses,
   fetchCampusesWithDetails,
+  fetchCampusWithDetails,
 } from '../rock-campuses';
 
 vi.mock('../redis-config', () => ({ default: null }));
-vi.mock('../fetch-rock-data', async (importOriginal) => ({
-  ...(await importOriginal<object>()),
-  fetchRockData: vi.fn(),
-}));
 vi.mock('../fetch-rock-v2', async (importOriginal) => ({
   ...(await importOriginal<object>()),
   requestRockV2: vi.fn(),
@@ -22,7 +18,8 @@ const LOCATION_GUID = 'location-guid';
 
 beforeEach(() => {
   vi.clearAllMocks();
-  vi.stubEnv('ROCK_V2_ENABLED', 'false');
+  vi.stubEnv('NODE_ENV', 'test');
+  vi.stubEnv('ROCK_API', 'https://rock.example.com/api/');
   vi.spyOn(console, 'error').mockImplementation(() => {});
 });
 
@@ -31,13 +28,12 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-/** fetchRockV2 calls its own requestRockV2, so v2-on tests stub fetch itself. */
-const stubRockV2Fetch = (fetchMock: ReturnType<typeof vi.fn>) => {
-  vi.stubEnv('ROCK_V2_ENABLED', 'true');
-  vi.stubEnv('NODE_ENV', 'test');
-  vi.stubEnv('ROCK_API', 'https://rock.example.com/api/');
+/** fetchRockV2 calls its own requestRockV2, so these tests stub fetch itself. */
+const stubRockV2Fetch = (fetchMock: ReturnType<typeof vi.fn>) =>
   vi.stubGlobal('fetch', fetchMock);
-};
+
+const sentBody = () =>
+  JSON.parse(String(vi.mocked(global.fetch).mock.calls[0][1]?.body));
 
 /**
  * The v2 read must hand loaders the same shape v1's
@@ -92,12 +88,21 @@ describe('campusDetailsV2Read', () => {
     });
   });
 
-  // fetchRockV2 turns the throw into a v1 read, so a misconfigured search
-  // can't 404 a campus that exists.
-  it('throws when a single-campus lookup misses', async () => {
+  it('returns an empty list when a single-campus lookup misses', async () => {
     await expect(
       campusDetailsV2Read({ url: 'jupiter' }).map({ count: 0, items: [] }),
-    ).rejects.toThrow(/No campus matched/);
+    ).resolves.toEqual([]);
+    expect(requestRockV2).not.toHaveBeenCalled();
+  });
+
+  // A search that ignored its `where` must not render another campus's page.
+  it('rejects when a single-campus lookup returns another campus', async () => {
+    await expect(
+      campusDetailsV2Read({ url: 'jupiter' }).map({
+        count: 1,
+        items: [{ id: 1, url: 'boynton' }],
+      }),
+    ).rejects.toThrow(/Url doesn't match/);
   });
 
   it('returns an empty list when no campus is active', async () => {
@@ -132,7 +137,7 @@ describe('campusDetailsV2Read', () => {
 describe('fetchCampuses', () => {
   // A search that ignored its `where` must not hand an action another
   // campus's Id (it would sign people up to, or move a family to, the wrong campus).
-  it('falls back to v1 when the v2 search returns a different campus', async () => {
+  it('rejects when the search returns a different campus', async () => {
     stubRockV2Fetch(
       vi.fn().mockResolvedValue({
         ok: true,
@@ -145,52 +150,26 @@ describe('fetchCampuses', () => {
         }),
       }),
     );
-    vi.mocked(fetchRockData).mockResolvedValue({ id: 7 });
 
-    await expect(fetchCampuses({ guid: CAMPUS_GUID }, ['Id'])).resolves.toEqual(
-      [{ id: 7 }],
+    await expect(fetchCampuses({ guid: CAMPUS_GUID }, ['Id'])).rejects.toThrow(
+      /Guid doesn't match/,
     );
-    expect(fetchRockData).toHaveBeenCalled();
-    const body = JSON.parse(
-      String(vi.mocked(global.fetch).mock.calls[0][1]?.body),
-    );
-    expect(body.select).toBe('new (Id, Guid)');
-  });
-
-  it('returns an array even when v1 unwraps a single match', async () => {
-    vi.mocked(fetchRockData).mockResolvedValue({ id: 7 });
-
-    await expect(fetchCampuses({ guid: CAMPUS_GUID }, ['Id'])).resolves.toEqual(
-      [{ id: 7 }],
-    );
-  });
-
-  it('sends v1 the same filter, select and order the loaders used', async () => {
-    vi.mocked(fetchRockData).mockResolvedValue([]);
-
-    await fetchCampuses({ active: true }, ['Name', 'Guid']);
-
-    expect(fetchRockData).toHaveBeenCalledWith({
-      endpoint: 'Campuses',
-      queryParams: {
-        $filter: 'IsActive eq true',
-        $select: 'Name, Guid',
-        $orderby: 'Order',
-      },
-      ttl: undefined,
-    });
+    // The looked-up Guid is selected so the guard can check it.
+    expect(sentBody().select).toBe('new (Id, Guid)');
   });
 
   // Form input reaches the Guid filter, so a malformed value never goes to Rock.
   it('skips Rock for a malformed Guid', async () => {
+    stubRockV2Fetch(vi.fn());
+
     await expect(
       fetchCampuses({ guid: "x' or 1 eq 1" }, ['Id']),
     ).resolves.toEqual([]);
-    expect(fetchRockData).not.toHaveBeenCalled();
+    expect(global.fetch).not.toHaveBeenCalled();
   });
 
   // Order is selected only so Rock can sort; callers get the fields they asked for, as on v1.
-  it('maps v2 search items to the v1 shape when v2 is on', async () => {
+  it('maps search items to the v1 shape', async () => {
     stubRockV2Fetch(
       vi.fn().mockResolvedValue({
         ok: true,
@@ -204,22 +183,20 @@ describe('fetchCampuses', () => {
     await expect(
       fetchCampuses({ active: true }, ['Name', 'Guid']),
     ).resolves.toEqual([{ name: 'Jupiter', guid: CAMPUS_GUID }]);
-    const [url, init] = vi.mocked(global.fetch).mock.calls[0];
-    expect(url).toBe(
+    expect(vi.mocked(global.fetch).mock.calls[0][0]).toBe(
       'https://rock.example.com/api/v2/models/campuses/search/campuses',
     );
     // Rock sorts after the select, so sorting on a field it didn't select is a 500.
-    expect(JSON.parse(String(init?.body))).toEqual({
+    expect(sentBody()).toEqual({
       where: 'IsActive == true',
       select: 'new (Name, Guid, Order)',
       sort: 'Order',
     });
-    expect(fetchRockData).not.toHaveBeenCalled();
   });
 
   // Rock v2 returns camelCase keys; a matching row must not trip the
-  // wrong-record guard and send every lookup to v1.
-  it('uses the v2 row for a Guid lookup when Rock returns camelCase keys', async () => {
+  // wrong-record guard.
+  it('returns a one-campus Guid lookup as an array when Rock returns camelCase keys', async () => {
     stubRockV2Fetch(
       vi.fn().mockResolvedValue({
         ok: true,
@@ -230,30 +207,34 @@ describe('fetchCampuses', () => {
     await expect(fetchCampuses({ guid: CAMPUS_GUID }, ['Id'])).resolves.toEqual(
       [{ id: 7 }],
     );
-    expect(fetchRockData).not.toHaveBeenCalled();
   });
 });
 
 describe('fetchCampusesWithDetails', () => {
-  it('falls back to v1 when a v2 call fails', async () => {
+  it('rejects when a v2 call fails', async () => {
     stubRockV2Fetch(
       vi
         .fn()
         .mockResolvedValue({ ok: false, status: 401, text: async () => '' }),
     );
-    vi.mocked(fetchRockData).mockResolvedValue({ id: 7, name: 'Jupiter' });
 
-    await expect(fetchCampusesWithDetails({ url: 'jupiter' })).resolves.toEqual(
-      [{ id: 7, name: 'Jupiter' }],
+    await expect(fetchCampusesWithDetails({ url: 'jupiter' })).rejects.toThrow(
+      /failed: 401/,
     );
-    expect(fetchRockData).toHaveBeenCalledWith(
-      expect.objectContaining({
-        queryParams: {
-          $filter: "Url eq 'jupiter'",
-          $expand: 'Location',
-          loadAttributes: 'simple',
-        },
+  });
+
+  // A campus page answers 404 for an unknown url.
+  it('returns null for one campus when the lookup finds nothing', async () => {
+    stubRockV2Fetch(
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({ count: 0, items: [] }),
       }),
     );
+
+    await expect(
+      fetchCampusWithDetails({ url: 'nowhere' }),
+    ).resolves.toBeNull();
+    expect(sentBody().where).toBe('Url == "nowhere"');
   });
 });
