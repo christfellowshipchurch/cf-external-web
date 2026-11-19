@@ -1,12 +1,12 @@
 import type { ActionFunctionArgs } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { getJourneySessionOptions } from '~/lib/.server/journey-sessions';
-import { postRockWorkflowLaunchWithApiInitiator } from '~/lib/.server/rock-workflow';
+import { launchRockWorkflow } from '~/lib/.server/rock-workflow';
 import type { JourneySessionsData } from '~/lib/journey-sessions';
 import { action } from '../api.journey-sign-up';
 
 vi.mock('~/lib/.server/rock-workflow', () => ({
-  postRockWorkflowLaunchWithApiInitiator: vi.fn(),
+  launchRockWorkflow: vi.fn(),
 }));
 vi.mock('~/lib/.server/journey-sessions', () => ({
   getJourneySessionOptions: vi.fn(),
@@ -115,7 +115,7 @@ const submit = (sessions: Record<string, string>) => {
 };
 
 const sentBody = () =>
-  vi.mocked(postRockWorkflowLaunchWithApiInitiator).mock.calls[0]?.[0].body as
+  vi.mocked(launchRockWorkflow).mock.calls[0]?.[0].body as
     | Record<string, string>
     | undefined;
 
@@ -126,9 +126,7 @@ describe('journey sign up action', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(getJourneySessionOptions).mockResolvedValue(liveData);
-    vi.mocked(postRockWorkflowLaunchWithApiInitiator).mockResolvedValue(
-      undefined,
-    );
+    vi.mocked(launchRockWorkflow).mockResolvedValue(undefined);
   });
 
   it.each([
@@ -170,7 +168,7 @@ describe('journey sign up action', () => {
     const result = await submit({});
 
     expect(statusOf(result)).toBe(400);
-    expect(postRockWorkflowLaunchWithApiInitiator).not.toHaveBeenCalled();
+    expect(launchRockWorkflow).not.toHaveBeenCalled();
   });
 
   it('rejects a session that is no longer offered (past, or wrong group for that session)', async () => {
@@ -178,14 +176,14 @@ describe('journey sign up action', () => {
     const result = await submit({ session2Group: 'oct' });
 
     expect(statusOf(result)).toBe(400);
-    expect(postRockWorkflowLaunchWithApiInitiator).not.toHaveBeenCalled();
+    expect(launchRockWorkflow).not.toHaveBeenCalled();
   });
 
   it('rejects a full session even if the page showed it as open', async () => {
     const result = await submit({ session3Group: 'dec' });
 
     expect(statusOf(result)).toBe(400);
-    expect(postRockWorkflowLaunchWithApiInitiator).not.toHaveBeenCalled();
+    expect(launchRockWorkflow).not.toHaveBeenCalled();
   });
 
   // Rock infers childcare need from which counts arrive, so anything sent
@@ -212,7 +210,7 @@ describe('journey sign up action', () => {
     it('sends no childcare when none of the selected groups offers it', async () => {
       await submit({ session1Group: 'oct', 'childcare-2Years': '2' });
 
-      expect(postRockWorkflowLaunchWithApiInitiator).toHaveBeenCalled();
+      expect(launchRockWorkflow).toHaveBeenCalled();
       expect(childcareKeys()).toEqual([]);
     });
 
@@ -232,7 +230,7 @@ describe('journey sign up action', () => {
         });
 
         expect(statusOf(result)).toBe(400);
-        expect(postRockWorkflowLaunchWithApiInitiator).not.toHaveBeenCalled();
+        expect(launchRockWorkflow).not.toHaveBeenCalled();
       },
     );
   });
@@ -243,10 +241,10 @@ describe('journey sign up action', () => {
     async (sessions) => {
       await submit(sessions);
 
-      expect(
-        vi.mocked(postRockWorkflowLaunchWithApiInitiator).mock.calls[0][0]
-          .workflowTypeId,
-      ).toBe('1968');
+      expect(vi.mocked(launchRockWorkflow).mock.calls[0][0]).toMatchObject({
+        workflowTypeId: '1968',
+        workflowName: 'Journey Sign Up',
+      });
     },
   );
 
@@ -271,6 +269,20 @@ describe('journey sign up action', () => {
     const result = await submit({ session1Group: 'oct', session2Group: 'esp' });
 
     expect(statusOf(result)).toBe(400);
-    expect(postRockWorkflowLaunchWithApiInitiator).not.toHaveBeenCalled();
+    expect(launchRockWorkflow).not.toHaveBeenCalled();
+  });
+
+  it('returns 500 without leaking the error when the launch fails', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    vi.mocked(launchRockWorkflow).mockRejectedValue(
+      new Error('Rock v2 failed'),
+    );
+
+    const result = await submit({ session1Group: 'oct' });
+
+    expect(statusOf(result)).toBe(500);
+    expect(result).toMatchObject({
+      data: { error: 'Something went wrong. Please try again.' },
+    });
   });
 });

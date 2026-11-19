@@ -6,7 +6,7 @@ import {
   postRockData,
   TTL,
 } from '~/lib/.server/fetch-rock-data';
-import { sendRockV2, writeRockV2 } from '~/lib/.server/fetch-rock-v2';
+import { sendRockV2 } from '~/lib/.server/fetch-rock-v2';
 import { launchRockWorkflow } from '~/lib/.server/rock-workflow';
 
 type RockLocation = {
@@ -75,12 +75,11 @@ const findOrCreateRockLocation = async (address: AddressInput) => {
     PostalCode: address.postalCode,
     Country: address.country,
   };
-  // v1 returns only the new Id, so its Guid comes from the re-read below.
-  const createdLocation = (await writeRockV2({
-    label: 'location',
-    v2: () => sendRockV2('POST', 'locations', body),
-    fallback: () => postRockData({ endpoint: 'locations', body }),
-  })) as { guid?: string; Guid?: string } | null;
+  // An empty create response gets its Guid from the re-read below.
+  const createdLocation = (await sendRockV2('POST', 'locations', body)) as {
+    guid?: string;
+    Guid?: string;
+  } | null;
   const locationGuid = createdLocation?.guid ?? createdLocation?.Guid;
   if (locationGuid) return locationGuid;
 

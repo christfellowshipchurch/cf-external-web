@@ -1,5 +1,5 @@
 import { ActionFunction, data } from 'react-router';
-import { postRockWorkflowLaunchWithApiInitiator } from '~/lib/.server/rock-workflow';
+import { launchRockWorkflow } from '~/lib/.server/rock-workflow';
 import { ShareMySkillsFormType } from './types';
 
 export const action: ActionFunction = async ({ request }) => {
@@ -25,14 +25,10 @@ export const action: ActionFunction = async ({ request }) => {
       LaunchSource: 'app',
     };
 
-    const firstName = FirstName as string;
-    const lastName = LastName as string;
-
-    await postRockWorkflowLaunchWithApiInitiator({
+    await launchRockWorkflow({
       workflowTypeId: '1874',
       workflowName: 'CFDP App Share My Skills',
       body: shareMySkillsSubmission,
-      instanceName: `${firstName} ${lastName}`.trim(),
     });
 
     return new Response(JSON.stringify({ success: true }), {

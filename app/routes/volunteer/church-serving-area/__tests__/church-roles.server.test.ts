@@ -1,14 +1,17 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 vi.mock('~/lib/.server/fetch-rock-data', () => ({
-  fetchRockData: vi.fn(),
   TTL: { DEFAULT: 3600, SHORT: 600, LONG: 86400, NONE: 0 },
 }));
 
-import { fetchRockData } from '~/lib/.server/fetch-rock-data';
+vi.mock('~/lib/.server/rock-v2-search', () => ({
+  fetchViaV2Search: vi.fn(),
+}));
+
+import { fetchViaV2Search } from '~/lib/.server/rock-v2-search';
 import { fetchChurchRolesByPreferenceAreaGuid } from '../church-roles.server';
 
-const mockFetch = fetchRockData as ReturnType<typeof vi.fn>;
+const mockFetch = fetchViaV2Search as ReturnType<typeof vi.fn>;
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -31,6 +34,7 @@ describe('fetchChurchRolesByPreferenceAreaGuid', () => {
           value: BUCKET_GUID,
         }),
       }),
+      expect.objectContaining({ model: 'connectionopportunities' }),
     );
   });
 

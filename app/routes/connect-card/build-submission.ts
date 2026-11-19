@@ -1,4 +1,3 @@
-import { rockV1LaunchWorkflowPath } from '~/lib/rock-config';
 import type { ConnectFormType } from './types';
 
 const ENGLISH_WORKFLOW_NAME = 'CFDP Web Connect Card';
@@ -15,7 +14,6 @@ const joinFormFieldValues = (
 export type ConnectCardSubmissionPreview = {
   workflowTypeId: '403' | '902';
   workflowName: string;
-  endpoint: string;
   body: ConnectFormType;
   rawFormData: Record<string, string>;
 };
@@ -81,7 +79,6 @@ export function buildConnectCardSubmission(
   return {
     workflowTypeId,
     workflowName,
-    endpoint: rockV1LaunchWorkflowPath(workflowTypeId, workflowName),
     body,
     rawFormData,
   };

@@ -1,350 +1,155 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import {
-  assignInitiatorWhenWorkflowAppears,
-  assignRockWorkflowInitiator,
-  buildRockWorkflowLaunchEndpoint,
-  findLaunchedWorkflowId,
-  getRockApiPersonAliasId,
-  launchRockWorkflow,
-  postRockWorkflowLaunchWithApiInitiator,
-} from '../rock-workflow';
-import { fetchRockData, patchRockData, postRockData } from '../fetch-rock-data';
+import { launchRockWorkflow } from '../rock-workflow';
+import { RockAPIError } from '../error-types';
 
 vi.mock('../redis-config', () => ({ default: null }));
 vi.mock('../fetch-rock-data', () => ({
   buildRockUrl: (endpoint: string) =>
     `https://rock.example.com/api/${endpoint}`,
   isPreviewMode: () => false,
-  fetchRockData: vi.fn(),
-  patchRockData: vi.fn(),
-  postRockData: vi.fn(),
   TTL: { NONE: 0, DEFAULT: 3600, SHORT: 300, LONG: 86400 },
 }));
 
-describe('getRockApiPersonAliasId', () => {
-  afterEach(() => {
-    delete process.env.API_ALIAS_PERSON_ID;
+const SET_A_REMINDER_GUID = '498aeaba-a934-4e50-b8a6-77723d1ab4b5';
+const LAUNCH_URL = (guid: string) =>
+  `https://rock.example.com/api/v2/models/workflows/actions/launch/${guid}`;
+
+const stubV2Launch = (response: Partial<Response> | Error) => {
+  const fetchMock =
+    response instanceof Error
+      ? vi.fn().mockRejectedValue(response)
+      : vi.fn().mockResolvedValue({ text: async () => '', ...response });
+  vi.stubGlobal('fetch', fetchMock);
+  return fetchMock;
+};
+
+const launchReminder = (body: Record<string, unknown> = {}) =>
+  launchRockWorkflow({
+    workflowTypeId: '936',
+    workflowName: 'Set a Reminder',
+    body,
   });
 
-  it('returns 0 when env is unset', () => {
-    expect(getRockApiPersonAliasId()).toBe('0');
-  });
-
-  it('returns trimmed numeric alias id when set', () => {
-    process.env.API_ALIAS_PERSON_ID = '  99  ';
-    expect(getRockApiPersonAliasId()).toBe('99');
-  });
-
-  it('falls back to 0 for invalid values', () => {
-    process.env.API_ALIAS_PERSON_ID = 'not-a-number';
-    expect(getRockApiPersonAliasId()).toBe('0');
-  });
+beforeEach(() => {
+  vi.clearAllMocks();
 });
 
-describe('buildRockWorkflowLaunchEndpoint', () => {
-  afterEach(() => {
-    delete process.env.API_ALIAS_PERSON_ID;
-  });
-
-  it('uses PersonAlias launch when API alias is configured', () => {
-    process.env.API_ALIAS_PERSON_ID = '648297';
-
-    expect(
-      buildRockWorkflowLaunchEndpoint('1833', 'Journey Finder Sign Up'),
-    ).toBe(
-      'PersonAlias/LaunchWorkflow/648297?workflowTypeId=1833&workflowName=Journey%20Finder%20Sign%20Up',
-    );
-  });
-
-  it('uses Workflows/LaunchWorkflow/0 when API alias is not configured', () => {
-    expect(
-      buildRockWorkflowLaunchEndpoint('1833', 'Journey Finder Sign Up'),
-    ).toBe(
-      'Workflows/LaunchWorkflow/0?workflowTypeId=1833&workflowName=Journey%20Finder%20Sign%20Up',
-    );
-  });
+afterEach(() => {
+  vi.unstubAllGlobals();
 });
 
-describe('assignRockWorkflowInitiator', () => {
-  beforeEach(() => {
-    vi.mocked(patchRockData).mockResolvedValue(204);
-  });
-
-  it('patches InitiatorPersonAliasId on the workflow', async () => {
-    await assignRockWorkflowInitiator(42, '99');
-
-    expect(patchRockData).toHaveBeenCalledWith({
-      endpoint: 'Workflows/42',
-      body: { InitiatorPersonAliasId: 99 },
-    });
-  });
-});
-
-describe('postRockWorkflowLaunchWithApiInitiator', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    delete process.env.API_ALIAS_PERSON_ID;
-    vi.mocked(postRockData).mockResolvedValue({});
-    vi.mocked(patchRockData).mockResolvedValue(204);
-  });
-
-  it('launches without patching when API alias env is unset', async () => {
-    vi.mocked(fetchRockData).mockResolvedValueOnce([{ Id: 1 }]);
-
-    await postRockWorkflowLaunchWithApiInitiator({
-      workflowTypeId: '1',
-      workflowName: 'Test Workflow',
-      body: { FirstName: 'A' },
-    });
-
-    expect(postRockData).toHaveBeenCalled();
-    expect(patchRockData).not.toHaveBeenCalled();
-  });
-
-  it('returns after launch and patches initiator in the background', async () => {
-    process.env.API_ALIAS_PERSON_ID = '648297';
-    vi.mocked(fetchRockData)
-      .mockResolvedValueOnce([{ Id: 5645000 }])
-      .mockResolvedValue([{ Id: 5645999 }]);
-
-    await postRockWorkflowLaunchWithApiInitiator({
-      workflowTypeId: '1833',
-      workflowName: 'Journey Finder Sign Up',
-      body: { FirstName: 'Test' },
-      instanceName: 'Test Person',
-    });
-
-    expect(postRockData).toHaveBeenCalledWith({
-      endpoint:
-        'PersonAlias/LaunchWorkflow/648297?workflowTypeId=1833&workflowName=Journey%20Finder%20Sign%20Up',
-      body: { FirstName: 'Test' },
-    });
-
-    await vi.waitFor(() => {
-      expect(patchRockData).toHaveBeenCalledWith({
-        endpoint: 'Workflows/5645999',
-        body: { InitiatorPersonAliasId: 648297 },
-      });
-    });
-  });
-});
-
-describe('findLaunchedWorkflowId', () => {
-  beforeEach(() => {
-    vi.mocked(fetchRockData).mockReset();
-  });
-
-  it('returns null when no workflow is found', async () => {
-    vi.mocked(fetchRockData).mockResolvedValue([]);
-
-    const id = await findLaunchedWorkflowId({
-      workflowTypeId: '1833',
-      workflowIdAfter: 5645000,
-      maxAttempts: 1,
-      delayMs: 0,
-    });
-
-    expect(id).toBeNull();
-  });
-
-  it('reads id from a single-object fetchRockData response', async () => {
-    vi.mocked(fetchRockData).mockResolvedValue({ Id: 5645999 });
-
-    const id = await findLaunchedWorkflowId({
-      workflowTypeId: '1833',
-      workflowIdAfter: 5645000,
-      maxAttempts: 1,
-      delayMs: 0,
-    });
-
-    expect(id).toBe(5645999);
-  });
-});
-
-describe('assignInitiatorWhenWorkflowAppears', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    vi.mocked(patchRockData).mockResolvedValue(204);
-    vi.mocked(fetchRockData).mockReset();
-  });
-
-  it('returns false when workflow is never found', async () => {
-    vi.mocked(fetchRockData).mockResolvedValue([]);
-
-    const ok = await assignInitiatorWhenWorkflowAppears({
-      workflowTypeId: '1833',
-      workflowIdAfter: 1,
-      initiatorPersonAliasId: '99',
-      maxAttempts: 1,
-      delayMs: 0,
-    });
-
-    expect(ok).toBe(false);
-    expect(patchRockData).not.toHaveBeenCalled();
-  });
-});
-
-describe('launchRockWorkflow on Rock v2', () => {
-  const SET_A_REMINDER_GUID = '498aeaba-a934-4e50-b8a6-77723d1ab4b5';
-
-  const stubV2Launch = (response: Partial<Response> | Error) => {
-    const fetchMock =
-      response instanceof Error
-        ? vi.fn().mockRejectedValue(response)
-        : vi.fn().mockResolvedValue({ text: async () => '', ...response });
-    vi.stubGlobal('fetch', fetchMock);
-    return fetchMock;
-  };
-
-  beforeEach(() => {
-    vi.clearAllMocks();
-    vi.stubEnv('ROCK_V2_ENABLED', 'true');
-    vi.spyOn(console, 'error').mockImplementation(() => {});
-    vi.mocked(postRockData).mockResolvedValue({});
-  });
-
-  afterEach(() => {
-    vi.unstubAllEnvs();
-    vi.unstubAllGlobals();
-  });
-
-  it('launches on v2 by the type Guid, with attribute values as v1 sends them', async () => {
+describe('launchRockWorkflow', () => {
+  it('posts the type Guid with values as text: booleans True/False, null as "", undefined left out', async () => {
     const fetchMock = stubV2Launch({ ok: true, status: 204 });
 
-    await launchRockWorkflow({
-      workflowTypeId: '936',
-      workflowName: 'Set a Reminder',
-      body: {
-        FirstName: 'Test',
-        BeenToCF: false,
-        CampusLocation: undefined,
-        ServiceTime: null,
-      },
+    await launchReminder({
+      FirstName: 'Test',
+      BeenToCF: false,
+      IsMember: true,
+      CampusLocation: undefined,
+      ServiceTime: null,
+      GroupId: 42,
     });
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
     const [url, init] = fetchMock.mock.calls[0];
-    expect(url).toBe(
-      `https://rock.example.com/api/v2/models/workflows/actions/launch/${SET_A_REMINDER_GUID}`,
-    );
+    expect(url).toBe(LAUNCH_URL(SET_A_REMINDER_GUID));
+    expect(init.method).toBe('POST');
     expect(JSON.parse(init.body)).toEqual({
       name: 'Set a Reminder',
       attributeValues: {
         FirstName: 'Test',
         BeenToCF: 'False',
+        IsMember: 'True',
         ServiceTime: '',
+        GroupId: '42',
       },
     });
-    expect(postRockData).not.toHaveBeenCalled();
   });
 
-  it('launches on v1 when Rock refuses the v2 launch before running it', async () => {
-    stubV2Launch({ ok: false, status: 401 });
-
-    await launchRockWorkflow({
-      workflowTypeId: '936',
-      workflowName: 'Set a Reminder',
-      body: { FirstName: 'Test' },
-    });
-
-    expect(postRockData).toHaveBeenCalledWith({
-      endpoint:
-        'Workflows/LaunchWorkflow/0?workflowTypeId=936&workflowName=Set%20a%20Reminder',
-      body: { FirstName: 'Test' },
-    });
-  });
-
-  // A 400, a 500 or a dropped connection may come after Rock saved the workflow.
+  // Each form launches its own type; a wrong Guid would start the wrong workflow.
   it.each([
-    ['a bad request', { ok: false, status: 400 }],
-    ['a server error', { ok: false, status: 500 }],
+    ['654', '4df7b9ea-10a4-4987-bf47-dfe9d3adb5c1'],
+    ['1840', '17f2ddea-bb94-4a28-8e86-f2358bc41524'],
+    ['1941', '29543c34-293b-4725-92d5-e0a7d1254315'],
+  ])('launches type %s by Guid %s', async (workflowTypeId, guid) => {
+    const fetchMock = stubV2Launch({ ok: true, status: 204 });
+
+    await launchRockWorkflow({ workflowTypeId, workflowName: 'W', body: {} });
+
+    expect(fetchMock.mock.calls[0][0]).toBe(LAUNCH_URL(guid));
+  });
+
+  // Any failure may come after Rock saved the workflow, so it is never retried.
+  it.each([
+    ['a 400', { ok: false, status: 400 }],
+    ['a 401', { ok: false, status: 401 }],
+    ['a 403', { ok: false, status: 403 }],
+    ['a 404', { ok: false, status: 404 }],
+    ['a 500', { ok: false, status: 500 }],
+  ])(
+    'throws a RockAPIError on %s and launches only once',
+    async (_, response) => {
+      const fetchMock = stubV2Launch(response);
+
+      const error = await launchReminder({ FirstName: 'Test' }).catch(
+        (e: unknown) => e,
+      );
+
+      expect(error).toBeInstanceOf(RockAPIError);
+      expect((error as RockAPIError).statusCode).toBe(response.status);
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+    },
+  );
+
+  it.each([
     ['a network error', new TypeError('fetch failed')],
-  ])('throws on %s without launching on v1', async (_, response) => {
-    stubV2Launch(response as Partial<Response> | Error);
+    [
+      'a timeout',
+      Object.assign(new Error('timed out'), { name: 'TimeoutError' }),
+    ],
+  ])('throws on %s and launches only once', async (_, error) => {
+    const fetchMock = stubV2Launch(error);
 
-    await expect(
-      launchRockWorkflow({
-        workflowTypeId: '936',
-        workflowName: 'Set a Reminder',
-        body: { FirstName: 'Test' },
-      }),
-    ).rejects.toThrow();
-    expect(postRockData).not.toHaveBeenCalled();
+    await expect(launchReminder()).rejects.toBe(error);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
-  it('launches on v1, with a warning, when the type has no Guid', async () => {
-    const fetchMock = stubV2Launch({ ok: true, status: 204 });
-    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
-
-    await launchRockWorkflow({
-      workflowTypeId: '99999',
-      workflowName: 'Unmapped',
-      body: {},
-    });
-
-    expect(fetchMock).not.toHaveBeenCalled();
-    expect(postRockData).toHaveBeenCalled();
-    expect(warn).toHaveBeenCalledWith(expect.stringContaining('99999'));
-  });
-
-  it('launches on v1, with a warning, when a value isn’t text', async () => {
-    const fetchMock = stubV2Launch({ ok: true, status: 204 });
-    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    const body = { FirstName: 'Test', Interests: ['a', 'b'] };
-
-    await launchRockWorkflow({
-      workflowTypeId: '936',
-      workflowName: 'Set a Reminder',
-      body,
-    });
-
-    expect(fetchMock).not.toHaveBeenCalled();
-    expect(postRockData).toHaveBeenCalledWith(
-      expect.objectContaining({ body }),
-    );
-    expect(warn).toHaveBeenCalledWith(expect.stringContaining('Interests'));
-  });
-
-  it('gives the v2 launch a timeout', async () => {
+  it('gives the launch a timeout', async () => {
     const fetchMock = stubV2Launch({ ok: true, status: 204 });
 
-    await launchRockWorkflow({
-      workflowTypeId: '936',
-      workflowName: 'Set a Reminder',
-      body: {},
-    });
+    await launchReminder();
 
     expect(fetchMock.mock.calls[0][1].signal).toBeInstanceOf(
       globalThis.AbortSignal,
     );
   });
 
-  it('treats a launch Rock accepted as done, whatever the response body', async () => {
-    stubV2Launch({ ok: true, status: 200, text: async () => '<html>' });
+  it('throws before calling Rock when the type has no Guid', async () => {
+    const fetchMock = stubV2Launch({ ok: true, status: 204 });
 
     await expect(
       launchRockWorkflow({
-        workflowTypeId: '936',
-        workflowName: 'Set a Reminder',
+        workflowTypeId: '99999',
+        workflowName: 'Unmapped',
         body: {},
       }),
-    ).resolves.toBeUndefined();
-    expect(postRockData).not.toHaveBeenCalled();
+    ).rejects.toThrow('99999');
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it('skips the v1 initiator lookup and patch after a v2 launch', async () => {
-    vi.stubEnv('API_ALIAS_PERSON_ID', '648297');
-    stubV2Launch({ ok: true, status: 204 });
+  it('throws before calling Rock when a value isn’t text', async () => {
+    const fetchMock = stubV2Launch({ ok: true, status: 204 });
 
-    await postRockWorkflowLaunchWithApiInitiator({
-      workflowTypeId: '1833',
-      workflowName: 'Journey Finder Sign Up',
-      body: { FirstName: 'Test' },
-      instanceName: 'Test Person',
-    });
+    await expect(
+      launchReminder({ FirstName: 'Test', Interests: ['a', 'b'] }),
+    ).rejects.toThrow('Interests');
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
 
-    expect(fetchRockData).not.toHaveBeenCalled();
-    expect(postRockData).not.toHaveBeenCalled();
-    expect(patchRockData).not.toHaveBeenCalled();
+  it('treats a launch Rock accepted as done, whatever the response body', async () => {
+    stubV2Launch({ ok: true, status: 200, text: async () => '<html>' });
+
+    await expect(launchReminder()).resolves.toBeUndefined();
   });
 });

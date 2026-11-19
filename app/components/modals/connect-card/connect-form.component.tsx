@@ -302,8 +302,6 @@ const ConnectCardForm: React.FC<ConnectCardProps> = ({
     // eslint-disable-next-line no-console -- temporary connect card debug
     console.log('Workflow type ID:', submission.workflowTypeId);
     // eslint-disable-next-line no-console -- temporary connect card debug
-    console.log('Rock endpoint:', submission.endpoint);
-    // eslint-disable-next-line no-console -- temporary connect card debug
     console.log('Rock body:', submission.body);
     // eslint-disable-next-line no-console -- temporary connect card debug
     console.groupEnd();

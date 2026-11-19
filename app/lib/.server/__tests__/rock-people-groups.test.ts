@@ -1,16 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('../redis-config', () => ({ default: null }));
-vi.mock('../fetch-rock-data', async (importOriginal) => ({
-  ...(await importOriginal<object>()),
-  fetchRockData: vi.fn(),
-}));
-
-import { fetchRockData } from '../fetch-rock-data';
 import {
   fetchGroupMembers,
   fetchPeople,
   fetchPersonAliases,
+  fetchPhoneNumbers,
 } from '../rock-people-groups';
 
 const PERSON_GUID = '1b5c2e3d-4f5a-6b7c-8d9e-0f1a2b3c4d5e';
@@ -36,12 +31,10 @@ const sentBody = (call = 0) =>
 
 beforeEach(() => {
   vi.clearAllMocks();
-  vi.stubEnv('ROCK_V2_ENABLED', 'true');
   vi.stubEnv('NODE_ENV', 'test');
   vi.stubEnv('ROCK_API', 'https://rock.example.com/api/');
   vi.spyOn(console, 'error').mockImplementation(() => {});
   vi.spyOn(console, 'warn').mockImplementation(() => {});
-  vi.mocked(fetchRockData).mockResolvedValue('v1');
 });
 
 afterEach(() => {
@@ -66,7 +59,7 @@ describe('fetchPeople', () => {
 
   // The signup person match: a search that ignored its `where` must not
   // hand back someone else, who would then get the group adds and workflows.
-  it('asks v1 when a name + email match returns someone else', async () => {
+  it('rejects when a name + email match returns someone else', async () => {
     stubRock({
       count: 1,
       items: [{ id: 9, firstName: 'Ann', lastName: 'Lee', email: 'x@y.z' }],
@@ -81,7 +74,7 @@ describe('fetchPeople', () => {
           $select: 'Id',
         },
       }),
-    ).resolves.toBe('v1');
+    ).rejects.toThrow(/Email doesn't match/);
     expect(sentBody().select).toBe('new (Id, FirstName, LastName, Email)');
   });
 
@@ -189,9 +182,28 @@ describe('fetchPersonAliases', () => {
   });
 });
 
+describe('fetchPhoneNumbers', () => {
+  it('reads through the camelCase phoneNumbers search', async () => {
+    stubRock({
+      count: 1,
+      items: [{ id: 2, personId: 7, number: '5615551234' }],
+    });
+
+    await expect(
+      fetchPhoneNumbers({
+        endpoint: 'PhoneNumbers',
+        queryParams: { $filter: 'PersonId eq 7' },
+      }),
+    ).resolves.toMatchObject({ id: 2, personId: 7 });
+    expect(vi.mocked(global.fetch).mock.calls[0][0]).toMatch(
+      /phonenumbers\/search\/phoneNumbers$/,
+    );
+  });
+});
+
 describe('fetchGroupMembers', () => {
   // A membership check gates a write: another membership must not pass.
-  it('asks v1 when a membership check returns another person', async () => {
+  it('rejects when a membership check returns another person', async () => {
     stubRock({ count: 1, items: [{ id: 1, groupId: 5, personId: 8 }] });
 
     await expect(
@@ -202,7 +214,7 @@ describe('fetchGroupMembers', () => {
           $select: 'Id',
         },
       }),
-    ).resolves.toBe('v1');
+    ).rejects.toThrow(/PersonId doesn't match/);
   });
 
   it('filters on the status name and returns v1’s status number', async () => {
@@ -228,6 +240,9 @@ describe('fetchGroupMembers', () => {
       },
     });
 
+    expect(vi.mocked(global.fetch).mock.calls[0][0]).toMatch(
+      /groupmembers\/search\/groupMembers$/,
+    );
     expect(sentBody().where).toBe(
       '(GroupId == 5 && GroupMemberStatus == "Active")',
     );

@@ -39,7 +39,6 @@ export async function fetchWistiaData({
 
 export async function fetchWistiaDataFromRock(guid: string) {
   const mediaElement = await fetchRockEntityByGuid<{ sourceKey?: string }>({
-    v1Endpoint: 'MediaElements',
     v2Model: 'mediaelements',
     guid,
   });

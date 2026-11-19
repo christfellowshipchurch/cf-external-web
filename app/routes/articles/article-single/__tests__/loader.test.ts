@@ -1,11 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-vi.mock('~/lib/.server/fetch-rock-data', () => ({ fetchRockData: vi.fn() }));
+vi.mock('~/lib/.server/rock-content-items', () => ({
+  fetchContentItems: vi.fn(),
+}));
 
-import { fetchRockData } from '~/lib/.server/fetch-rock-data';
+import { fetchContentItems } from '~/lib/.server/rock-content-items';
 import { fetchRelatedArticles } from '../loader';
 
-const mockFetch = vi.mocked(fetchRockData);
+const mockFetch = vi.mocked(fetchContentItems);
 type RelatedArticleInput = Parameters<typeof fetchRelatedArticles>[0];
 const CATEGORY = '11111111-1111-1111-1111-111111111111';
 const OTHER_CATEGORY = '22222222-2222-2222-2222-222222222222';

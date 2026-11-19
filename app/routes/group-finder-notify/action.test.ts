@@ -1,26 +1,31 @@
 import type { ActionFunctionArgs } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { fetchRockData, postRockData } from '~/lib/.server/fetch-rock-data';
-import { findOrCreateRockPersonForSignup } from '~/lib/.server/rock-signup';
+import { fetchRockV2 } from '~/lib/.server/fetch-rock-v2';
+import { fetchGroupMembers } from '~/lib/.server/rock-people-groups';
+import {
+  addRockGroupMember,
+  findOrCreateRockPersonForSignup,
+} from '~/lib/.server/rock-signup';
 import { action } from './action';
 
-vi.mock('~/lib/.server/fetch-rock-data', () => ({
-  fetchRockData: vi.fn(),
-  postRockData: vi.fn(),
-  TTL: { NONE: 0 },
+// Only the Rock call is mocked, so fetchCampuses still guards the campus guid.
+vi.mock('~/lib/.server/fetch-rock-v2', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('~/lib/.server/fetch-rock-v2')>()),
+  fetchRockV2: vi.fn(),
 }));
 
-vi.mock('~/lib/.server/rock-signup', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('~/lib/.server/rock-signup')>()),
+vi.mock('~/lib/.server/rock-people-groups', () => ({
+  fetchGroupMembers: vi.fn(),
+}));
+
+vi.mock('~/lib/.server/rock-signup', () => ({
+  addRockGroupMember: vi.fn(),
   findOrCreateRockPersonForSignup: vi.fn(),
 }));
 
-vi.mock('~/lib/.server/rock-utils', () => ({
-  escapeOData: vi.fn((value: string) => value),
-}));
-
-const mockFetchRockData = vi.mocked(fetchRockData);
-const mockPostRockData = vi.mocked(postRockData);
+const mockFetchRockV2 = vi.mocked(fetchRockV2);
+const mockFetchGroupMembers = vi.mocked(fetchGroupMembers);
+const mockAddRockGroupMember = vi.mocked(addRockGroupMember);
 const mockFindOrCreateRockPersonForSignup = vi.mocked(
   findOrCreateRockPersonForSignup,
 );
@@ -53,14 +58,11 @@ const createRequest = ({
 
 describe('group finder notify action', () => {
   beforeEach(() => {
-    mockFetchRockData.mockReset();
-    mockPostRockData.mockReset();
-    mockFindOrCreateRockPersonForSignup.mockReset();
-    mockFetchRockData
-      .mockResolvedValueOnce({ id: 10 })
-      .mockResolvedValueOnce([]);
+    vi.clearAllMocks();
+    mockFetchRockV2.mockResolvedValue([{ id: 10 }]);
+    mockFetchGroupMembers.mockResolvedValue([]);
     mockFindOrCreateRockPersonForSignup.mockResolvedValue('123');
-    mockPostRockData.mockResolvedValue({});
+    mockAddRockGroupMember.mockResolvedValue({ id: 1 });
   });
 
   it('rejects missing required fields', async () => {
@@ -73,12 +75,11 @@ describe('group finder notify action', () => {
       error: 'Please fill in all required fields.',
     });
     expect(mockFindOrCreateRockPersonForSignup).not.toHaveBeenCalled();
-    expect(mockPostRockData).not.toHaveBeenCalled();
+    expect(mockAddRockGroupMember).not.toHaveBeenCalled();
   });
 
   it('rejects invalid campus guids', async () => {
-    mockFetchRockData.mockReset();
-    mockFetchRockData.mockResolvedValueOnce([]);
+    mockFetchRockV2.mockResolvedValue([]);
 
     const response = (await action({
       request: createRequest(),
@@ -88,23 +89,20 @@ describe('group finder notify action', () => {
     expect(await response.json()).toEqual({
       error: 'Please select a valid campus.',
     });
-    expect(mockPostRockData).not.toHaveBeenCalled();
+    expect(mockAddRockGroupMember).not.toHaveBeenCalled();
   });
 
   it('never sends a malformed campus guid to Rock', async () => {
-    mockFetchRockData.mockReset();
-
     const response = (await action({
       request: createRequest({ campus: "x' or 1 eq 1" }),
     } as ActionFunctionArgs)) as Response;
 
     expect(response.status).toBe(400);
-    expect(mockFetchRockData).not.toHaveBeenCalled();
+    expect(mockFetchRockV2).not.toHaveBeenCalled();
   });
 
   it('rejects unmapped campus ids', async () => {
-    mockFetchRockData.mockReset();
-    mockFetchRockData.mockResolvedValueOnce({ id: 999 });
+    mockFetchRockV2.mockResolvedValue([{ id: 999 }]);
 
     const response = (await action({
       request: createRequest(),
@@ -114,7 +112,7 @@ describe('group finder notify action', () => {
     expect(await response.json()).toEqual({
       error: 'This campus is not available for group notifications.',
     });
-    expect(mockPostRockData).not.toHaveBeenCalled();
+    expect(mockAddRockGroupMember).not.toHaveBeenCalled();
   });
 
   it('finds or creates the submitted person', async () => {
@@ -129,10 +127,7 @@ describe('group finder notify action', () => {
   });
 
   it('does not create a duplicate group member', async () => {
-    mockFetchRockData.mockReset();
-    mockFetchRockData
-      .mockResolvedValueOnce({ id: 10 })
-      .mockResolvedValueOnce({ id: 222 });
+    mockFetchGroupMembers.mockResolvedValue({ id: 222 });
 
     const response = (await action({
       request: createRequest(),
@@ -140,7 +135,7 @@ describe('group finder notify action', () => {
 
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({ success: true });
-    expect(mockPostRockData).not.toHaveBeenCalled();
+    expect(mockAddRockGroupMember).not.toHaveBeenCalled();
   });
 
   it('creates a group member for the selected campus group', async () => {
@@ -149,15 +144,7 @@ describe('group finder notify action', () => {
     } as ActionFunctionArgs)) as Response;
 
     expect(response.status).toBe(200);
-    expect(mockFetchRockData).toHaveBeenNthCalledWith(1, {
-      endpoint: 'Campuses',
-      queryParams: {
-        $filter: "Guid eq guid'0f3a9c2e-1b4d-4e5f-8a6b-7c8d9e0f1a2b'",
-        $select: 'Id',
-      },
-      ttl: 0,
-    });
-    expect(mockFetchRockData).toHaveBeenNthCalledWith(2, {
+    expect(mockFetchGroupMembers).toHaveBeenCalledWith({
       endpoint: 'GroupMembers',
       queryParams: {
         $filter: 'GroupId eq 1098441 and PersonId eq 123',
@@ -165,16 +152,23 @@ describe('group finder notify action', () => {
       },
       ttl: 0,
     });
-    expect(mockPostRockData).toHaveBeenCalledWith({
-      endpoint: 'GroupMembers',
-      body: {
-        GroupId: 1098441,
-        PersonId: '123',
-        GroupRoleId: 359,
-        GroupMemberStatus: 1,
-        IsArchived: false,
-      },
+    expect(mockAddRockGroupMember).toHaveBeenCalledWith({
+      groupId: 1098441,
+      personId: '123',
+      groupRoleId: 359,
+      groupMemberStatus: 1,
     });
     expect(await response.json()).toEqual({ success: true });
+  });
+
+  it('returns 400 when adding the group member fails', async () => {
+    mockAddRockGroupMember.mockRejectedValue(new Error('Rock v2 failed'));
+
+    const response = (await action({
+      request: createRequest(),
+    } as ActionFunctionArgs)) as Response;
+
+    expect(response.status).toBe(400);
+    expect(await response.json()).toEqual({ error: 'Rock v2 failed' });
   });
 });
