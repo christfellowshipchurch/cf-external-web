@@ -277,6 +277,19 @@ describe('keepMatchingRows', () => {
     expect(keepMatchingRows(rows, 'Url', 'jupiter')).toEqual(rows);
   });
 
+  // Rock's SQL `where` matched "Ann " to "Ann"; the guard must not reject it.
+  it('ignores trailing spaces, as SQL Server does', () => {
+    const rows = [{ firstName: 'Ann  ', email: 'ANN@example.com ' }];
+    expect(keepMatchingRows(rows, 'FirstName', 'Ann')).toEqual(rows);
+    expect(keepMatchingRows(rows, 'Email', 'ann@example.com')).toEqual(rows);
+  });
+
+  it('still rejects a leading space, which SQL Server compares', () => {
+    expect(() =>
+      keepMatchingRows([{ firstName: ' Ann' }], 'FirstName', 'Ann'),
+    ).toThrow(/doesn't match/);
+  });
+
   // A search that ignored its `where` returns other records; the read must
   // fail rather than use one of them.
   it('throws when any row belongs to another record', () => {

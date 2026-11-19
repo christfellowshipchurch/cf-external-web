@@ -114,7 +114,8 @@ export const projectedToV1Shape = <T = Record<string, unknown>>(
 };
 
 /**
- * Search rows whose `field` equals `expected` (case-insensitive). If Rock
+ * Search rows whose `field` equals `expected`, ignoring case and trailing
+ * spaces as SQL Server's `=` does, so a row Rock matched passes. If Rock
  * ignored the refinement `where`, a search returns unrelated rows; throwing
  * then fails the read instead of using the wrong record. Rock returns
  * camelCase keys, so `field` (`Guid`) is read as given, then as `guid`.
@@ -124,11 +125,14 @@ export const keepMatchingRows = (
   field: string,
   expected: string,
 ): Record<string, unknown>[] => {
-  const wanted = expected.toLowerCase();
+  const comparable = (value: unknown) =>
+    String(value ?? '')
+      .trimEnd()
+      .toLowerCase();
+  const wanted = comparable(expected);
   const camelField = camelCase(field);
   const matching = rows.filter(
-    (row) =>
-      String(row[field] ?? row[camelField] ?? '').toLowerCase() === wanted,
+    (row) => comparable(row[field] ?? row[camelField]) === wanted,
   );
   if (matching.length !== rows.length) {
     // No value: it can be a name or an email.
