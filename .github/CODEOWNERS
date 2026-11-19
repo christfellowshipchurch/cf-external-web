@@ -1,0 +1,52 @@
+# High-risk paths need a review from @christfellowshipchurch/code-owners.
+# Keep this in step with the "High-risk paths" section of AGENTS.md.
+# Later lines win, so keep catch-alls above specific paths.
+
+# CI, Dependabot and this file
+/.github/ @christfellowshipchurch/code-owners
+
+# Rock calls, cache and cache invalidation
+/app/lib/.server/fetch-rock-data.ts @christfellowshipchurch/code-owners
+/app/lib/.server/fetch-rock-v2.ts @christfellowshipchurch/code-owners
+/app/lib/.server/cache-utils.ts @christfellowshipchurch/code-owners
+/app/lib/.server/redis-config.ts @christfellowshipchurch/code-owners
+/app/routes/api.admin.cache.tsx @christfellowshipchurch/code-owners
+
+# Rock writes and workflow launches (add new write routes here)
+/app/lib/.server/rock-workflow.ts @christfellowshipchurch/code-owners
+/app/lib/.server/rock-signup.ts @christfellowshipchurch/code-owners
+/app/lib/.server/rock-person.ts @christfellowshipchurch/code-owners
+/app/lib/.server/rock-phone-numbers.ts @christfellowshipchurch/code-owners
+/app/routes/api.connect-card-prefill.tsx @christfellowshipchurch/code-owners
+/app/routes/api.help-me-find-a-group.tsx @christfellowshipchurch/code-owners
+/app/routes/api.journey-sign-up.tsx @christfellowshipchurch/code-owners
+/app/routes/baptism-sign-up/action.ts @christfellowshipchurch/code-owners
+/app/routes/class-interest/action.ts @christfellowshipchurch/code-owners
+/app/routes/connect-card/action.ts @christfellowshipchurch/code-owners
+/app/routes/contact-us/action.ts @christfellowshipchurch/code-owners
+/app/routes/dream-team-kickoff/action.ts @christfellowshipchurch/code-owners
+/app/routes/group-finder-notify/action.ts @christfellowshipchurch/code-owners
+/app/routes/group-finder/action.tsx @christfellowshipchurch/code-owners
+/app/routes/journey-finder-sign-up/action.ts @christfellowshipchurch/code-owners
+/app/routes/newsletter-subscription/action.ts @christfellowshipchurch/code-owners
+/app/routes/prayer-request/action.ts @christfellowshipchurch/code-owners
+/app/routes/set-a-reminder/action.ts @christfellowshipchurch/code-owners
+/app/routes/share-my-skills/action.ts @christfellowshipchurch/code-owners
+/app/routes/volunteer/outreach-opportunity/action.ts @christfellowshipchurch/code-owners
+
+# Rock proxy and HTML sanitising
+/app/routes/rock-proxy/ @christfellowshipchurch/code-owners
+/app/lib/.server/validate-rock-url.ts @christfellowshipchurch/code-owners
+/app/lib/sanitize.ts @christfellowshipchurch/code-owners
+
+# Algolia config
+/app/lib/algolia-indexes.ts @christfellowshipchurch/code-owners
+/app/lib/.server/algolia-indexes.server.ts @christfellowshipchurch/code-owners
+
+# Hosting, build and env config
+/vercel.json @christfellowshipchurch/code-owners
+/netlify.toml @christfellowshipchurch/code-owners
+/react-router.config.ts @christfellowshipchurch/code-owners
+/vite.config.ts @christfellowshipchurch/code-owners
+/pnpm-workspace.yaml @christfellowshipchurch/code-owners
+/.infisical.json @christfellowshipchurch/code-owners
