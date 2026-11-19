@@ -5,6 +5,8 @@ import {
   type WeeklyMinistryService,
 } from '../components/during-the-week.component';
 import { CTAs } from '../components/ctas.component';
+import { ChristmasServicesBanner } from '../components/christmas-services-banner.component';
+import { isChristmasServicesActive } from '~/lib/christmas-services';
 import { icons } from '~/lib/icons';
 import { dayTimes, formattedServiceTimes } from '~/lib/utils';
 
@@ -29,14 +31,20 @@ const IconText = ({
   icon,
   text,
   serviceTimes,
+  pluralizeDays,
 }: {
   icon: keyof typeof icons;
   text?: string;
   serviceTimes?: dayTimes[];
+  /** "Sunday" -> "Sundays", so regular times read apart from the holiday dates. */
+  pluralizeDays?: boolean;
 }) => {
   const formattedTimes = serviceTimes?.map((time) => {
     return {
-      day: time.day,
+      day:
+        pluralizeDays && time.day && !time.day.endsWith('s')
+          ? `${time.day}s`
+          : time.day,
       hour:
         time.day?.toLowerCase() === 'ondemand'
           ? undefined
@@ -75,6 +83,7 @@ export const CampusInfo = ({
   serviceTimes,
 }: CampusInfoProps) => {
   const isSpanish = campusName?.includes('Español');
+  const showChristmas = isChristmasServicesActive();
 
   const address = `${campusLocation?.street1}${
     campusLocation?.street2 ? ` ${campusLocation?.street2}` : ''
@@ -85,6 +94,7 @@ export const CampusInfo = ({
   if (isOnline) {
     return (
       <OnlineCampusInfo
+        showChristmas={showChristmas}
         campusName={campusName}
         digitalTourVideo={digitalTourVideo}
         phoneNumber={phoneNumber}
@@ -128,12 +138,15 @@ export const CampusInfo = ({
             </h1>
           </div>
 
+          {showChristmas && <ChristmasServicesBanner isSpanish={isSpanish} />}
+
           {/* Important Info Section */}
           <div className='flex flex-col gap-3'>
             <div className='flex flex-col gap-2'>
               <IconText
                 icon='timeFive'
                 serviceTimes={formattedServiceTimes(serviceTimes)}
+                pluralizeDays={showChristmas}
               />
               <IconText icon='map' text={address} />
               <IconText icon='mobileAlt' text={phoneNumber} />
@@ -193,7 +206,8 @@ const OnlineCampusInfo = ({
   phoneNumber,
   additionalInfo,
   serviceTimes,
-}: CampusInfoProps) => {
+  showChristmas,
+}: CampusInfoProps & { showChristmas: boolean }) => {
   return (
     <div className='w-full content-padding'>
       <div className='mx-auto flex w-full max-w-screen-content flex-col gap-8 pt-16 pb-20 lg:flex-row lg:justify-between lg:pb-32'>
@@ -210,12 +224,15 @@ const OnlineCampusInfo = ({
             </h1>
           </div>
 
+          {showChristmas && <ChristmasServicesBanner />}
+
           {/* Important Info Section */}
           <div className='flex flex-col gap-3'>
             <div className='flex flex-col gap-2'>
               <IconText
                 icon='timeFive'
                 serviceTimes={formattedServiceTimes(serviceTimes)}
+                pluralizeDays={showChristmas}
               />
               <IconText
                 icon='station'
