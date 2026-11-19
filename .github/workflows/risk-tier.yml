@@ -21,7 +21,7 @@ concurrency:
 
 jobs:
   tier:
-    uses: christfellowshipchurch/.github/.github/workflows/risk-tier.yml@8bb3f773ab9e39cb9afe0101a719df5222cb1b9f # main
+    uses: christfellowshipchurch/.github/.github/workflows/risk-tier.yml@1f2d50f6d999b1e91394a867e28d3a0d052e6857 # main
     with:
       # Files a Low PR may touch. The last matching line wins; ! excludes.
       low-paths: |
