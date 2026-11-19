@@ -10,16 +10,18 @@ on:
     types: [submitted, dismissed]
 
 permissions:
+  actions: write # to re-run the check after a review
   contents: read
   pull-requests: write # to request reviewers
 
+# Keyed by event too: the re-run started by a review must not cancel the review's own run.
 concurrency:
-  group: risk-tier-${{ github.event.pull_request.number }}
+  group: risk-tier-${{ github.event_name }}-${{ github.event.pull_request.number }}
   cancel-in-progress: true
 
 jobs:
   tier:
-    uses: christfellowshipchurch/.github/.github/workflows/risk-tier.yml@a467977fefcd7798265c54d08ca18fc9834aa16c # main
+    uses: christfellowshipchurch/.github/.github/workflows/risk-tier.yml@1f2d50f6d999b1e91394a867e28d3a0d052e6857 # main
     with:
       # Files a Low PR may touch. The last matching line wins; ! excludes.
       low-paths: |
