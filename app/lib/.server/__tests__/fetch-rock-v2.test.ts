@@ -15,14 +15,12 @@ import {
   buildV2SearchBody,
   fetchRockEntityByGuid,
   fetchRockV2,
-  isRockV2Enabled,
   keepMatchingRows,
   projectedToV1Shape,
   requestRockV2,
   requireV2Guid,
   sendRockV2,
   toV1Shape,
-  writeRockV2,
 } from '../fetch-rock-v2';
 import { RockAPIError } from '../error-types';
 import redis from '../redis-config';
@@ -44,9 +42,8 @@ let warnSpy: ReturnType<typeof vi.spyOn>;
 beforeEach(() => {
   vi.clearAllMocks();
   redisStore.clear();
-  process.env.ROCK_API = 'https://rock.example.com/api/';
-  process.env.ROCK_TOKEN = 'test-token';
-  vi.stubEnv('ROCK_V2_ENABLED', 'true');
+  vi.stubEnv('ROCK_API', 'https://rock.example.com/api/');
+  vi.stubEnv('ROCK_TOKEN', 'test-token');
   vi.stubEnv('NODE_ENV', 'test');
   global.fetch = vi.fn();
   errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
@@ -59,28 +56,7 @@ afterEach(() => {
   warnSpy.mockRestore();
 });
 
-/**
- * v2 ships dark: with the flag off, a page must behave exactly as it does on
- * v1 today, never touching the v2 endpoints.
- */
-describe('Rock v2 off', () => {
-  it('runs only the v1 fallback and never calls Rock v2', async () => {
-    vi.stubEnv('ROCK_V2_ENABLED', 'false');
-    const fallback = vi.fn(async () => ({ name: 'from v1' }));
-
-    const result = await fetchRockV2({
-      path: `campuses/${CAMPUS_GUID}`,
-      map: () => ({ name: 'from v2' }),
-      fallback,
-    });
-
-    expect(result).toEqual({ name: 'from v1' });
-    expect(fallback).toHaveBeenCalledOnce();
-    expect(global.fetch).not.toHaveBeenCalled();
-  });
-});
-
-describe('Rock v2 on', () => {
+describe('fetchRockV2', () => {
   it('reads /api/v2/models with the REST key and returns the mapped result', async () => {
     fetchMock().mockResolvedValueOnce(
       okResponse({ name: 'Palm Beach Gardens' }),
@@ -89,7 +65,6 @@ describe('Rock v2 on', () => {
     const result = await fetchRockV2({
       path: `campuses/${CAMPUS_GUID}`,
       map: (data) => toV1Shape(data as Record<string, unknown>),
-      fallback: vi.fn(),
     });
 
     const [url, init] = fetchMock().mock.calls[0];
@@ -101,7 +76,7 @@ describe('Rock v2 on', () => {
     expect(result).toEqual({ name: 'Palm Beach Gardens' });
   });
 
-  /** A v2 outage or permission change must degrade to v1, not break the page. */
+  // No v1 fallback: a v2 failure must surface, not return empty data.
   it.each([
     [
       'a non-ok response',
@@ -111,37 +86,25 @@ describe('Rock v2 on', () => {
           status: 401,
           text: async () => 'Unauthorized',
         }),
+      /failed: 401/,
     ],
     [
       'a network error',
       () => fetchMock().mockRejectedValueOnce(new Error('ECONNRESET')),
+      /ECONNRESET/,
     ],
-  ])('falls back to v1 on %s', async (_label, arrange) => {
+  ])('throws on %s', async (_label, arrange, message) => {
     arrange();
-    const fallback = vi.fn(async () => ({ name: 'from v1' }));
+    const map = vi.fn();
 
-    const result = await fetchRockV2({
-      path: `campuses/${CAMPUS_GUID}`,
-      map: () => ({ name: 'from v2' }),
-      fallback,
-    });
-
-    expect(result).toEqual({ name: 'from v1' });
-    expect(fallback).toHaveBeenCalledOnce();
+    await expect(
+      fetchRockV2({ path: `campuses/${CAMPUS_GUID}`, map }),
+    ).rejects.toThrow(message);
+    expect(map).not.toHaveBeenCalled();
   });
-});
 
-/**
- * Rock 18.7 refuses number IDs in more places when Disable Predictable IDs is
- * on. v2 accepts a Guid or IdKey, so a number ID in a v2 path is a bug to
- * catch in development, not a request to send.
- */
-/**
- * A read can span several v2 calls (search, then attribute values). A failed
- * follow-up must send the whole read to v1, never mix v1 and v2 data.
- */
-describe('multi-call v2 reads', () => {
-  it('falls back to v1 when a follow-up call inside map fails', async () => {
+  // A read can span several v2 calls; a failed follow-up fails the whole read.
+  it('rejects when a follow-up call inside map fails', async () => {
     fetchMock()
       .mockResolvedValueOnce(okResponse({ items: [{ guid: CAMPUS_GUID }] }))
       .mockResolvedValueOnce({
@@ -150,85 +113,56 @@ describe('multi-call v2 reads', () => {
         json: async () => ({}),
         text: async () => 'Unauthorized',
       });
-    const fallback = vi.fn(async () => 'from v1');
 
-    const result = await fetchRockV2({
-      path: 'campuses/search/campus-by-url',
-      method: 'POST',
-      body: { where: 'Url == "jupiter"' },
-      map: async () => {
-        await requestRockV2({
-          path: `campuses/${CAMPUS_GUID}/attributevalues`,
-        });
-        return 'from v2';
-      },
-      fallback,
-    });
-
-    expect(result).toBe('from v1');
+    await expect(
+      fetchRockV2({
+        path: 'campuses/search/campus-by-url',
+        method: 'POST',
+        body: { where: 'Url == "jupiter"' },
+        map: async () => {
+          await requestRockV2({
+            path: `campuses/${CAMPUS_GUID}/attributevalues`,
+          });
+          return 'from v2';
+        },
+      }),
+    ).rejects.toThrow(/attributevalues failed: 401/);
     expect(global.fetch).toHaveBeenCalledTimes(2);
   });
 });
 
 /**
- * The prototype is checked by reading the dev server's console, so in
- * development every v2 read is compared with v1, and the page still gets v2.
+ * Rock 18.7 refuses number IDs in more places when Disable Predictable IDs is
+ * on, so a number ID in a v2 path is never sent, in any environment.
  */
-describe('v1 comparison in development', () => {
-  it('logs the fields (not values) where v2 differs from v1 and returns the v2 result', async () => {
-    vi.stubEnv('NODE_ENV', 'development');
-    fetchMock().mockResolvedValueOnce(
-      okResponse({ name: 'Jupiter', phoneNumber: '561' }),
-    );
-
-    const result = await fetchRockV2({
-      path: `campuses/${CAMPUS_GUID}`,
-      map: (data) => data,
-      fallback: async () => ({ name: 'Jupiter', phoneNumber: '562', id: 7 }),
-    });
-
-    expect(result).toEqual({ name: 'Jupiter', phoneNumber: '561' });
-    const output = String(warnSpy.mock.calls[0][0]);
-    expect(output).toContain('1 differences');
-    expect(output).toContain('phoneNumber');
-    // Paths only: People and phone reads go through this log.
-    expect(output).not.toContain('562');
-    expect(output).toContain('Only in v1: id');
-  });
-});
-
 describe('number IDs in v2 paths', () => {
-  it('throws outside production without calling Rock', async () => {
+  it.each(['test', 'production'])(
+    'throws in %s without calling Rock',
+    async (env) => {
+      vi.stubEnv('NODE_ENV', env);
+
+      await expect(
+        fetchRockV2({ path: 'people/123', map: (d) => d }),
+      ).rejects.toThrow(/Guid or IdKey/);
+      expect(global.fetch).not.toHaveBeenCalled();
+    },
+  );
+
+  it('throws on a write path too', async () => {
     await expect(
-      fetchRockV2({ path: 'people/123', map: (d) => d, fallback: vi.fn() }),
+      sendRockV2('PATCH', 'people/123', { Email: 'a@b.c' }),
     ).rejects.toThrow(/Guid or IdKey/);
-    expect(global.fetch).not.toHaveBeenCalled();
-  });
-
-  it('falls back to v1 in production instead of failing the page', async () => {
-    vi.stubEnv('NODE_ENV', 'production');
-    const fallback = vi.fn(async () => 'from v1');
-
-    const result = await fetchRockV2({
-      path: 'people/123',
-      map: () => 'from v2',
-      fallback,
-    });
-
-    expect(result).toBe('from v1');
     expect(global.fetch).not.toHaveBeenCalled();
   });
 
   it('allows an IdKey', async () => {
     fetchMock().mockResolvedValueOnce(okResponse({}));
 
-    await fetchRockV2({
-      path: 'people/aB3dE',
-      map: (d) => d,
-      fallback: vi.fn(),
-    });
+    await fetchRockV2({ path: 'people/aB3dE', map: (d) => d });
 
-    expect(global.fetch).toHaveBeenCalledOnce();
+    expect(fetchMock().mock.calls[0][0]).toBe(
+      'https://rock.example.com/api/v2/models/people/aB3dE',
+    );
   });
 });
 
@@ -243,7 +177,6 @@ describe('v2 cache keys', () => {
       method: 'POST',
       body: buildV2SearchBody({ where }),
       map: (d) => d,
-      fallback: vi.fn(),
     });
 
   it('gives searches with different bodies different keys', async () => {
@@ -344,8 +277,21 @@ describe('keepMatchingRows', () => {
     expect(keepMatchingRows(rows, 'Url', 'jupiter')).toEqual(rows);
   });
 
+  // Rock's SQL `where` matched "Ann " to "Ann"; the guard must not reject it.
+  it('ignores trailing spaces, as SQL Server does', () => {
+    const rows = [{ firstName: 'Ann  ', email: 'ANN@example.com ' }];
+    expect(keepMatchingRows(rows, 'FirstName', 'Ann')).toEqual(rows);
+    expect(keepMatchingRows(rows, 'Email', 'ann@example.com')).toEqual(rows);
+  });
+
+  it('still rejects a leading space, which SQL Server compares', () => {
+    expect(() =>
+      keepMatchingRows([{ firstName: ' Ann' }], 'FirstName', 'Ann'),
+    ).toThrow(/doesn't match/);
+  });
+
   // A search that ignored its `where` returns other records; the read must
-  // fall back to v1 rather than use one of them.
+  // fail rather than use one of them.
   it('throws when any row belongs to another record', () => {
     expect(() =>
       keepMatchingRows(
@@ -368,21 +314,6 @@ describe('buildV2SearchBody', () => {
     expect(buildV2SearchBody({ where: 'IsActive == true' })).toEqual({
       where: 'IsActive == true',
     });
-  });
-});
-
-// Same switch as My Groups: v2 is on unless explicitly turned off.
-describe('isRockV2Enabled', () => {
-  it.each([
-    [undefined, true],
-    ['', true],
-    ['true', true],
-    ['false', false],
-    [' false ', false],
-  ])('ROCK_V2_ENABLED=%s → %s', (value, expected) => {
-    vi.stubEnv('ROCK_V2_ENABLED', value);
-
-    expect(isRockV2Enabled()).toBe(expected);
   });
 });
 
@@ -460,58 +391,21 @@ describe('sendRockV2', () => {
   });
 });
 
-describe('writeRockV2', () => {
-  const run = (v2: () => Promise<string>) => {
-    const fallback = vi.fn(async () => 'v1');
-    return {
-      fallback,
-      result: writeRockV2({ label: 'test', v2, fallback }),
-    };
-  };
-
-  it('writes only on v1 when v2 is off', async () => {
-    vi.stubEnv('ROCK_V2_ENABLED', 'false');
-    const v2 = vi.fn(async () => 'v2');
-    const { result } = run(v2);
-
-    await expect(result).resolves.toBe('v1');
-    expect(v2).not.toHaveBeenCalled();
+describe('requireV2Guid', () => {
+  it('returns the Guid it was given', () => {
+    expect(requireV2Guid(CAMPUS_GUID, 'person')).toBe(CAMPUS_GUID);
   });
 
-  it('does not write on v1 after a v2 write', async () => {
-    const { result, fallback } = run(async () => 'v2');
-
-    await expect(result).resolves.toBe('v2');
-    expect(fallback).not.toHaveBeenCalled();
-  });
-
-  it.each([400, 401, 403, 404])(
-    'writes on v1 when Rock refused with %i',
-    async (status) => {
-      const { result } = run(async () => {
-        throw new RockAPIError('refused', status);
-      });
-
-      await expect(result).resolves.toBe('v1');
-    },
-  );
-
-  it('writes on v1 when the record has no Guid', async () => {
-    const { result } = run(async () => requireV2Guid(undefined, 'person'));
-
-    await expect(result).resolves.toBe('v1');
-  });
-
-  it.each([
-    ['a 500', new RockAPIError('failed', 500)],
-    ['a dropped connection', new TypeError('fetch failed')],
-  ])('throws on %s, which may come after Rock wrote', async (_, error) => {
-    const { result, fallback } = run(async () => {
-      throw error;
-    });
-
-    await expect(result).rejects.toBe(error);
-    expect(fallback).not.toHaveBeenCalled();
+  // A write can't target a record by number id, so a missing Guid is a 404.
+  it.each([undefined, null, ''])('throws a 404 for %s', (guid) => {
+    let error: unknown;
+    try {
+      requireV2Guid(guid, 'person');
+    } catch (e) {
+      error = e;
+    }
+    expect(error).toBeInstanceOf(RockAPIError);
+    expect((error as RockAPIError).statusCode).toBe(404);
   });
 });
 
@@ -523,7 +417,6 @@ describe('fetchRockEntityByGuid', () => {
 
     await expect(
       fetchRockEntityByGuid({
-        v1Endpoint: 'ContentChannels',
         v2Model: 'contentchannels',
         v2SearchKey: 'contentChannels',
         guid: CAMPUS_GUID,

@@ -1,14 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { action } from '../action';
-import { postRockData } from '~/lib/.server/fetch-rock-data';
+import { launchRockWorkflow } from '~/lib/.server/rock-workflow';
 import {
   FORM_STARTED_AT_FIELD,
   HONEYPOT_FIELD,
   MIN_FILL_TIME_MS,
 } from '~/lib/bot-protection';
 
-vi.mock('~/lib/.server/fetch-rock-data', () => ({
-  postRockData: vi.fn(),
+vi.mock('~/lib/.server/rock-workflow', () => ({
+  launchRockWorkflow: vi.fn(),
 }));
 
 function submit(overrides: Record<string, string> = {}) {
@@ -39,21 +39,34 @@ function submit(overrides: Record<string, string> = {}) {
 
 describe('contact-us action bot protection', () => {
   beforeEach(() => {
-    vi.mocked(postRockData).mockReset();
+    vi.clearAllMocks();
     vi.spyOn(console, 'warn').mockImplementation(() => {});
   });
 
   it('sends a real submission to the Rock workflow', async () => {
     const response = await submit();
 
-    expect(postRockData).toHaveBeenCalledTimes(1);
+    expect(launchRockWorkflow).toHaveBeenCalledWith({
+      workflowTypeId: '878',
+      workflowName: 'CFDP App Contact Us',
+      body: {
+        FirstName: 'Jane',
+        LastName: 'Doe',
+        EmailAddress: 'jane@example.com',
+        PhoneNumber: '561-555-0100',
+        Campus: 'campus-guid',
+        Message: 'Hello',
+        SendingFormName: 'CFDP App Contact Us',
+        LaunchSource: 'app',
+      },
+    });
     expect(await response.json()).toEqual({ success: true });
   });
 
   it('never launches a Rock workflow when the honeypot is filled, but still reports success', async () => {
     const response = await submit({ [HONEYPOT_FIELD]: 'spam' });
 
-    expect(postRockData).not.toHaveBeenCalled();
+    expect(launchRockWorkflow).not.toHaveBeenCalled();
     expect(await response.json()).toEqual({ success: true });
   });
 
@@ -62,7 +75,7 @@ describe('contact-us action bot protection', () => {
       [FORM_STARTED_AT_FIELD]: String(Date.now() - MIN_FILL_TIME_MS + 1000),
     });
 
-    expect(postRockData).not.toHaveBeenCalled();
+    expect(launchRockWorkflow).not.toHaveBeenCalled();
     expect(await response.json()).toEqual({ success: true });
   });
 

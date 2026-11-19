@@ -1,8 +1,17 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 vi.mock('~/lib/.server/fetch-rock-data', () => ({
-  fetchRockData: vi.fn(),
   TTL: { NONE: 0, SHORT: 300 },
+}));
+
+vi.mock('~/lib/.server/rock-people-groups', () => ({
+  fetchGroups: vi.fn(),
+  fetchGroupMembers: vi.fn(),
+  fetchSchedules: vi.fn(),
+}));
+
+vi.mock('~/lib/.server/fetch-rock-v2', () => ({
+  fetchRockEntityByGuid: vi.fn(),
 }));
 
 vi.mock('~/lib/utils', () => ({
@@ -10,13 +19,21 @@ vi.mock('~/lib/utils', () => ({
     guid ? `https://cdn.example.com/GetImage.ashx?guid=${guid}` : '',
 }));
 
-import { fetchRockData } from '~/lib/.server/fetch-rock-data';
+import { fetchRockEntityByGuid } from '~/lib/.server/fetch-rock-v2';
+import {
+  fetchGroupMembers,
+  fetchGroups,
+  fetchSchedules,
+} from '~/lib/.server/rock-people-groups';
 import {
   fetchGroupDetailFromRock,
   GROUP_FINDER_GROUP_TYPE_ID,
 } from '../group-detail-rock.server';
 
-const mockFetchRockData = fetchRockData as ReturnType<typeof vi.fn>;
+const mockFetchGroups = fetchGroups as ReturnType<typeof vi.fn>;
+const mockFetchGroupMembers = fetchGroupMembers as ReturnType<typeof vi.fn>;
+const mockFetchSchedules = fetchSchedules as ReturnType<typeof vi.fn>;
+const mockFetchLocation = fetchRockEntityByGuid as ReturnType<typeof vi.fn>;
 
 const GROUP_GUID = '3c69d26a-b472-4bdc-b7ee-400001ae2c97';
 const LOCATION_GUID = 'e124a730-9a81-458f-b9cb-d2b6f1860c4d';
@@ -99,54 +116,47 @@ function mockRock(options?: {
   location?: unknown;
   members?: unknown;
 }) {
-  mockFetchRockData.mockImplementation(async ({ endpoint }) => {
-    if (endpoint === 'Groups') return options?.group ?? groupRow();
-    if (endpoint === 'Schedules') {
-      return options?.schedule ?? { iCalendarContent: weeklyIcal };
-    }
-    if (endpoint === 'Locations') {
-      return (
-        options?.location ?? {
-          city: 'Westlake',
-          state: 'FL',
-          postalCode: '33470-3299',
-          latitude: 26.7714,
-          longitude: -80.32743,
-        }
-      );
-    }
-    if (endpoint === 'GroupMembers') {
-      return (
-        options?.members ?? [
-          {
-            groupMemberStatus: 1,
-            groupRoleId: 50,
-            groupRole: { isLeader: true, order: 0, name: 'Group Leader' },
-            person: {
-              id: 32071,
-              nickName: 'Merian',
-              firstName: 'Merian',
-              lastName: 'Toribio',
-              photoId: 2654178,
-              photo: { guid: '44d71393-718d-44d7-bb93-ca78080952f1' },
-            },
-          },
-          {
-            groupMemberStatus: 1,
-            groupRoleId: 44,
-            groupRole: { isLeader: false, order: 3, name: 'Group Member' },
-            person: {
-              id: 1,
-              nickName: 'Member',
-              lastName: 'Only',
-              photoId: 9,
-            },
-          },
-        ]
-      );
-    }
-    return [];
-  });
+  mockFetchGroups.mockResolvedValue(options?.group ?? groupRow());
+  mockFetchSchedules.mockResolvedValue(
+    options?.schedule ?? { iCalendarContent: weeklyIcal },
+  );
+  mockFetchLocation.mockResolvedValue(
+    options?.location ?? {
+      city: 'Westlake',
+      state: 'FL',
+      postalCode: '33470-3299',
+      latitude: 26.7714,
+      longitude: -80.32743,
+    },
+  );
+  mockFetchGroupMembers.mockResolvedValue(
+    options?.members ?? [
+      {
+        groupMemberStatus: 1,
+        groupRoleId: 50,
+        groupRole: { isLeader: true, order: 0, name: 'Group Leader' },
+        person: {
+          id: 32071,
+          nickName: 'Merian',
+          firstName: 'Merian',
+          lastName: 'Toribio',
+          photoId: 2654178,
+          photo: { guid: '44d71393-718d-44d7-bb93-ca78080952f1' },
+        },
+      },
+      {
+        groupMemberStatus: 1,
+        groupRoleId: 44,
+        groupRole: { isLeader: false, order: 3, name: 'Group Member' },
+        person: {
+          id: 1,
+          nickName: 'Member',
+          lastName: 'Only',
+          photoId: 9,
+        },
+      },
+    ],
+  );
 }
 
 describe('fetchGroupDetailFromRock', () => {
@@ -184,6 +194,9 @@ describe('fetchGroupDetailFromRock', () => {
       'da38bb01-d7c6-4cce-b47e-2514ed3a4e8c',
     );
     expect(detail?.group._geoloc).toEqual({ lat: 26.7714, lng: -80.32743 });
+    expect(mockFetchLocation).toHaveBeenCalledWith(
+      expect.objectContaining({ v2Model: 'locations', guid: LOCATION_GUID }),
+    );
     expect(detail?.group.leaders).toEqual([
       expect.objectContaining({
         firstName: 'Merian',
@@ -197,9 +210,7 @@ describe('fetchGroupDetailFromRock', () => {
         },
       }),
     ]);
-    const membersCall = mockFetchRockData.mock.calls.find(
-      ([args]) => args.endpoint === 'GroupMembers',
-    )?.[0];
+    const membersCall = mockFetchGroupMembers.mock.calls[0]?.[0];
     expect(membersCall?.queryParams?.$expand).toBe('Person/Photo,GroupRole');
     expect(membersCall?.queryParams?.$filter).toContain(
       "GroupMemberStatus eq 'Active'",
@@ -222,9 +233,7 @@ describe('fetchGroupDetailFromRock', () => {
     expect(detail?.isPublic).toBe(false);
     expect(detail?.group.title).toBe("*Larry Ganns' Group");
 
-    const groupCall = mockFetchRockData.mock.calls.find(
-      ([args]) => args.endpoint === 'Groups',
-    )?.[0];
+    const groupCall = mockFetchGroups.mock.calls[0]?.[0];
     expect(groupCall?.queryParams?.$filter).toContain(
       `GroupTypeId eq ${GROUP_FINDER_GROUP_TYPE_ID}`,
     );
@@ -270,12 +279,12 @@ describe('fetchGroupDetailFromRock', () => {
   });
 
   it('returns null when Rock is unreachable or the guid is not a group guid', async () => {
-    mockFetchRockData.mockRejectedValue(new Error('network'));
+    mockFetchGroups.mockRejectedValue(new Error('network'));
     await expect(fetchGroupDetailFromRock(GROUP_GUID)).resolves.toBeNull();
 
-    mockFetchRockData.mockClear();
+    mockFetchGroups.mockClear();
     await expect(fetchGroupDetailFromRock('not-a-guid')).resolves.toBeNull();
-    expect(mockFetchRockData).not.toHaveBeenCalled();
+    expect(mockFetchGroups).not.toHaveBeenCalled();
   });
 
   it('splits multi-value topic and people attributes the way the detail page displays them', async () => {

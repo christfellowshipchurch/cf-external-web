@@ -1,9 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { fetchRockData } from '~/lib/.server/fetch-rock-data';
+import { fetchCampusWithDetails } from '~/lib/.server/rock-campuses';
 import { mapRockCampusToLocationViewModel } from '../location-mapper.server';
 import { loader } from '../loader';
 
-vi.mock('~/lib/.server/fetch-rock-data', () => ({ fetchRockData: vi.fn() }));
+vi.mock('~/lib/.server/rock-campuses', () => ({
+  fetchCampusWithDetails: vi.fn(),
+}));
 vi.mock('../location-mapper.server', () => ({
   mapRockCampusToLocationViewModel: vi.fn(),
 }));
@@ -27,26 +29,18 @@ async function load(location: string) {
 describe('location-single loader', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(fetchRockData).mockResolvedValue(campus);
+    vi.mocked(fetchCampusWithDetails).mockResolvedValue(campus as never);
     vi.mocked(mapRockCampusToLocationViewModel).mockResolvedValue({
       campusName: campus.name,
       campusUrl: campus.url,
     } as never);
   });
 
-  it('loads Spanish campus detail directly from Rock with Location expanded', async () => {
+  it('loads Spanish campus detail from Rock by its url', async () => {
     const result = (await load(campus.url)) as Record<string, unknown>;
 
-    expect(fetchRockData).toHaveBeenCalledTimes(1);
-    expect(fetchRockData).toHaveBeenCalledWith({
-      endpoint: 'Campuses',
-      queryParams: {
-        $filter: `Url eq '${campus.url}'`,
-        $expand: 'Location',
-        loadAttributes: 'simple',
-      },
-      ttl: undefined,
-    });
+    expect(fetchCampusWithDetails).toHaveBeenCalledTimes(1);
+    expect(fetchCampusWithDetails).toHaveBeenCalledWith({ url: campus.url });
     expect(mapRockCampusToLocationViewModel).toHaveBeenCalledWith(campus);
     expect(result.location).toEqual({
       campusName: campus.name,
@@ -75,11 +69,11 @@ describe('location-single loader', () => {
 
   it('returns 404 for unsupported campus slugs before querying Rock', async () => {
     await expect(load('not-a-campus')).rejects.toMatchObject({ status: 404 });
-    expect(fetchRockData).not.toHaveBeenCalled();
+    expect(fetchCampusWithDetails).not.toHaveBeenCalled();
   });
 
   it('returns 404 when supported campus is missing from Rock', async () => {
-    vi.mocked(fetchRockData).mockResolvedValue([]);
+    vi.mocked(fetchCampusWithDetails).mockResolvedValue(null);
 
     await expect(load('cf-everywhere')).rejects.toMatchObject({ status: 404 });
     expect(mapRockCampusToLocationViewModel).not.toHaveBeenCalled();

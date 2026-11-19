@@ -7,7 +7,7 @@ import {
 
 /**
  * Person, alias, phone number, group, group member and schedule reads: the
- * same options and result as `fetchRockData`, run on Rock v2 when it's on
+ * same options and result as `fetchRockData`, run on Rock v2
  * (see docs/architecture/rock-v2-setup.md, "Step 4").
  */
 

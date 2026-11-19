@@ -45,15 +45,8 @@ export const ContentChannelIds = {
 
 /**
  * Guid of each workflow type the forms launch, by its Id. Rock v2 paths take
- * a Guid; a type missing here launches on v1.
+ * a Guid; a type missing here can't launch.
  */
-/** v1's `Workflows/LaunchWorkflow/0` path. Pass the workflow name unencoded. */
-export const rockV1LaunchWorkflowPath = (
-  workflowTypeId: string,
-  workflowName: string,
-): string =>
-  `Workflows/LaunchWorkflow/0?workflowTypeId=${workflowTypeId}&workflowName=${encodeURIComponent(workflowName)}`;
-
 export const WorkflowTypeGuids: Record<string, string> = {
   '348': '2410c21e-37cc-4597-8f01-50a56736e98e', // Prayer Request Form
   '403': 'adbbd8e2-43a8-4f8b-8590-81ab03b27058', // Connect Card (Spanish)

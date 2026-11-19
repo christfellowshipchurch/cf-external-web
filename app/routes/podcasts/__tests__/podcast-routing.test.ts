@@ -1,17 +1,22 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 
-vi.mock('~/lib/.server/fetch-rock-data', async (importOriginal) => ({
-  ...(await importOriginal<object>()),
-  fetchRockData: vi.fn(),
+vi.mock('~/lib/.server/rock-content-items', () => ({
+  fetchContentItems: vi.fn(),
 }));
 
-import { fetchRockData } from '~/lib/.server/fetch-rock-data';
+vi.mock('~/lib/.server/fetch-rock-v2', () => ({
+  fetchRockEntityByGuid: vi.fn(),
+}));
+
+import { fetchRockEntityByGuid } from '~/lib/.server/fetch-rock-v2';
+import { fetchContentItems } from '~/lib/.server/rock-content-items';
 import {
   buildPodcastRoutingIndex,
   PODCAST_SHOW_CHANNEL_ID,
 } from '../podcast-routing.server';
 
-const mockFetch = fetchRockData as ReturnType<typeof vi.fn>;
+const mockShows = fetchContentItems as ReturnType<typeof vi.fn>;
+const mockChannel = fetchRockEntityByGuid as ReturnType<typeof vi.fn>;
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -25,29 +30,27 @@ describe('PODCAST_SHOW_CHANNEL_ID', () => {
 
 describe('buildPodcastRoutingIndex', () => {
   it('maps episode channel IDs to show paths', async () => {
-    // First call: fetch show items from channel 179
-    mockFetch
-      .mockResolvedValueOnce([
-        {
-          id: '1',
-          title: 'Crew Cast',
-          attributeValues: {
-            url: { value: 'crew-cast' },
-            showChannel: { value: '00000000-0000-4000-8000-000000000001' },
-          },
+    mockShows.mockResolvedValueOnce([
+      {
+        id: '1',
+        title: 'Crew Cast',
+        attributeValues: {
+          url: { value: 'crew-cast' },
+          showChannel: { value: '00000000-0000-4000-8000-000000000001' },
         },
-        {
-          id: '2',
-          title: 'Young + Adulting',
-          attributeValues: {
-            url: { value: 'young-adulting' },
-            showChannel: { value: '00000000-0000-4000-8000-000000000003' },
-          },
+      },
+      {
+        id: '2',
+        title: 'Young + Adulting',
+        attributeValues: {
+          url: { value: 'young-adulting' },
+          showChannel: { value: '00000000-0000-4000-8000-000000000003' },
         },
-      ])
-      // Second call: resolve episode channel for Crew Cast
+      },
+    ]);
+    // Then each show's episode channel
+    mockChannel
       .mockResolvedValueOnce({ id: '181', name: 'Crew Cast Episodes' })
-      // Third call: resolve episode channel for Young + Adulting
       .mockResolvedValueOnce({ id: '182', name: 'Young Adulting Episodes' });
 
     const index = await buildPodcastRoutingIndex();
@@ -60,21 +63,29 @@ describe('buildPodcastRoutingIndex', () => {
       showPath: 'young-adulting',
       showTitle: 'Young + Adulting',
     });
+    expect(mockChannel).toHaveBeenCalledWith(
+      expect.objectContaining({
+        v2Model: 'contentchannels',
+        guid: '00000000-0000-4000-8000-000000000001',
+      }),
+    );
   });
 
   it('strips leading slashes from show paths', async () => {
-    mockFetch
-      .mockResolvedValueOnce([
-        {
-          id: '3',
-          title: 'So Good Sisterhood',
-          attributeValues: {
-            url: { value: '/so-good-sisterhood' },
-            showChannel: { value: '00000000-0000-4000-8000-000000000002' },
-          },
+    mockShows.mockResolvedValueOnce([
+      {
+        id: '3',
+        title: 'So Good Sisterhood',
+        attributeValues: {
+          url: { value: '/so-good-sisterhood' },
+          showChannel: { value: '00000000-0000-4000-8000-000000000002' },
         },
-      ])
-      .mockResolvedValueOnce({ id: '188', name: 'Sisterhood Episodes' });
+      },
+    ]);
+    mockChannel.mockResolvedValueOnce({
+      id: '188',
+      name: 'Sisterhood Episodes',
+    });
 
     const index = await buildPodcastRoutingIndex();
 
@@ -86,7 +97,7 @@ describe('buildPodcastRoutingIndex', () => {
   it('warns and skips a show missing the url attribute', async () => {
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
-    mockFetch.mockResolvedValueOnce([
+    mockShows.mockResolvedValueOnce([
       {
         id: '10',
         title: 'Broken Show',
@@ -109,7 +120,7 @@ describe('buildPodcastRoutingIndex', () => {
   it('warns and skips a show missing the showChannel attribute', async () => {
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
-    mockFetch.mockResolvedValueOnce([
+    mockShows.mockResolvedValueOnce([
       {
         id: '11',
         title: 'No Channel Show',
@@ -132,19 +143,18 @@ describe('buildPodcastRoutingIndex', () => {
   it('warns and skips when episode channel GUID cannot be resolved', async () => {
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
-    mockFetch
-      .mockResolvedValueOnce([
-        {
-          id: '12',
-          title: 'Unresolvable Show',
-          attributeValues: {
-            url: { value: 'my-show' },
-            showChannel: { value: '00000000-0000-4000-8000-000000000000' },
-          },
+    mockShows.mockResolvedValueOnce([
+      {
+        id: '12',
+        title: 'Unresolvable Show',
+        attributeValues: {
+          url: { value: 'my-show' },
+          showChannel: { value: '00000000-0000-4000-8000-000000000000' },
         },
-      ])
-      // ContentChannels returns empty / no id
-      .mockResolvedValueOnce({ id: null });
+      },
+    ]);
+    // No channel has that GUID
+    mockChannel.mockResolvedValueOnce(null);
 
     const index = await buildPodcastRoutingIndex();
 
@@ -158,25 +168,25 @@ describe('buildPodcastRoutingIndex', () => {
   it('warns and keeps the first show when two shows share an episode channel', async () => {
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
-    mockFetch
-      .mockResolvedValueOnce([
-        {
-          id: '20',
-          title: 'First Show',
-          attributeValues: {
-            url: { value: 'first-show' },
-            showChannel: { value: '00000000-0000-4000-8000-000000000005' },
-          },
+    mockShows.mockResolvedValueOnce([
+      {
+        id: '20',
+        title: 'First Show',
+        attributeValues: {
+          url: { value: 'first-show' },
+          showChannel: { value: '00000000-0000-4000-8000-000000000005' },
         },
-        {
-          id: '21',
-          title: 'Second Show',
-          attributeValues: {
-            url: { value: 'second-show' },
-            showChannel: { value: '00000000-0000-4000-8000-000000000005' },
-          },
+      },
+      {
+        id: '21',
+        title: 'Second Show',
+        attributeValues: {
+          url: { value: 'second-show' },
+          showChannel: { value: '00000000-0000-4000-8000-000000000005' },
         },
-      ])
+      },
+    ]);
+    mockChannel
       .mockResolvedValueOnce({ id: '999', name: 'Shared Channel' })
       .mockResolvedValueOnce({ id: '999', name: 'Shared Channel' });
 
@@ -192,7 +202,7 @@ describe('buildPodcastRoutingIndex', () => {
 
   it('returns an empty index when the Rock show fetch fails', async () => {
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    mockFetch.mockRejectedValueOnce(new Error('Rock API unavailable'));
+    mockShows.mockRejectedValueOnce(new Error('Rock API unavailable'));
 
     const index = await buildPodcastRoutingIndex();
 
@@ -205,7 +215,7 @@ describe('buildPodcastRoutingIndex', () => {
   });
 
   it('returns an empty index when Rock returns no shows', async () => {
-    mockFetch.mockResolvedValueOnce([]);
+    mockShows.mockResolvedValueOnce([]);
 
     const index = await buildPodcastRoutingIndex();
 
@@ -215,18 +225,20 @@ describe('buildPodcastRoutingIndex', () => {
   it('handles a new show added to Rock without any code changes', async () => {
     // Simulate a brand-new show whose episode channel ID (999) is not in any
     // CONTENT_TYPE_MAP or hardcoded list.
-    mockFetch
-      .mockResolvedValueOnce([
-        {
-          id: '30',
-          title: 'New Brand Show',
-          attributeValues: {
-            url: { value: 'new-brand-show' },
-            showChannel: { value: '00000000-0000-4000-8000-000000000004' },
-          },
+    mockShows.mockResolvedValueOnce([
+      {
+        id: '30',
+        title: 'New Brand Show',
+        attributeValues: {
+          url: { value: 'new-brand-show' },
+          showChannel: { value: '00000000-0000-4000-8000-000000000004' },
         },
-      ])
-      .mockResolvedValueOnce({ id: '999', name: 'New Brand Episodes' });
+      },
+    ]);
+    mockChannel.mockResolvedValueOnce({
+      id: '999',
+      name: 'New Brand Episodes',
+    });
 
     const index = await buildPodcastRoutingIndex();
 

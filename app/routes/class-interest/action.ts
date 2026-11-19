@@ -1,11 +1,7 @@
 import { fetchGroupMembers } from '~/lib/.server/rock-people-groups';
 import type { ActionFunction } from 'react-router';
-import { buildRockUrl, TTL } from '~/lib/.server/fetch-rock-data';
-import {
-  requireV2Guid,
-  sendRockV2,
-  writeRockV2,
-} from '~/lib/.server/fetch-rock-v2';
+import { TTL } from '~/lib/.server/fetch-rock-data';
+import { requireV2Guid, sendRockV2 } from '~/lib/.server/fetch-rock-v2';
 import {
   addRockGroupMember,
   findOrCreateRockPersonForSignup,
@@ -47,53 +43,20 @@ const getFirstRecord = <T>(result: T | T[] | null | undefined): T | null => {
 };
 
 /**
- * Sets the `classPreference` member attribute on a GroupMember via Rock's
- * dedicated `SetAttributeValue` endpoint.
- *
- * We use this rather than writing the AttributeValues table directly because
- * the endpoint resolves the attribute relative to this specific GroupMember
- * (entity type + group type qualifier), so the correct attribute is matched
- * even though attribute keys are not globally unique, and the write goes
- * through Rock's normal save hooks (cache invalidation, history, etc.).
- *
- * Create vs. update is handled by Rock — no need to look up an existing value.
+ * Sets the member's `ClassPreference`. v2's `attributevalues` PATCH resolves
+ * the key against this member (the group type also has a Group attribute
+ * with the same key). Rock matches the key case-sensitively.
  */
-async function setGroupMemberClassPreferenceOnV1(
-  memberId: number,
+const setGroupMemberClassPreference = async (
+  memberGuid: string | undefined,
   classValueGuid: string,
-): Promise<void> {
-  // Rock matches the attribute key case-sensitively; the member attribute's
-  // key is `ClassPreference` (PascalCase), not `classPreference`.
-  const url = `${buildRockUrl(`GroupMembers/AttributeValue/${memberId}`)}?attributeKey=ClassPreference&attributeValue=${encodeURIComponent(classValueGuid)}`;
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: { 'Authorization-Token': `${process.env.ROCK_TOKEN}` },
-  });
-  if (!response.ok) {
-    const details = await response.text();
-    throw new Error(
-      `Failed to set classPreference: ${response.status}, details: ${details}`,
-    );
-  }
-}
-
-/** v2's `attributevalues` PATCH also resolves the key against this member. */
-const setGroupMemberClassPreference = (
-  member: { id: number; guid?: string },
-  classValueGuid: string,
-): Promise<void> =>
-  writeRockV2({
-    label: 'group member class preference',
-    v2: async () => {
-      await sendRockV2(
-        'PATCH',
-        `groupmembers/${requireV2Guid(member.guid, 'group member')}/attributevalues`,
-        { ClassPreference: classValueGuid },
-      );
-    },
-    fallback: () =>
-      setGroupMemberClassPreferenceOnV1(member.id, classValueGuid),
-  });
+): Promise<void> => {
+  await sendRockV2(
+    'PATCH',
+    `groupmembers/${requireV2Guid(memberGuid, 'group member')}/attributevalues`,
+    { ClassPreference: classValueGuid },
+  );
+};
 
 export const action: ActionFunction = async ({ request }) => {
   try {
@@ -161,11 +124,8 @@ export const action: ActionFunction = async ({ request }) => {
         groupMemberStatus: PENDING_GROUP_MEMBER_STATUS,
       }));
 
-    if (member.id && classValueGuid) {
-      await setGroupMemberClassPreference(
-        { id: member.id, guid: member.guid },
-        classValueGuid,
-      );
+    if (classValueGuid) {
+      await setGroupMemberClassPreference(member.guid, classValueGuid);
     }
 
     return Response.json({ success: true });

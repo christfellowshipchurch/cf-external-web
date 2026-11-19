@@ -286,9 +286,8 @@ describe('admin cache invalidation (POST target=volunteer-opportunity)', () => {
     });
   });
 
-  // The page reads v2 first; its cached search must clear too.
+  // The page reads the v2 search; its cached key must clear too.
   it('also deletes the v2 groups search key the page reads', async () => {
-    vi.stubEnv('ROCK_V2_ENABLED', 'true');
     vi.stubEnv('ROCK_API', 'https://rock.example.com/api/');
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,

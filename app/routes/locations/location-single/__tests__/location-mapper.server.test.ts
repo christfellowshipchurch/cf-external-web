@@ -1,13 +1,15 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { fetchRockData } from '~/lib/.server/fetch-rock-data';
 import { fetchWistiaDataFromRock } from '~/lib/.server/fetch-wistia-data';
+import { fetchPersonAliases } from '~/lib/.server/rock-people-groups';
 import { getAttributeMatrixItems } from '~/lib/.server/rock-utils';
 import {
   mapRockCampusToLocationViewModel,
   type RockCampus,
 } from '../location-mapper.server';
 
-vi.mock('~/lib/.server/fetch-rock-data', () => ({ fetchRockData: vi.fn() }));
+vi.mock('~/lib/.server/rock-people-groups', () => ({
+  fetchPersonAliases: vi.fn(),
+}));
 vi.mock('~/lib/.server/fetch-wistia-data', () => ({
   fetchWistiaDataFromRock: vi.fn(),
 }));
@@ -60,7 +62,7 @@ describe('mapRockCampusToLocationViewModel', () => {
     vi.mocked(fetchWistiaDataFromRock).mockImplementation(async (guid) => ({
       sourceKey: `${guid}-source`,
     }));
-    vi.mocked(fetchRockData).mockResolvedValue({
+    vi.mocked(fetchPersonAliases).mockResolvedValue({
       person: {
         firstName: 'Cole',
         lastName: 'Robinson',
@@ -126,7 +128,7 @@ describe('mapRockCampusToLocationViewModel', () => {
       ],
     });
 
-    expect(fetchRockData).toHaveBeenCalledWith({
+    expect(fetchPersonAliases).toHaveBeenCalledWith({
       endpoint: 'PersonAlias',
       queryParams: {
         $filter: 'Id eq 731185',

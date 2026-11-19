@@ -1,13 +1,13 @@
 import type { LoaderFunctionArgs } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { fetchRockData } from '~/lib/.server/fetch-rock-data';
+import { fetchCampuses } from '~/lib/.server/rock-campuses';
 import { loader } from './loader';
 
-vi.mock('~/lib/.server/fetch-rock-data', () => ({
-  fetchRockData: vi.fn(),
+vi.mock('~/lib/.server/rock-campuses', () => ({
+  fetchCampuses: vi.fn(),
 }));
 
-const mockFetchRockData = vi.mocked(fetchRockData);
+const mockFetchCampuses = vi.mocked(fetchCampuses);
 
 describe('group finder notify loader', () => {
   beforeEach(() => {
@@ -22,18 +22,15 @@ describe('group finder notify loader', () => {
         name: 'Palm Beach Gardens',
       },
     ];
-    mockFetchRockData.mockResolvedValue(campuses);
+    mockFetchCampuses.mockResolvedValue(campuses);
 
     const result = await loader({} as LoaderFunctionArgs);
 
-    expect(mockFetchRockData).toHaveBeenCalledWith({
-      endpoint: 'Campuses',
-      queryParams: {
-        $filter: 'IsActive eq true',
-        $orderby: 'Order',
-        $select: 'Id, Name, Guid',
-      },
-    });
+    expect(mockFetchCampuses).toHaveBeenCalledWith({ active: true }, [
+      'Id',
+      'Name',
+      'Guid',
+    ]);
     expect(result).toEqual({ campuses });
   });
 });

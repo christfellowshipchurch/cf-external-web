@@ -37,12 +37,6 @@ vi.mock('../redis-config', () => {
   };
 });
 
-vi.mock('../fetch-rock-data', async (importOriginal) => ({
-  ...(await importOriginal<object>()),
-  fetchRockData: vi.fn(),
-}));
-
-import { fetchRockData } from '../fetch-rock-data';
 import { getImages } from '../rock-utils';
 import {
   fetchChildContentItems,
@@ -81,13 +75,11 @@ beforeEach(() => {
   vi.clearAllMocks();
   redisStore.values.clear();
   redisStore.sets.clear();
-  vi.stubEnv('ROCK_V2_ENABLED', 'true');
   vi.stubEnv('NODE_ENV', 'test');
   vi.stubEnv('ROCK_API', 'https://rock.example.com/api/');
   vi.stubEnv('SHOW_UNAPPROVED_CONTENT', '');
   vi.spyOn(console, 'error').mockImplementation(() => {});
   vi.spyOn(console, 'warn').mockImplementation(() => {});
-  vi.mocked(fetchRockData).mockResolvedValue('v1');
 });
 
 afterEach(() => {
@@ -122,7 +114,7 @@ describe('odataFilterToLinq', () => {
     );
   });
 
-  // Anything it doesn't know must reach v1, never Rock as a guess.
+  // Anything it doesn't know must fail the read, never reach Rock as a guess.
   it.each(["substringof('a', Title)", 'Id eq 1; drop', 'Photo/Path eq 1'])(
     'refuses %s',
     (filter) => {
@@ -132,14 +124,6 @@ describe('odataFilterToLinq', () => {
 });
 
 describe('fetchContentItems', () => {
-  it('runs only v1 when v2 is off', async () => {
-    vi.stubEnv('ROCK_V2_ENABLED', 'false');
-    const options = { endpoint: 'ContentChannelItems', queryParams: {} };
-
-    await expect(fetchContentItems(options)).resolves.toBe('v1');
-    expect(fetchRockData).toHaveBeenCalledWith(options);
-  });
-
   it('sends the v1 query as a search', async () => {
     stubSearch([]);
 
@@ -213,7 +197,7 @@ describe('fetchContentItems', () => {
     ).toHaveLength(1);
   });
 
-  it('asks v1 when a by-Id read returns another item', async () => {
+  it('rejects when a by-Id read returns another item', async () => {
     stubSearch([{ id: 6 }]);
 
     await expect(
@@ -221,7 +205,7 @@ describe('fetchContentItems', () => {
         endpoint: 'ContentChannelItems',
         queryParams: { $filter: 'Id eq 5' },
       }),
-    ).resolves.toBe('v1');
+    ).rejects.toThrow(/Id doesn't match/);
   });
 
   it('caps rows at $top even if Rock ignores the limit', async () => {
@@ -237,7 +221,7 @@ describe('fetchContentItems', () => {
 
   // The cfitem:{id} reverse index reads the Id off each row.
   it('selects the Id even when $select leaves it out', async () => {
-    stubSearch([{ id: 1, title: 'A' }]);
+    stubSearch([{ id: 1, contentChannelId: 63, title: 'A' }]);
 
     await fetchContentItems({
       endpoint: 'ContentChannelItems',
@@ -302,7 +286,7 @@ describe('fetchContentItems', () => {
     });
 
     // A search that ignored its `where` must not render another page.
-    it('asks v1 when a row has another attribute value', async () => {
+    it('rejects when a row has another attribute value', async () => {
       stubSearch([
         {
           id: 1,
@@ -312,27 +296,24 @@ describe('fetchContentItems', () => {
         },
       ]);
 
-      await expect(fetchContentItems(lookup('Url'))).resolves.toBe('v1');
-    });
-
-    // A miss falls back to v1, so a misbehaving search can't 404 a real page.
-    it('asks v1 when a page lookup finds nothing', async () => {
-      stubSearch([]);
-
-      await expect(fetchContentItems(lookup('Pathname'))).resolves.toBe('v1');
-    });
-
-    it('returns an empty list for other lookups that find nothing', async () => {
-      stubSearch([]);
-
-      await expect(fetchContentItems(lookup('MessageSeries'))).resolves.toEqual(
-        [],
+      await expect(fetchContentItems(lookup('Url'))).rejects.toThrow(
+        /LookupValue doesn't match/,
       );
-      expect(fetchRockData).not.toHaveBeenCalled();
     });
+
+    // v1's empty shape, so a page loader can answer 404.
+    it.each(['Url', 'Pathname', 'MessageSeries'])(
+      'returns an empty list when a %s lookup finds nothing',
+      async (key) => {
+        stubSearch([]);
+
+        await expect(fetchContentItems(lookup(key))).resolves.toEqual([]);
+      },
+    );
   });
 
-  it('keeps paged reads on v1 until Rock’s paging fields are confirmed', async () => {
+  // Rock's paging field names are unconfirmed, so a paged read must not guess.
+  it('refuses a paged read without calling Rock', async () => {
     global.fetch = vi.fn();
 
     await expect(
@@ -340,7 +321,7 @@ describe('fetchContentItems', () => {
         endpoint: 'ContentChannelItems',
         queryParams: { $top: '10', $skip: '10' },
       }),
-    ).resolves.toBe('v1');
+    ).rejects.toThrow(/can't match/);
     expect(global.fetch).not.toHaveBeenCalled();
   });
 
@@ -436,8 +417,8 @@ describe('fetchChildContentItems', () => {
     expect(redisStore.sets.get('cfchildren:10')).toEqual(new Set(['3', '4']));
   });
 
-  it('uses v1 for a parent id that is not a number', async () => {
-    vi.mocked(fetchRockData).mockResolvedValue([]);
+  // The id goes into the `where` unquoted.
+  it('returns no children for a parent id that is not a number, without calling Rock', async () => {
     global.fetch = vi.fn();
 
     await expect(fetchChildContentItems('10 or 1 eq 1')).resolves.toEqual([]);
@@ -447,12 +428,16 @@ describe('fetchChildContentItems', () => {
 
 describe('other attribute lookups', () => {
   it('reads a Defined Value by Url through the definedValues search', async () => {
-    stubSearch([{ guid: 'series-guid', value: 'Series' }]);
+    stubSearch([
+      { guid: 'series-guid', value: 'Series', lookupValue: 'series' },
+    ]);
 
-    await fetchDefinedValuesByAttribute({
-      endpoint: 'DefinedValues/GetByAttributeValue',
-      queryParams: { attributeKey: 'Url', value: 'series' },
-    });
+    await expect(
+      fetchDefinedValuesByAttribute({
+        endpoint: 'DefinedValues/GetByAttributeValue',
+        queryParams: { attributeKey: 'Url', value: 'series' },
+      }),
+    ).resolves.toMatchObject({ guid: 'series-guid', value: 'Series' });
 
     expect(vi.mocked(global.fetch).mock.calls[0][0]).toMatch(
       /definedvalues\/search\/definedValues$/,

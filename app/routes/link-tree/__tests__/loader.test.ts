@@ -1,8 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { LoaderFunctionArgs } from 'react-router';
 
-vi.mock('~/lib/.server/fetch-rock-data', () => ({
-  fetchRockData: vi.fn(),
+vi.mock('~/lib/.server/rock-content-items', () => ({
+  fetchContentItems: vi.fn(),
 }));
 
 vi.mock('../../page-builder/loader', () => ({
@@ -10,7 +10,7 @@ vi.mock('../../page-builder/loader', () => ({
   mapPageBuilderChildItems: vi.fn(),
 }));
 
-import { fetchRockData } from '~/lib/.server/fetch-rock-data';
+import { fetchContentItems } from '~/lib/.server/rock-content-items';
 import {
   fetchChildItems,
   mapPageBuilderChildItems,
@@ -28,7 +28,7 @@ const section = (id: string, type: string, items: number) => ({
 
 describe('link tree loader', () => {
   it('leaves out resource collections with no items left', async () => {
-    vi.mocked(fetchRockData).mockResolvedValueOnce({
+    vi.mocked(fetchContentItems).mockResolvedValueOnce({
       id: '1',
       title: 'Link Tree',
       content: '',

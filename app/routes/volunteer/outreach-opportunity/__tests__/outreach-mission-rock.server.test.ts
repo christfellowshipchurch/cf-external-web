@@ -1,17 +1,27 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 vi.mock('~/lib/.server/fetch-rock-data', () => ({
-  fetchRockData: vi.fn(),
   TTL: { NONE: 0, SHORT: 300 },
 }));
 
-import { fetchRockData } from '~/lib/.server/fetch-rock-data';
+vi.mock('~/lib/.server/rock-people-groups', () => ({
+  fetchGroups: vi.fn(),
+  fetchPeople: vi.fn(),
+  fetchPersonAliases: vi.fn(),
+}));
+
+vi.mock('~/lib/.server/rock-defined-values', () => ({
+  fetchDefinedValueByGuid: vi.fn(),
+}));
+
+import { fetchGroups, fetchPeople } from '~/lib/.server/rock-people-groups';
 import {
   fetchVolunteerMissionDetailFromRock,
   missionGroupRequest,
 } from '../outreach-mission-rock.server';
 
-const mockFetchRockData = fetchRockData as ReturnType<typeof vi.fn>;
+const mockFetchGroups = fetchGroups as ReturnType<typeof vi.fn>;
+const mockFetchPeople = fetchPeople as ReturnType<typeof vi.fn>;
 
 const GROUP_GUID = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee';
 
@@ -26,15 +36,12 @@ const groupRow = {
 
 /**
  * The contact lookup uses the collection form because Rock ignores $select on
- * People/{id}. fetchRockData unwraps a single match to an object and leaves a
+ * People/{id}. The read unwraps a single match to an object and leaves a
  * miss as an empty array, so the call site has to handle both.
  */
 const mockRock = (personResult: unknown) => {
-  mockFetchRockData.mockImplementation(async ({ endpoint }) => {
-    if (endpoint === 'Groups') return [groupRow];
-    if (endpoint === 'People') return personResult;
-    return [];
-  });
+  mockFetchGroups.mockResolvedValue([groupRow]);
+  mockFetchPeople.mockResolvedValue(personResult);
 };
 
 const person = {
@@ -54,7 +61,7 @@ describe('fetchVolunteerMissionDetailFromRock contact lookup', () => {
 
     await fetchVolunteerMissionDetailFromRock(GROUP_GUID);
 
-    expect(mockFetchRockData).toHaveBeenCalledWith(
+    expect(mockFetchPeople).toHaveBeenCalledWith(
       expect.objectContaining({
         endpoint: 'People',
         queryParams: {
@@ -63,7 +70,7 @@ describe('fetchVolunteerMissionDetailFromRock contact lookup', () => {
         },
       }),
     );
-    expect(mockFetchRockData).not.toHaveBeenCalledWith(
+    expect(mockFetchPeople).not.toHaveBeenCalledWith(
       expect.objectContaining({ endpoint: 'People/77' }),
     );
   });
@@ -106,7 +113,7 @@ describe('fetchVolunteerMissionDetailFromRock Groups request', () => {
 
     await fetchVolunteerMissionDetailFromRock(GROUP_GUID);
 
-    expect(mockFetchRockData).toHaveBeenCalledWith({
+    expect(mockFetchGroups).toHaveBeenCalledWith({
       ...missionGroupRequest(GROUP_GUID),
       ttl: 300,
     });

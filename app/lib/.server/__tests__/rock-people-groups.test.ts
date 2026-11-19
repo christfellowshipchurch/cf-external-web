@@ -1,12 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('../redis-config', () => ({ default: null }));
-vi.mock('../fetch-rock-data', async (importOriginal) => ({
-  ...(await importOriginal<object>()),
-  fetchRockData: vi.fn(),
-}));
-
-import { fetchRockData } from '../fetch-rock-data';
 import {
   fetchGroupMembers,
   fetchPeople,
@@ -37,12 +31,10 @@ const sentBody = (call = 0) =>
 
 beforeEach(() => {
   vi.clearAllMocks();
-  vi.stubEnv('ROCK_V2_ENABLED', 'true');
   vi.stubEnv('NODE_ENV', 'test');
   vi.stubEnv('ROCK_API', 'https://rock.example.com/api/');
   vi.spyOn(console, 'error').mockImplementation(() => {});
   vi.spyOn(console, 'warn').mockImplementation(() => {});
-  vi.mocked(fetchRockData).mockResolvedValue('v1');
 });
 
 afterEach(() => {
@@ -67,7 +59,7 @@ describe('fetchPeople', () => {
 
   // The signup person match: a search that ignored its `where` must not
   // hand back someone else, who would then get the group adds and workflows.
-  it('asks v1 when a name + email match returns someone else', async () => {
+  it('rejects when a name + email match returns someone else', async () => {
     stubRock({
       count: 1,
       items: [{ id: 9, firstName: 'Ann', lastName: 'Lee', email: 'x@y.z' }],
@@ -82,7 +74,7 @@ describe('fetchPeople', () => {
           $select: 'Id',
         },
       }),
-    ).resolves.toBe('v1');
+    ).rejects.toThrow(/Email doesn't match/);
     expect(sentBody().select).toBe('new (Id, FirstName, LastName, Email)');
   });
 
@@ -211,7 +203,7 @@ describe('fetchPhoneNumbers', () => {
 
 describe('fetchGroupMembers', () => {
   // A membership check gates a write: another membership must not pass.
-  it('asks v1 when a membership check returns another person', async () => {
+  it('rejects when a membership check returns another person', async () => {
     stubRock({ count: 1, items: [{ id: 1, groupId: 5, personId: 8 }] });
 
     await expect(
@@ -222,7 +214,7 @@ describe('fetchGroupMembers', () => {
           $select: 'Id',
         },
       }),
-    ).resolves.toBe('v1');
+    ).rejects.toThrow(/PersonId doesn't match/);
   });
 
   it('filters on the status name and returns v1’s status number', async () => {

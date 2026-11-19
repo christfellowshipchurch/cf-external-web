@@ -1,5 +1,4 @@
 import camelCase from 'lodash/camelCase';
-import isEqual from 'lodash/isEqual';
 import mapValues from 'lodash/mapValues';
 import { normalize } from '~/lib/utils';
 import redis from './redis-config';
@@ -11,20 +10,13 @@ import {
   type TTLValue,
 } from './cache-utils';
 import { RockAPIError } from './error-types';
-import { buildRockUrl, fetchRockData, isPreviewMode } from './fetch-rock-data';
+import { buildRockUrl, isPreviewMode } from './fetch-rock-data';
 
 /**
- * Rock REST v2 (`/api/v2/models/...`) reads, run beside the v1 helpers.
- * Every call carries a v1 fallback: it runs when `ROCK_V2_ENABLED=false` or
- * the v2 call fails, so turning v2 on can never take a page down.
+ * Rock REST v2 (`/api/v2/models/...`) reads and writes. A failed call throws;
+ * there is no v1 fallback (reads still on v1 are listed in
+ * docs/architecture/rock-v2-setup.md, "Staying on v1").
  */
-
-/**
- * On unless the `ROCK_V2_ENABLED` env var is `false`, like My Groups. Off,
- * every read runs only its v1 fallback.
- */
-export const isRockV2Enabled = (): boolean =>
-  process.env.ROCK_V2_ENABLED?.trim() !== 'false';
 
 /** One attribute as v2's `/{id}/attributevalues` returns it. */
 export interface RockV2AttributeValue {
@@ -60,10 +52,9 @@ export const buildV2SearchBody = ({
 });
 
 /**
- * Converts a v2 entity (and its attribute values) to the shape loaders read
- * from v1 today: camelCase keys and `attributeValues.{key}.value` /
- * `.valueFormatted`. v2 has no `attributes` definitions, so callers that need
- * them (e.g. image field types) stay on v1.
+ * Converts a v2 entity (and its attribute values) to the shape loaders read:
+ * camelCase keys and `attributeValues.{key}.value` / `.valueFormatted`, as v1
+ * returned them. v2 has no `attributes` definitions (see `withAttributeKeys`).
  */
 export const toV1Shape = (
   entity: Record<string, unknown>,
@@ -123,9 +114,10 @@ export const projectedToV1Shape = <T = Record<string, unknown>>(
 };
 
 /**
- * Search rows whose `field` equals `expected` (case-insensitive). If Rock
+ * Search rows whose `field` equals `expected`, ignoring case and trailing
+ * spaces as SQL Server's `=` does, so a row Rock matched passes. If Rock
  * ignored the refinement `where`, a search returns unrelated rows; throwing
- * then sends the read to v1 instead of using the wrong record. Rock returns
+ * then fails the read instead of using the wrong record. Rock returns
  * camelCase keys, so `field` (`Guid`) is read as given, then as `guid`.
  */
 export const keepMatchingRows = (
@@ -133,11 +125,14 @@ export const keepMatchingRows = (
   field: string,
   expected: string,
 ): Record<string, unknown>[] => {
-  const wanted = expected.toLowerCase();
+  const comparable = (value: unknown) =>
+    String(value ?? '')
+      .trimEnd()
+      .toLowerCase();
+  const wanted = comparable(expected);
   const camelField = camelCase(field);
   const matching = rows.filter(
-    (row) =>
-      String(row[field] ?? row[camelField] ?? '').toLowerCase() === wanted,
+    (row) => comparable(row[field] ?? row[camelField]) === wanted,
   );
   if (matching.length !== rows.length) {
     // No value: it can be a name or an email.
@@ -158,18 +153,15 @@ export const getSearchItems = (data: unknown): Record<string, unknown>[] =>
 
 /**
  * Rock 18.7 refuses number IDs in more places when Disable Predictable IDs is
- * on, so v2 paths must use a Guid or IdKey. Like the v1 by-id guard, this
- * throws outside production; in production the call falls back to v1.
+ * on, so v2 paths must use a Guid or IdKey.
  */
-class RockV2NumberIdError extends Error {}
-
 const assertNoNumberId = (path: string): void => {
   const numberSegment = path
     .split('/')
     .find((segment) => /^\d+$/.test(segment));
 
   if (numberSegment) {
-    throw new RockV2NumberIdError(
+    throw new Error(
       `Rock v2 path "${path}" uses the number ID ${numberSegment}. Use the ` +
         "entity's Guid or IdKey instead.",
     );
@@ -211,11 +203,7 @@ export const buildV2CacheKey = ({
     body: body ? stableCacheBody(body) : undefined,
   });
 
-/**
- * One cached v2 call that throws on failure. Use it inside a fetchRockV2 `map`
- * for follow-up reads (e.g. `/attributevalues`), so any failure there still
- * falls back to v1 for the whole read.
- */
+/** One cached v2 call that throws on failure. */
 export const requestRockV2 = async ({
   path,
   method = 'GET',
@@ -303,8 +291,7 @@ export const sendRockV2 = async (
       'Authorization-Token': `${process.env.ROCK_TOKEN}`,
     },
     body: JSON.stringify(body),
-    // A timeout throws without a status, so the caller treats it as "may have
-    // written" and doesn't retry on v1.
+    // Never retried: a timeout may come after Rock wrote.
     signal: globalThis.AbortSignal.timeout(V2_WRITE_TIMEOUT_MS),
   });
 
@@ -323,17 +310,7 @@ export const sendRockV2 = async (
   }
 };
 
-/**
- * Rock answers these before it writes anything, so v1 can write safely. A
- * create or PATCH's 400 is a validation failure before the save (seen live:
- * no record). Launches leave 400 out (`rock-workflow.ts`).
- */
-export const V2_NOT_WRITTEN_STATUSES = new Set([400, 401, 403, 404]);
-
-/**
- * The Guid a v2 write path needs. A missing one throws a 404 RockAPIError, so
- * `writeRockV2` falls back to v1, which takes the number Id.
- */
+/** The Guid a v2 write path needs; throws when the record has none. */
 export const requireV2Guid = (
   guid: string | null | undefined,
   what: string,
@@ -342,116 +319,16 @@ export const requireV2Guid = (
   return guid;
 };
 
-/**
- * Runs a write on v2, or on its v1 `fallback` when v2 is off or Rock refused
- * before writing (`V2_NOT_WRITTEN_STATUSES`). Any other failure may come after
- * Rock wrote, so it throws rather than writing a second time on v1.
- */
-export const writeRockV2 = async <T>({
-  label,
-  v2,
-  fallback,
-}: {
-  /** For logs: what is written, never a value */
-  label: string;
-  v2: () => Promise<T>;
-  fallback: () => Promise<T>;
-}): Promise<T> => {
-  if (!isRockV2Enabled()) return fallback();
-
-  try {
-    return await v2();
-  } catch (error) {
-    if (
-      error instanceof RockAPIError &&
-      V2_NOT_WRITTEN_STATUSES.has(error.statusCode)
-    ) {
-      console.error(
-        `⚠️ Rock v2 refused the ${label} write (${error.statusCode}), writing on v1`,
-      );
-      return fallback();
-    }
-    throw error;
-  }
-};
-
 interface FetchRockV2Options<T> extends RockV2Request {
   /** Converts the raw v2 response to the caller's (v1) shape, usually via toV1Shape */
   map: (data: unknown) => T | Promise<T>;
-  /** The existing v1 call, used when v2 is off or fails */
-  fallback: () => Promise<T>;
 }
 
-/**
- * The paths where the v2 result differs from v1, over the fields v2 returns.
- * Paths only: People and phone reads go through here, so values can't be logged.
- */
-export const diffAgainstV1 = (
-  v2: unknown,
-  v1: unknown,
-  path = '',
-): string[] => {
-  if (isEqual(v1, v2)) return [];
-  if (v1 && v2 && typeof v1 === 'object' && typeof v2 === 'object') {
-    return Object.keys(v2).flatMap((key) =>
-      diffAgainstV1(
-        (v2 as Record<string, unknown>)[key],
-        (v1 as Record<string, unknown>)[key],
-        path ? `${path}.${key}` : key,
-      ),
-    );
-  }
-  return [path || '(root)'];
-};
-
-/** Dev only: also runs the v1 read and logs how the v2 result differs. */
-const logV1Comparison = async (
-  path: string,
-  v2: unknown,
-  fallback: () => Promise<unknown>,
-): Promise<void> => {
-  try {
-    const v1 = await fallback();
-    const differences = diffAgainstV1(v2, v1);
-    const v1Only =
-      v1 && v2 && typeof v1 === 'object' && typeof v2 === 'object'
-        ? Object.keys(v1).filter((key) => !(key in v2))
-        : [];
-    console.warn(
-      [
-        `🔍 Rock v2 vs v1 (${path}): ${differences.length} differences`,
-        ...differences,
-        ...(v1Only.length ? [`Only in v1: ${v1Only.join(', ')}`] : []),
-      ].join('\n'),
-    );
-  } catch (error) {
-    console.error('⚠️ Rock v1 comparison read failed:', error);
-  }
-};
-
+/** One v2 read, mapped to the caller's shape. Throws on any failure. */
 export const fetchRockV2 = async <T>({
   map,
-  fallback,
   ...request
-}: FetchRockV2Options<T>): Promise<T> => {
-  if (!isRockV2Enabled()) return fallback();
-
-  try {
-    const result = await map(await requestRockV2(request));
-    if (process.env.NODE_ENV === 'development') {
-      await logV1Comparison(request.path, result, fallback);
-    }
-    return result;
-  } catch (error) {
-    if (error instanceof RockV2NumberIdError) {
-      if (process.env.NODE_ENV !== 'production') throw error;
-      console.warn(`⚠️ ${error.message} Using v1 fallback.`);
-      return fallback();
-    }
-    console.error('⚠️ Rock v2 request failed, using v1 fallback:', error);
-    return fallback();
-  }
-};
+}: FetchRockV2Options<T>): Promise<T> => map(await requestRockV2(request));
 
 const ROCK_GUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -460,8 +337,6 @@ const ROCK_GUID_RE =
 export const isRockGuid = (value: string): boolean => ROCK_GUID_RE.test(value);
 
 interface EntityByGuidOptions {
-  /** v1 endpoint, e.g. `ContentChannels` */
-  v1Endpoint: string;
   /** v2 route name, e.g. `contentchannels` */
   v2Model: string;
   /** Saved search key, when it isn't the route name, e.g. `contentChannels` */
@@ -476,12 +351,8 @@ interface EntityByGuidOptions {
   ttl?: TTLValue;
 }
 
-/**
- * One record by Guid, falling back to v1's `$filter=Guid eq guid'…'`. Null
- * when the Guid is malformed or nothing matches.
- */
+/** One record by Guid. Null when the Guid is malformed or nothing matches. */
 export const fetchRockEntityByGuid = async <T = Record<string, unknown>>({
-  v1Endpoint,
   v2Model,
   v2SearchKey,
   guid,
@@ -505,9 +376,7 @@ export const fetchRockEntityByGuid = async <T = Record<string, unknown>>({
             'Guid',
             trimmed,
           );
-          // A miss goes to v1 rather than hiding a record that exists.
-          if (!found) throw new Error(`No ${v2Model} matched ${trimmed}`);
-          return toV1Shape(found) as T;
+          return found ? (toV1Shape(found) as T) : null;
         },
       }
     : {
@@ -515,19 +384,5 @@ export const fetchRockEntityByGuid = async <T = Record<string, unknown>>({
         map: (data: unknown) => toV1Shape(data as Record<string, unknown>) as T,
       };
 
-  return fetchRockV2<T | null>({
-    ...v2Read,
-    ttl,
-    fallback: async () => {
-      const result = await fetchRockData({
-        endpoint: v1Endpoint,
-        queryParams: {
-          $filter: `Guid eq guid'${trimmed}'`,
-          ...(select && { $select: select }),
-        },
-        ttl,
-      });
-      return ((Array.isArray(result) ? result[0] : result) ?? null) as T | null;
-    },
-  });
+  return fetchRockV2<T | null>({ ...v2Read, ttl });
 };

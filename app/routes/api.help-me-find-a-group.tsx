@@ -6,7 +6,7 @@ import type {
 } from '~/components/modals/help-me-find-a-group/types';
 import { fetchCampuses, type CampusOption } from '~/lib/.server/rock-campuses';
 import { fetchDefinedValues } from '~/lib/.server/rock-defined-values';
-import { postRockWorkflowLaunchWithApiInitiator } from '~/lib/.server/rock-workflow';
+import { launchRockWorkflow } from '~/lib/.server/rock-workflow';
 
 // People Group Type (CFDP-4062). Feeds the "Group Preference" attribute on
 // workflow 419, submitted under the `Hub` key (the workflow attribute key is
@@ -82,11 +82,10 @@ export const action: ActionFunction = async ({ request }) => {
       submission.Comments = Comments;
     }
 
-    await postRockWorkflowLaunchWithApiInitiator({
+    await launchRockWorkflow({
       workflowTypeId: '419',
       workflowName: 'Help Me Find a Group',
       body: submission,
-      instanceName: `${FirstName} ${LastName}`.trim(),
     });
 
     return new Response(JSON.stringify({ success: true }), {
