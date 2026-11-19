@@ -1,0 +1,57 @@
+name: Risk tier
+
+# Enforces approvals by risk tier from the box ticked in the PR description. Low PRs merge with no
+# approval if every file matches low-paths; Medium and High need an approval of the latest commit.
+# See README.md in christfellowshipchurch/.github.
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened, ready_for_review]
+  pull_request_review:
+    types: [submitted, dismissed]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: risk-tier-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  tier:
+    uses: christfellowshipchurch/.github/.github/workflows/risk-tier.yml@54529ec4fa92c752286322c8b9709f35cfb1680c # main
+    with:
+      # Files a Low PR may touch. The last matching line wins; ! excludes.
+      low-paths: |
+        # Docs and Markdown, except the files that steer agents and AI review
+        docs/**
+        **/*.md
+        !AGENTS.md
+        !CLAUDE.md
+        !SECURITY.md
+        # Styles and images
+        **/*.css
+        **/*.png
+        **/*.jpg
+        **/*.jpeg
+        **/*.webp
+        **/*.gif
+        **/*.svg
+        **/*.ico
+        # Component library
+        app/primitives/**
+        public/fonts/**
+
+  # The check the org ruleset requires. `always()` makes it report even when `tier` fails, is
+  # skipped or is cancelled, and it fails unless `tier` succeeded.
+  risk-tier:
+    name: risk-tier
+    needs: [tier]
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Require the risk tier check to pass
+        env:
+          RESULT: ${{ needs.tier.result }}
+        run: test "$RESULT" = success
