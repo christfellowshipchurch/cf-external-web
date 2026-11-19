@@ -139,7 +139,7 @@ describe('fetchContentItems', () => {
     });
 
     expect(vi.mocked(global.fetch).mock.calls[0][0]).toBe(
-      'https://rock.example.com/api/v2/models/contentchannelitems/search/contentchannelitems',
+      'https://rock.example.com/api/v2/models/contentchannelitems/search/contentChannelItems',
     );
     const body = sentBody();
     expect(body.where).toBe(
@@ -427,7 +427,7 @@ describe('fetchChildContentItems', () => {
 });
 
 describe('other attribute lookups', () => {
-  it('reads a Defined Value by Url through the definedvalues search', async () => {
+  it('reads a Defined Value by Url through the definedValues search', async () => {
     stubSearch([
       { guid: 'series-guid', value: 'Series', lookupValue: 'series' },
     ]);
@@ -440,7 +440,7 @@ describe('other attribute lookups', () => {
     ).resolves.toMatchObject({ guid: 'series-guid', value: 'Series' });
 
     expect(vi.mocked(global.fetch).mock.calls[0][0]).toMatch(
-      /definedvalues\/search\/definedvalues$/,
+      /definedvalues\/search\/definedValues$/,
     );
     expect(sentBody().where).toBe(
       'DefinedValueAttributeValues.Any(av => av.Key == "Url" && av.Value == "series")',

@@ -1,5 +1,9 @@
-import { buildV2CacheKey } from '~/lib/.server/fetch-rock-v2';
+import { buildV2CacheKey, searchPath } from '~/lib/.server/fetch-rock-v2';
 import { GROUPS_V2 } from '~/lib/.server/rock-people-groups';
+import {
+  MATRIX_ITEMS_V2_MODEL,
+  MATRIX_ITEMS_V2_SEARCH_KEY,
+} from '~/lib/.server/rock-utils';
 import { buildV2Search } from '~/lib/.server/rock-v2-search';
 import { type ActionFunction, type LoaderFunction, data } from 'react-router';
 import redis from '~/lib/.server/redis-config';
@@ -120,7 +124,7 @@ export const action: ActionFunction = async ({ request }) => {
         (await deleteByPrefix(redis, 'AttributeMatrixItems')) +
         (await deleteByPrefix(
           redis,
-          'v2/models/attributematricesitem/search/attributematricesitem',
+          `v2/models/${searchPath(MATRIX_ITEMS_V2_MODEL, MATRIX_ITEMS_V2_SEARCH_KEY)}`,
         ));
       return data({ success: true, target, deletedKeys });
     } catch {

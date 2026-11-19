@@ -78,7 +78,7 @@ const toV2Where = ({
     .filter(Boolean)
     .join(' && ');
 
-/** Every read is one `definedvalues` search, attribute values included. */
+/** Every read is one `definedValues` search, attribute values included. */
 export const definedValuesV2Read = (query: DefinedValueQuery) => {
   const requested = query.fields ?? ALL_FIELDS;
   // A Guid lookup always selects Guid, so the v2 rows can be checked.
@@ -89,7 +89,7 @@ export const definedValuesV2Read = (query: DefinedValueQuery) => {
   ).join(', ');
 
   return {
-    path: searchPath('definedvalues'),
+    path: searchPath(DEFINED_VALUES_V2.model, DEFINED_VALUES_V2.searchKey),
     method: 'POST' as const,
     body: buildV2SearchBody({
       where: toV2Where(query),
@@ -132,6 +132,7 @@ export const fetchDefinedValueByGuid = async <T = RockDefinedValue>(
 const DEFINED_VALUES_V2: V2SearchEntity = {
   v1Endpoint: 'DefinedValues',
   model: 'definedvalues',
+  searchKey: 'definedValues',
   entityName: 'DefinedValue',
   fields: [
     'Id',

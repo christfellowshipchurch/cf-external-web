@@ -153,6 +153,7 @@ async function getPodcastChannel(
       name: string;
     }>({
       v2Model: 'contentchannels',
+      v2SearchKey: 'contentChannels',
       guid: String(channelData.attributeValues?.showChannel?.value ?? ''),
       select: 'Name,Id',
     });

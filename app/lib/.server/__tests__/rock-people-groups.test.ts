@@ -5,6 +5,7 @@ import {
   fetchGroupMembers,
   fetchPeople,
   fetchPersonAliases,
+  fetchPhoneNumbers,
 } from '../rock-people-groups';
 
 const PERSON_GUID = '1b5c2e3d-4f5a-6b7c-8d9e-0f1a2b3c4d5e';
@@ -181,6 +182,25 @@ describe('fetchPersonAliases', () => {
   });
 });
 
+describe('fetchPhoneNumbers', () => {
+  it('reads through the camelCase phoneNumbers search', async () => {
+    stubRock({
+      count: 1,
+      items: [{ id: 2, personId: 7, number: '5615551234' }],
+    });
+
+    await expect(
+      fetchPhoneNumbers({
+        endpoint: 'PhoneNumbers',
+        queryParams: { $filter: 'PersonId eq 7' },
+      }),
+    ).resolves.toMatchObject({ id: 2, personId: 7 });
+    expect(vi.mocked(global.fetch).mock.calls[0][0]).toMatch(
+      /phonenumbers\/search\/phoneNumbers$/,
+    );
+  });
+});
+
 describe('fetchGroupMembers', () => {
   // A membership check gates a write: another membership must not pass.
   it('rejects when a membership check returns another person', async () => {
@@ -220,6 +240,9 @@ describe('fetchGroupMembers', () => {
       },
     });
 
+    expect(vi.mocked(global.fetch).mock.calls[0][0]).toMatch(
+      /groupmembers\/search\/groupMembers$/,
+    );
     expect(sentBody().where).toBe(
       '(GroupId == 5 && GroupMemberStatus == "Active")',
     );

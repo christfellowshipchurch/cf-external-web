@@ -34,10 +34,10 @@ const sentBody = () =>
   JSON.parse(String(vi.mocked(global.fetch).mock.calls[0][1]?.body));
 
 describe('definedValuesV2Read', () => {
-  it('reads a lone Guid through the shared definedvalues search', () => {
+  it('reads a lone Guid through the shared definedValues search', () => {
     const read = definedValuesV2Read({ guid: GUID });
 
-    expect(read.path).toBe('definedvalues/search/definedvalues');
+    expect(read.path).toBe('definedvalues/search/definedValues');
     expect(read.body.where).toBe(`Guid == "${GUID}"`);
   });
 
@@ -64,7 +64,7 @@ describe('definedValuesV2Read', () => {
       fields: ['Guid', 'Value'],
     });
 
-    expect(read.path).toBe('definedvalues/search/definedvalues');
+    expect(read.path).toBe('definedvalues/search/definedValues');
     expect(read.body).toEqual({
       where: `DefinedTypeId == 631 && IsActive == true && Guid == "${GUID}"`,
       select: 'new (Guid, Value)',
@@ -88,7 +88,7 @@ describe('fetchDefinedValues', () => {
     });
 
     expect(vi.mocked(global.fetch).mock.calls[0][0]).toBe(
-      'https://rock.example.com/api/v2/models/definedvalues/search/definedvalues',
+      'https://rock.example.com/api/v2/models/definedvalues/search/definedValues',
     );
     const body = sentBody();
     expect(body.where).toBe('DefinedTypeId == 631 && IsActive == true');

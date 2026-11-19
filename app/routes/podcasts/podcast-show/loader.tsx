@@ -28,6 +28,7 @@ export async function getChannelIdByGuid(channelGuid: string) {
   try {
     channel = await fetchRockEntityByGuid<{ id: number }>({
       v2Model: 'contentchannels',
+      v2SearchKey: 'contentChannels',
       guid: channelGuid,
       select: 'Id',
     });
