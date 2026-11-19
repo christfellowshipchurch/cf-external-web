@@ -6,7 +6,8 @@ import {
 } from '../components/during-the-week.component';
 import { CTAs } from '../components/ctas.component';
 import { ChristmasServicesBanner } from '../components/christmas-services-banner.component';
-import { isChristmasServicesActive } from '~/lib/christmas-services';
+import { useLoaderData } from 'react-router';
+import type { LoaderReturnType } from '../loader';
 import { icons } from '~/lib/icons';
 import { dayTimes, formattedServiceTimes } from '~/lib/utils';
 
@@ -83,7 +84,8 @@ export const CampusInfo = ({
   serviceTimes,
 }: CampusInfoProps) => {
   const isSpanish = campusName?.includes('Español');
-  const showChristmas = isChristmasServicesActive();
+  const { showChristmasServices: showChristmas } =
+    useLoaderData<LoaderReturnType>();
 
   const address = `${campusLocation?.street1}${
     campusLocation?.street2 ? ` ${campusLocation?.street2}` : ''

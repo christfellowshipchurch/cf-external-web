@@ -6,6 +6,7 @@ import { fetchCampusWithDetails } from '~/lib/.server/rock-campuses';
 import { fetchDefinedValueByGuid } from '~/lib/.server/rock-defined-values';
 import type { LocationViewModel } from './types';
 import { mapRockCampusToLocationViewModel } from './location-mapper.server';
+import { isChristmasServicesActive } from '~/lib/christmas-services';
 
 export type CampusAmenity = {
   title: string;
@@ -23,6 +24,8 @@ export type LoaderReturnType = {
   location: LocationViewModel;
   campusAmenities: CampusAmenity[];
   upcomingEvents: PageBuilderSection & { type: 'EVENT_COLLECTION' };
+  /** Decided on the server so SSR and hydration agree at the cutoff. */
+  showChristmasServices: boolean;
 };
 
 // TODO: We might want to find a better way to handle this and remove this, but for now we will keep it
@@ -149,6 +152,7 @@ export const loader: LoaderFunction = async ({ params }) => {
     location,
     campusAmenities,
     upcomingEvents,
+    showChristmasServices: isChristmasServicesActive(),
   };
 
   return pageData;
