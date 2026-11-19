@@ -11,7 +11,7 @@ on:
 
 permissions:
   contents: read
-  pull-requests: read
+  pull-requests: write # to request reviewers
 
 concurrency:
   group: risk-tier-${{ github.event.pull_request.number }}
@@ -19,7 +19,7 @@ concurrency:
 
 jobs:
   tier:
-    uses: christfellowshipchurch/.github/.github/workflows/risk-tier.yml@54529ec4fa92c752286322c8b9709f35cfb1680c # main
+    uses: christfellowshipchurch/.github/.github/workflows/risk-tier.yml@a467977fefcd7798265c54d08ca18fc9834aa16c # main
     with:
       # Files a Low PR may touch. The last matching line wins; ! excludes.
       low-paths: |
