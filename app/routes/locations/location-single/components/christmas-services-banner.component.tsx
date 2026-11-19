@@ -1,16 +1,13 @@
-import {
-  CHRISTMAS_SERVICES_URL,
-  CHRISTMAS_SERVICES_URL_ES,
-} from '~/lib/christmas-services';
-
-/** Red "Christmas Services" card under the campus heading; links to the Christmas site. */
+/** Red "Christmas Services" card under the campus heading; links to the campus on the Christmas site. */
 export const ChristmasServicesBanner = ({
+  href,
   isSpanish,
 }: {
+  href: string;
   isSpanish?: boolean;
 }) => (
   <a
-    href={isSpanish ? CHRISTMAS_SERVICES_URL_ES : CHRISTMAS_SERVICES_URL}
+    href={href}
     target='_blank'
     rel='noopener noreferrer'
     className='group block w-full rounded-[14px] border border-[#BE996C] bg-[#8E1F1D] p-1 lg:max-w-[455px]'

@@ -84,8 +84,8 @@ export const CampusInfo = ({
   serviceTimes,
 }: CampusInfoProps) => {
   const isSpanish = campusName?.includes('Español');
-  const { showChristmasServices: showChristmas } =
-    useLoaderData<LoaderReturnType>();
+  const { christmasServicesUrl } = useLoaderData<LoaderReturnType>();
+  const showChristmas = Boolean(christmasServicesUrl);
 
   const address = `${campusLocation?.street1}${
     campusLocation?.street2 ? ` ${campusLocation?.street2}` : ''
@@ -96,7 +96,7 @@ export const CampusInfo = ({
   if (isOnline) {
     return (
       <OnlineCampusInfo
-        showChristmas={showChristmas}
+        christmasServicesUrl={christmasServicesUrl}
         campusName={campusName}
         digitalTourVideo={digitalTourVideo}
         phoneNumber={phoneNumber}
@@ -140,7 +140,12 @@ export const CampusInfo = ({
             </h1>
           </div>
 
-          {showChristmas && <ChristmasServicesBanner isSpanish={isSpanish} />}
+          {christmasServicesUrl && (
+            <ChristmasServicesBanner
+              href={christmasServicesUrl}
+              isSpanish={isSpanish}
+            />
+          )}
 
           {/* Important Info Section */}
           <div className='flex flex-col gap-3'>
@@ -208,8 +213,9 @@ const OnlineCampusInfo = ({
   phoneNumber,
   additionalInfo,
   serviceTimes,
-  showChristmas,
-}: CampusInfoProps & { showChristmas: boolean }) => {
+  christmasServicesUrl,
+}: CampusInfoProps & { christmasServicesUrl: string | null }) => {
+  const showChristmas = Boolean(christmasServicesUrl);
   return (
     <div className='w-full content-padding'>
       <div className='mx-auto flex w-full max-w-screen-content flex-col gap-8 pt-16 pb-20 lg:flex-row lg:justify-between lg:pb-32'>
@@ -226,7 +232,9 @@ const OnlineCampusInfo = ({
             </h1>
           </div>
 
-          {showChristmas && <ChristmasServicesBanner />}
+          {christmasServicesUrl && (
+            <ChristmasServicesBanner href={christmasServicesUrl} />
+          )}
 
           {/* Important Info Section */}
           <div className='flex flex-col gap-3'>

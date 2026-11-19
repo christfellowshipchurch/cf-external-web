@@ -55,12 +55,13 @@ describe('location-single loader', () => {
     try {
       vi.setSystemTime(new Date('2026-12-24T20:59:00-05:00'));
       expect(await load(campus.url)).toMatchObject({
-        showChristmasServices: true,
+        christmasServicesUrl:
+          'https://www.christmasatcf.com/espanol?view=service&campus=espanol-palm-beach-gardens',
       });
 
       vi.setSystemTime(new Date('2026-12-24T21:00:00-05:00'));
       expect(await load(campus.url)).toMatchObject({
-        showChristmasServices: false,
+        christmasServicesUrl: null,
       });
     } finally {
       vi.useRealTimers();
