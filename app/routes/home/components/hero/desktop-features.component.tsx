@@ -10,7 +10,7 @@ export const DesktopFeaturedItems = () => {
   }
   return (
     <div className='w-full py-8'>
-      <div className='flex flex-col md:flex-row justify-center lg:justify-start gap-4 md:gap-8 lg:gap-12'>
+      <div className='flex flex-col md:flex-row justify-center lg:justify-start gap-4 md:gap-8 lg:gap-6 xl:gap-12'>
         {actions &&
           actions.map((action: HeroAction) => (
             <DesktopFeaturedItem
@@ -46,7 +46,7 @@ const DesktopFeaturedItem = ({
       data-position={position}
       data-item-title={title}
     >
-      <div className='bg-ocean lg:bg-dark-navy group-hover:bg-ocean transition-colors duration-300 rounded-sm p-2'>
+      <div className='shrink-0 bg-ocean lg:bg-dark-navy group-hover:bg-ocean transition-colors duration-300 rounded-sm p-2'>
         <Icon name={iconName} color='white' />
       </div>
       <div>

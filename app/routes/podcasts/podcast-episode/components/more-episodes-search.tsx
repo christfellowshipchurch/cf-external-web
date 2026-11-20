@@ -1,45 +1,50 @@
 import { Icon } from '~/primitives/icon/icon';
 import { Link } from 'react-router';
 import { ContentItemHit } from '~/routes/search/types';
+import { getSearchHitPathname } from '~/components/navbar/search-hit-links';
 
 interface MoreEpisodesSearchProps {
   hits: ContentItemHit[];
 }
 
 const MoreEpisodesHitComponent = ({ hit }: { hit: ContentItemHit }) => {
-  const cardUrl = `/podcasts/${hit.podcastShow
-    ?.toLowerCase()
-    .replace(/ /g, '-')}/${hit.url}`;
+  const cardUrl = getSearchHitPathname('podcast', hit.url, hit);
 
+  // Whole card is one link; the play button is decoration.
   return (
-    <div className='flex flex-col pb-4 md:pb-0 gap-4 w-full min-w-3/4 md:min-w-0 md:w-[340px] lg:w-full'>
+    <Link
+      to={cardUrl}
+      className='group flex flex-col pb-4 md:pb-0 gap-4 w-full min-w-3/4 md:min-w-0 md:w-[340px] lg:w-full rounded-[0.5rem] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ocean'
+    >
       <div className='relative md:w-[340px] lg:w-full'>
         <img
           src={
             hit.coverImage?.sources?.[0]?.uri ||
             '/assets/images/podcasts/hero.jpg'
           }
-          alt={hit.title}
+          alt=''
           className='w-full relative aspect-square md:w-[340px] lg:w-full object-cover rounded-[0.5rem]'
         />
-        <Link
-          to={cardUrl}
-          className='absolute bottom-4 left-4 bg-white p-1 rounded-full hover:bg-gray-300 transition-colors duration-300'
+        <span
+          aria-hidden='true'
+          className='absolute bottom-4 left-4 bg-white p-1 rounded-full group-hover:bg-gray-300 transition-colors duration-300'
           style={{
             boxShadow:
               '0px 4px 8px -2px rgba(0, 0, 0, 0.20), 0px 2px 4px -2px rgba(0, 0, 0, 0.09)',
           }}
         >
           <Icon name='play' color='black' size={32} className='pl-1' />
-        </Link>
+        </span>
       </div>
       <div className='flex flex-col gap-2'>
         <p className='text-sm text-text-secondary'>
           Season {hit.podcastSeasonNumber} | Episode {hit.podcastEpisodeNumber}
         </p>
-        <h3 className='text-lg font-bold'>{hit.title}</h3>
+        <h3 className='text-lg font-bold group-hover:text-ocean transition-colors duration-300'>
+          {hit.title}
+        </h3>
       </div>
-    </div>
+    </Link>
   );
 };
 

@@ -42,6 +42,38 @@ describe('MoreEpisodesSearch', () => {
     expect(screen.getByText('Season 1 | Episode 2')).toBeInTheDocument();
   });
 
+  it('makes the whole card one link to the episode', () => {
+    renderWithRouter(<MoreEpisodesSearch {...defaultProps} />);
+
+    const links = screen.getAllByRole('link');
+    expect(links).toHaveLength(1);
+    expect(links[0]).toHaveAttribute(
+      'href',
+      '/podcasts/test-show/test-episode',
+    );
+    expect(links[0]).toHaveTextContent('Test Episode');
+    expect(links[0]).toHaveTextContent('Season 1 | Episode 2');
+  });
+
+  it('builds the episode link the same way site search does', () => {
+    renderWithRouter(
+      <MoreEpisodesSearch
+        hits={[
+          {
+            ...defaultProps.hits[0],
+            podcastShow: 'Faith + Work',
+            url: '/test-episode',
+          },
+        ]}
+      />,
+    );
+
+    expect(screen.getByRole('link')).toHaveAttribute(
+      'href',
+      '/podcasts/faith-and-work/test-episode',
+    );
+  });
+
   it('does not render when there are no loader hits', () => {
     const { container } = renderWithRouter(<MoreEpisodesSearch hits={[]} />);
 
