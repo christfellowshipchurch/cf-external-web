@@ -50,6 +50,24 @@ describe('location-single loader', () => {
     expect(result).not.toHaveProperty('ALGOLIA_SEARCH_API_KEY');
   });
 
+  it('decides the Christmas banner on the server, off from Christmas Eve 9PM Eastern', async () => {
+    vi.useFakeTimers();
+    try {
+      vi.setSystemTime(new Date('2026-12-24T20:59:00-05:00'));
+      expect(await load(campus.url)).toMatchObject({
+        christmasServicesUrl:
+          'https://www.christmasatcf.com/espanol?view=service&campus=espanol-palm-beach-gardens',
+      });
+
+      vi.setSystemTime(new Date('2026-12-24T21:00:00-05:00'));
+      expect(await load(campus.url)).toMatchObject({
+        christmasServicesUrl: null,
+      });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('returns 404 for unsupported campus slugs before querying Rock', async () => {
     await expect(load('not-a-campus')).rejects.toMatchObject({ status: 404 });
     expect(fetchCampusWithDetails).not.toHaveBeenCalled();
