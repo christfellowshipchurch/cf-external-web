@@ -23,7 +23,6 @@ export function DesktopHeroSection() {
           fetchPriority='high'
         />
         <div className='absolute inset-0 w-1/2 h-full bg-ocean opacity-90 z-1' />
-        <div className='absolute bottom-0 left-0 z-2 h-[104px] w-1/2 bg-white' />
         <div className='relative h-full' />
 
         {/* Right Column - Background Video */}
@@ -51,40 +50,47 @@ export function DesktopHeroSection() {
       </div>
 
       {/* Content Overlay */}
-      <div className='absolute inset-0 w-full h-full z-10 content-padding pointer-events-none'>
-        <div className='max-w-screen-content h-full mx-auto w-full pointer-events-auto'>
-          <div className='flex h-full w-full flex-col'>
-            <div className='flex flex-1 flex-col gap-8 justify-center items-start w-full'>
-              <h1 className='text-[64px] xl:text-[86px] text-white font-extrabold leading-none max-w-[600px] z-2'>
-                Find Your <br />
-                People.{' '}
-                <span className='text-dark-navy'>
-                  Find <br />
-                  Your Purpose.
-                </span>
-              </h1>
-              <p className='text-white max-w-[470px] xl:max-w-[529px] text-xl z-2'>
-                From inspiring messages to genuine community, Christ Fellowship
-                is a place where you and your family can grow in your faith and
-                make lifelong friendships.
-              </p>
-              <div
-                className={cn(
-                  'relative flex w-fit pb-10',
-                  isSearching ? 'z-20' : 'z-3',
-                )}
-              >
-                {/* Location Search */}
-                <LocationSearch
-                  isSearching={isSearching}
-                  setIsSearching={setIsSearching}
-                />
+      <div className='absolute inset-0 w-full h-full z-10 flex flex-col pointer-events-none'>
+        <div className='flex-1 min-h-0 content-padding'>
+          <div className='max-w-screen-content h-full mx-auto w-full pointer-events-auto'>
+            <div className='flex h-full w-full flex-col'>
+              <div className='flex flex-1 flex-col gap-8 justify-center items-start w-full'>
+                <h1 className='text-[64px] xl:text-[86px] text-white font-extrabold leading-none max-w-[600px] z-2'>
+                  Find Your <br />
+                  People.{' '}
+                  <span className='text-dark-navy'>
+                    Find <br />
+                    Your Purpose.
+                  </span>
+                </h1>
+                <p className='text-white max-w-[470px] xl:max-w-[529px] text-xl z-2'>
+                  From inspiring messages to genuine community, Christ
+                  Fellowship is a place where you and your family can grow in
+                  your faith and make lifelong friendships.
+                </p>
+                <div
+                  className={cn(
+                    'relative flex w-fit pb-10',
+                    isSearching ? 'z-20' : 'z-3',
+                  )}
+                >
+                  {/* Location Search */}
+                  <LocationSearch
+                    isSearching={isSearching}
+                    setIsSearching={setIsSearching}
+                  />
+                </div>
               </div>
             </div>
-            {/* Bottom Bar */}
-            <div className='z-11 w-full max-w-[600px]'>
-              <DesktopFeaturedItems />
-            </div>
+          </div>
+        </div>
+
+        {/* Featured CTAs: white strip under the left column; in flow so long CMS copy
+            pushes the headline up instead of covering it. Left padding matches the
+            lg content-padding (4.5rem) and the 1432px max-w-screen-content column. */}
+        <div className='z-11 w-1/2 min-h-[104px] bg-white pr-6 pl-[max(4.5rem,calc(50%-716px))] pointer-events-auto'>
+          <div className='max-w-[600px]'>
+            <DesktopFeaturedItems />
           </div>
         </div>
       </div>
