@@ -114,8 +114,9 @@ const Harness = ({
 };
 
 const column = (n: number) =>
-  screen.getByRole('heading', { name: `Session ${n}` }).closest('div')!
-    .parentElement!;
+  screen
+    .getByRole('heading', { name: new RegExp(`^Session ${n}`) })
+    .closest('div')!.parentElement!;
 
 const pickFirstOpen = (n: number) => {
   const radio = within(column(n))
@@ -128,6 +129,16 @@ const continueButton = () =>
   screen.getByRole('button', { name: 'Continue to Your Information' });
 
 describe('PlanYourJourneyStep', () => {
+  it('labels Session 3 as the Dream Team Kickoff', () => {
+    render(<Harness />);
+    expect(
+      screen.getByRole('heading', { name: 'Session 3/Dream Team Kickoff' }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('heading', { name: 'Session 1' }),
+    ).toBeInTheDocument();
+  });
+
   it('blocks Continue until at least one session is chosen', () => {
     render(<Harness />);
     expect(continueButton()).toBeDisabled();

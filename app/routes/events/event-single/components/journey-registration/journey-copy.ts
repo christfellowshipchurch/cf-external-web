@@ -12,7 +12,9 @@ export const JOURNEY_COPY = {
     intro: 'Journey includes three sessions. Complete all three in any order.',
     step: (n: number) => `Step ${n} of 3`,
     back: 'Back',
-    session: (n: number) => `Session ${n}`,
+    // Session 3 is also the Dream Team Kickoff, so its label says so.
+    session: (n: number) =>
+      n === 3 ? 'Session 3/Dream Team Kickoff' : `Session ${n}`,
     sessionDescriptions: {
       1: 'Discover the story behind Christ Fellowship and what it means to know God personally.',
       2: 'Find your place in the community and learn how faith grows through meaningful relationships.',
@@ -64,7 +66,8 @@ export const JOURNEY_COPY = {
       'Journey incluye tres sesiones. Completa las tres en el orden que prefieras.',
     step: (n: number) => `Paso ${n} de 3`,
     back: 'Atrás',
-    session: (n: number) => `Sesión ${n}`,
+    session: (n: number) =>
+      n === 3 ? 'Sesión 3/Dream Team Kickoff' : `Sesión ${n}`,
     sessionDescriptions: {
       1: 'Descubre la historia detrás de Christ Fellowship y qué significa conocer a Dios personalmente.',
       2: 'Encuentra tu lugar en la comunidad y descubre cómo la fe crece a través de relaciones significativas.',
